@@ -1,0 +1,44 @@
+{
+ "cases": [
+  {
+   "lang": "en",
+   "text": "Hello world",
+   "hash": "02fef90579b6a3"
+  },
+  {
+   "lang": "en",
+   "text": "  Hello \n world  ",
+   "hash": "02fef90579b6a3"
+  },
+  {
+   "lang": "zh-CN",
+   "text": "你好！欢迎来到今天的课程。",
+   "hash": "0d9c652e907e1a"
+  },
+  {
+   "lang": "km",
+   "text": "សូមស្វាគមន៍មកកាន់មេរៀនរបស់អ្នក។",
+   "hash": "14be88f30d34be"
+  },
+  {
+   "lang": "es",
+   "text": "Visión general. Bienvenidos.",
+   "hash": "092c52511e4094"
+  },
+  {
+   "lang": "en",
+   "text": "emoji 😀 pair",
+   "hash": "11c87f95b37626"
+  },
+  {
+   "lang": "th",
+   "text": "ยินดีต้อนรับ",
+   "hash": "0dfdfeab7313bf"
+  },
+  {
+   "lang": "en",
+   "text": "a b　c",
+   "hash": "10c737c68a5030"
+  }
+ ]
+}

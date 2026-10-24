@@ -1,0 +1,3043 @@
+{
+ "version": 1,
+ "hash": "cyrb53-14hex of lang+US+NFC-collapsed text",
+ "languages": [
+  "en",
+  "es",
+  "hi",
+  "km",
+  "sw",
+  "th",
+  "vi",
+  "zh"
+ ],
+ "voices": [
+  {
+   "id": "channarith",
+   "label": "Channarith",
+   "speaker": "channarith",
+   "model": "voxcpm2",
+   "active": true,
+   "ai_label": "AI-generated voice of Channarith"
+  }
+ ],
+ "clips": [
+  {
+   "id": "on_the_go:en:02de60126ab974",
+   "demo": "on_the_go",
+   "lang": "en",
+   "text": "Limits and Ethics. Models can be biased, brittle on edge cases, and opaque in deep networks. High-stakes uses in medicine and justice demand oversight and transparency. ML augments human judgment; it does not replace accountability.",
+   "hash": "02de60126ab974"
+  },
+  {
+   "id": "on_the_go:en:04d099ac3d6a8c",
+   "demo": "on_the_go",
+   "lang": "en",
+   "text": "Overview. Welcome. In this lesson we explore Intro to Machine Learning. We'll cover 8 parts, beginning with Learning from Examples, Data Splits, Features and Models, Training Loop, Overfitting, Evaluation, Deployment, and Limits and Ethics. As you listen, notice how each part builds on the one before it — you don't need to take notes, just follow along.",
+   "hash": "04d099ac3d6a8c"
+  },
+  {
+   "id": "on_the_go:en:0f1894e3e20651",
+   "demo": "on_the_go",
+   "lang": "en",
+   "text": "Key takeaways. Key takeaways. Let's recap the main points. Learning from Examples. Machine learning builds models that improve on tasks by finding patterns in data instead of hand-coded rules. Supervised learning uses labeled examples; unsupervised learning finds structure without labels. Reinforcement learning learns from rewards in environments like games. Data Splits. Data is split into training, validation, and test sets to measure generalization. Leakage—test information in training—_inflates scores misleadingly. Cross-validation gives robust estimates on smaller datasets. Features and Models. Features are inputs; labels are targets in classification and regression. Linear models are interpretable baselines; tree ensembles handle tabular data well. Neural networks excel on images, audio, and text with enough data and compute. Training Loop. Loss functions measure error; optimizers like Adam adjust weights to reduce loss over epochs. Batch size and learning rate affect stability and speed. GPUs accelerate matrix operations training large models. Overfitting. Models that memorize training noise fail on new data. Regularization, dropout, and early stopping reduce overfitting. More diverse data often helps more than endlessly bigger models. Evaluation. Classification uses precision, recall, and F1 especially when classes are imbalanced. Regression uses MAE and RMSE. Choose metrics aligned with real costs of false positives and false negatives. Deployment. Models serve predictions via APIs or on-device inference. Monitoring detects data drift when real-world inputs change. MLOps practices version data, code, and models for reproducibility. Limits and Ethics. Models can be biased, brittle on edge cases, and opaque in deep networks. High-stakes uses in medicine and justice demand oversight and transparency. ML augments human judgment; it does not replace accountability. Keep these in mind, and you'll have a solid working grasp of Intro to Machine Learning. That's the end of this lesson — thanks for listening.",
+   "hash": "0f1894e3e20651"
+  },
+  {
+   "id": "on_the_go:en:18c4a929b5b332",
+   "demo": "on_the_go",
+   "lang": "en",
+   "text": "Features and Models. Features are inputs; labels are targets in classification and regression. Linear models are interpretable baselines; tree ensembles handle tabular data well. Neural networks excel on images, audio, and text with enough data and compute.",
+   "hash": "18c4a929b5b332"
+  },
+  {
+   "id": "on_the_go:en:1a0c0a54ffd96f",
+   "demo": "on_the_go",
+   "lang": "en",
+   "text": "Deployment. Models serve predictions via APIs or on-device inference. Monitoring detects data drift when real-world inputs change. MLOps practices version data, code, and models for reproducibility.",
+   "hash": "1a0c0a54ffd96f"
+  },
+  {
+   "id": "on_the_go:en:1a886bfaa37952",
+   "demo": "on_the_go",
+   "lang": "en",
+   "text": "Training Loop. Loss functions measure error; optimizers like Adam adjust weights to reduce loss over epochs. Batch size and learning rate affect stability and speed. GPUs accelerate matrix operations training large models.",
+   "hash": "1a886bfaa37952"
+  },
+  {
+   "id": "on_the_go:en:1ab33cc8b5c2d6",
+   "demo": "on_the_go",
+   "lang": "en",
+   "text": "Overfitting. Models that memorize training noise fail on new data. Regularization, dropout, and early stopping reduce overfitting. More diverse data often helps more than endlessly bigger models.",
+   "hash": "1ab33cc8b5c2d6"
+  },
+  {
+   "id": "on_the_go:en:1b1e8122074689",
+   "demo": "on_the_go",
+   "lang": "en",
+   "text": "Evaluation. Classification uses precision, recall, and F1 especially when classes are imbalanced. Regression uses MAE and RMSE. Choose metrics aligned with real costs of false positives and false negatives.",
+   "hash": "1b1e8122074689"
+  },
+  {
+   "id": "on_the_go:en:1d0067109c4fcc",
+   "demo": "on_the_go",
+   "lang": "en",
+   "text": "Learning from Examples. Machine learning builds models that improve on tasks by finding patterns in data instead of hand-coded rules. Supervised learning uses labeled examples; unsupervised learning finds structure without labels. Reinforcement learning learns from rewards in environments like games.",
+   "hash": "1d0067109c4fcc"
+  },
+  {
+   "id": "on_the_go:en:1fd0f32a9cb92f",
+   "demo": "on_the_go",
+   "lang": "en",
+   "text": "Data Splits. Data is split into training, validation, and test sets to measure generalization. Leakage—test information in training—_inflates scores misleadingly. Cross-validation gives robust estimates on smaller datasets.",
+   "hash": "1fd0f32a9cb92f"
+  },
+  {
+   "id": "on_the_go:es:0242895357bd1a",
+   "demo": "on_the_go",
+   "lang": "es",
+   "text": "Divisiones de datos. Los datos se dividen en conjuntos de entrenamiento, validación y prueba para medir la generalización. La fuga—información de prueba en el entrenamiento—_infla las puntuaciones de forma engañosa. La validación cruzada ofrece estimaciones robustas en conjuntos de datos más pequeños.",
+   "hash": "0242895357bd1a"
+  },
+  {
+   "id": "on_the_go:es:02aa3a10be5c15",
+   "demo": "on_the_go",
+   "lang": "es",
+   "text": "Evaluación. La clasificación utiliza precisión, recall y F1, especialmente cuando las clases están desbalanceadas. La regresión utiliza MAE y RMSE. Elige métricas alineadas con los costos reales de falsos positivos y falsos negativos.",
+   "hash": "02aa3a10be5c15"
+  },
+  {
+   "id": "on_the_go:es:0376f2e6b8fa55",
+   "demo": "on_the_go",
+   "lang": "es",
+   "text": "Características y modelos. Las características son las entradas; las etiquetas son los objetivos en clasificación y regresión. Los modelos lineales son líneas base interpretables; los ensembles de árboles manejan bien los datos tabulares. Las redes neuronales destacan en imágenes, audio y texto con suficientes datos y capacidad de cómputo.",
+   "hash": "0376f2e6b8fa55"
+  },
+  {
+   "id": "on_the_go:es:038a92f6845e4b",
+   "demo": "on_the_go",
+   "lang": "es",
+   "text": "sobreajuste. Los modelos que memorizan el ruido del entrenamiento fallan con datos nuevos. La regularización, el dropout y el early stopping reducen el sobreajuste. Los datos más diversos suelen ayudar más que los modelos cada vez más grandes.",
+   "hash": "038a92f6845e4b"
+  },
+  {
+   "id": "on_the_go:es:09a83ed04569dc",
+   "demo": "on_the_go",
+   "lang": "es",
+   "text": "Aprendiendo de ejemplos. El aprendizaje automático construye modelos que mejoran en las tareas al encontrar patrones en los datos en lugar de reglas codificadas manualmente. El aprendizaje supervisado utiliza ejemplos etiquetados; el aprendizaje no supervisado encuentra estructura sin etiquetas. El aprendizaje por refuerzo aprende de recompensas en entornos como los juegos.",
+   "hash": "09a83ed04569dc"
+  },
+  {
+   "id": "on_the_go:es:0da366aed8f2ea",
+   "demo": "on_the_go",
+   "lang": "es",
+   "text": "Límites y ética. Los modelos pueden estar sesgados, ser frágiles en casos límite y opacos en redes profundas. Los usos de alto riesgo en medicina y justicia exigen supervisión y transparencia. El ML complementa el juicio humano; no reemplaza la responsabilidad.",
+   "hash": "0da366aed8f2ea"
+  },
+  {
+   "id": "on_the_go:es:172e6546ee402a",
+   "demo": "on_the_go",
+   "lang": "es",
+   "text": "Despliegue. Los modelos proporcionan predicciones mediante APIs o inferencia en el dispositivo. El monitoreo detecta la deriva de datos cuando cambian las entradas del mundo real. Las prácticas de MLOps versionan datos, código y modelos para la reproducibilidad.",
+   "hash": "172e6546ee402a"
+  },
+  {
+   "id": "on_the_go:es:174b8304b28fbd",
+   "demo": "on_the_go",
+   "lang": "es",
+   "text": "Visión general. Bienvenidos. En esta lección exploramos Intro to Machine Learning. Cubriremos 8 partes, comenzando con Learning from Examples, Data Splits, Features and Models, Training Loop, Overfitting, Evaluation, Deployment y Limits and Ethics. Mientras escuchas, observa cómo cada parte se construye sobre la anterior — no necesitas tomar notas, solo sigue.",
+   "hash": "174b8304b28fbd"
+  },
+  {
+   "id": "on_the_go:es:1c9ca0f8993b64",
+   "demo": "on_the_go",
+   "lang": "es",
+   "text": "Puntos clave. Puntos clave. Repasemos los puntos principales. Aprendizaje a partir de ejemplos. El aprendizaje automático construye modelos que mejoran en las tareas encontrando patrones en los datos en lugar de reglas codificadas a mano. El aprendizaje supervisado usa ejemplos etiquetados; el aprendizaje no supervisado encuentra estructura sin etiquetas. El aprendizaje por refuerzo aprende de recompensas en entornos como los videojuegos. Divisiones de datos. Los datos se dividen en conjuntos de entrenamiento, validación y prueba para medir la generalización. La fuga de información —datos de prueba dentro del entrenamiento— infla los resultados de forma engañosa. La validación cruzada ofrece estimaciones más robustas con conjuntos pequeños. Características y modelos. Las características son las entradas; las etiquetas son los objetivos en clasificación y regresión. Los modelos lineales son una línea base interpretable; los ensembles de árboles funcionan muy bien con datos tabulares. Las redes neuronales destacan en imágenes, audio y texto cuando hay suficientes datos y capacidad de cómputo. Bucle de entrenamiento. Las funciones de pérdida miden el error; optimizadores como Adam ajustan los pesos para reducir la pérdida a lo largo de las épocas. El tamaño del lote y la tasa de aprendizaje influyen en la estabilidad y la velocidad. Las GPUs aceleran las operaciones matriciales al entrenar modelos grandes. Sobreajuste. Los modelos que memorizan el ruido del entrenamiento fallan con datos nuevos. La regularización, el dropout y el early stopping ayudan a reducirlo. Contar con datos más diversos suele ser más efectivo que hacer modelos cada vez más grandes. Evaluación. En clasificación se usan precisión, recall y F1, sobre todo cuando las clases están desbalanceadas. En regresión se emplean MAE y RMSE. Elige métricas que reflejen los costos reales de falsos positivos y falsos negativos. Despliegue. Los modelos ofrecen predicciones mediante APIs o inferencia en el dispositivo. El monitoreo detecta el data drift cuando cambian las entradas del mundo real. Las prácticas de MLOps versionan datos, código y modelos para garantizar reproducibilidad. Límites y ética. Los modelos pueden presentar sesgos, ser frágiles en casos límite y opacos en redes profundas. Los usos de alto riesgo en medicina y justicia requieren supervisión y transparencia. El ML complementa el juicio humano, pero no sustituye la responsabilidad. Ten todo esto en cuenta y tendrás una buena base de Introducción al Aprendizaje Automático. Con esto termina la lección. Gracias por escuchar.",
+   "hash": "1c9ca0f8993b64"
+  },
+  {
+   "id": "on_the_go:es:1d298cb11041bb",
+   "demo": "on_the_go",
+   "lang": "es",
+   "text": "Bucle de entrenamiento. Las funciones de pérdida miden el error; los optimizadores como Adam ajustan los pesos para reducir la pérdida a lo largo de las épocas. El tamaño del batch y la tasa de aprendizaje afectan la estabilidad y la velocidad. Las GPUs aceleran las operaciones matriciales al entrenar modelos grandes.",
+   "hash": "1d298cb11041bb"
+  },
+  {
+   "id": "on_the_go:hi:0005043d4b70da",
+   "demo": "on_the_go",
+   "lang": "hi",
+   "text": "तैनाती. मॉडल एपीआई या ऑन-डिवाइस इनफेरेंस के जरिए प्रेडिक्शन सर्व करते हैं। मॉनिटरिंग डेटा ड्रिफ्ट का पता लगाती है जब रियल-वर्ल्ड इनपुट बदलते हैं। एमएलऑप्स प्रैक्टिसेस रीप्रोड्यूसिबिलिटी के लिए डेटा, कोड और मॉडल्स को वर्जन करती हैं।",
+   "hash": "0005043d4b70da"
+  },
+  {
+   "id": "on_the_go:hi:0371c21ad3b17f",
+   "demo": "on_the_go",
+   "lang": "hi",
+   "text": "ट्रेनिंग लूप. लॉस फंक्शन एरर को मापते हैं; एडम जैसे ऑप्टिमाइज़र वेट्स को एडजस्ट करके एपॉक्स के दौरान लॉस को कम करते हैं। बैच साइज़ और लर्निंग रेट स्टेबिलिटी और स्पीड को प्रभावित करते हैं। जीपीयू मैट्रिक्स ऑपरेशन्स को तेज़ करके बड़े मॉडल्स को ट्रेन करते हैं।",
+   "hash": "0371c21ad3b17f"
+  },
+  {
+   "id": "on_the_go:hi:0b16288b4a36fc",
+   "demo": "on_the_go",
+   "lang": "hi",
+   "text": "विशेषताएं और मॉडल. विशेषताएँ इनपुट होती हैं; वर्गीकरण और प्रतिगमन में लेबल लक्ष्य होते हैं। रैखिक मॉडल व्याख्यात्मक आधाररेखाएँ हैं; वृक्ष समूह सारणीबद्ध डेटा को अच्छे से हैंडल करते हैं। तंत्रिका नेटवर्क छवियों, ऑडियो और पाठ पर पर्याप्त डेटा और कंप्यूट के साथ उत्कृष्ट प्रदर्शन करते हैं।",
+   "hash": "0b16288b4a36fc"
+  },
+  {
+   "id": "on_the_go:hi:11a7563e3007c7",
+   "demo": "on_the_go",
+   "lang": "hi",
+   "text": "मूल्यांकन. क्लासिफिकेशन में प्रेसिजन, रिकॉल और F1 का इस्तेमाल किया जाता है, खासकर जब क्लासेस असंतुलित हों। रिग्रेशन में MAE और RMSE यूज होते हैं। मेट्रिक्स ऐसे चुनें जो फॉल्स पॉजिटिव और फॉल्स नेगेटिव की असली लागत से मैच करें।",
+   "hash": "11a7563e3007c7"
+  },
+  {
+   "id": "on_the_go:hi:123a4149e36688",
+   "demo": "on_the_go",
+   "lang": "hi",
+   "text": "ओवरफिटिंग. ट्रेनिंग के नॉइज़ को याद रखने वाले मॉडल नए डेटा पर फेल हो जाते हैं। रेगुलराइजेशन, ड्रॉपआउट और अर्ली स्टॉपिंग ओवरफिटिंग को कम करते हैं। अक्सर ज्यादा विविध डेटा, लगातार बड़े मॉडल बनाने से ज्यादा मदद करता है।",
+   "hash": "123a4149e36688"
+  },
+  {
+   "id": "on_the_go:hi:13540e20d313d8",
+   "demo": "on_the_go",
+   "lang": "hi",
+   "text": "मुख्य बातें. मुख्य takeaways. आइए मुख्य बिंदुओं को दोहराएं। उदाहरणों से सीखना। मशीन लर्निंग ऐसे मॉडल बनाती है जो डेटा में पैटर्न ढूंढकर कामों में बेहतर होती है, बजाय हाथ से लिखे नियमों के। सुपरवाइज्ड लर्निंग लेबल वाले उदाहरणों का इस्तेमाल करती है; अनसुपरवाइज्ड लर्निंग बिना लेबल के संरचना ढूंढती है। रीइन्फोर्समेंट लर्निंग गेम्स जैसे माहौल में पुरस्कारों से सीखती है। डेटा स्प्लिट्स। डेटा को ट्रेनिंग, वैलिडेशन और टेस्ट सेट में बांटा जाता है ताकि जेनरलाइजेशन मापा जा सके। लीकेज—ट्रेनिंग में टेस्ट की जानकारी—स्कोर को गलत तरीके से बढ़ा देता है। क्रॉस-वैलिडेशन छोटे डेटासेट पर मजबूत अनुमान देता है। फीचर्स और मॉडल्स। फीचर्स इनपुट होते हैं; लेबल क्लासिफिकेशन और रिग्रेशन में टारगेट होते हैं। लीनियर मॉडल समझने में आसान बेसलाइन होते हैं; ट्री एनसेंबल टेबुलर डेटा को अच्छे से हैंडल करते हैं। न्यूरल नेटवर्क इमेज, ऑडियो और टेक्स्ट पर काफी डेटा और कंप्यूट होने पर बेहतरीन प्रदर्शन करते हैं। ट्रेनिंग लूप। लॉस फंक्शन एरर मापते हैं; ऑप्टिमाइजर जैसे एडम वेट्स को एपॉक्स में एडजस्ट करके लॉस कम करते हैं। बैच साइज और लर्निंग रेट स्थिरता और स्पीड प्रभावित करते हैं। जीपीयू बड़े मॉडल ट्रेनिंग में मैट्रिक्स ऑपरेशन्स को तेज करते हैं। ओवरफिटिंग। जो मॉडल ट्रेनिंग के शोर को याद कर लेते हैं, वे नए डेटा पर फेल होते हैं। रेगुलराइजेशन, ड्रॉपआउट और अर्ली स्टॉपिंग ओवरफिटिंग कम करते हैं। ज्यादा विविध डेटा अक्सर लगातार बड़े मॉडल से ज्यादा मदद करता है। इवैल्यूएशन। क्लासिफिकेशन में प्रेसिजन, रिकॉल और F1 इस्तेमाल होते हैं, खासकर जब क्लासेस असंतुलित हों। रिग्रेशन में MAE और RMSE इस्तेमाल होते हैं। मेट्रिक्स ऐसे चुनें जो फॉल्स पॉजिटिव और फॉल्स नेगेटिव की असली लागत से मेल खाएं। डिप्लॉयमेंट। मॉडल APIs या ऑन-डिवाइस इनफरेंस से प्रेडिक्शन देते हैं। मॉनिटरिंग डेटा ड्रिफ्ट पकड़ती है जब रियल-वर्ल्ड इनपुट बदलते हैं। MLOps डेटा, कोड और मॉडल्स को वर्जन करके रिप्रोड्यूसिबिलिटी सुनिश्चित करता है। लिमिट्स और एथिक्स। मॉडल बायस्ड हो सकते हैं, एज केस पर कमजोर और डीप नेटवर्क में अप",
+   "hash": "13540e20d313d8"
+  },
+  {
+   "id": "on_the_go:hi:13590ee804d33a",
+   "demo": "on_the_go",
+   "lang": "hi",
+   "text": "उदाहरणों से सीखना. मशीन लर्निंग डेटा में पैटर्न ढूंढकर ऐसे मॉडल बनाती है जो कामों में खुद-ब-खुद बेहतर होते जाते हैं, बजाय हाथ से लिखे नियमों के। सुपरवाइज्ड लर्निंग लेबल वाले उदाहरणों का इस्तेमाल करती है, जबकि अनसुपरवाइज्ड लर्निंग बिना लेबल के स्ट्रक्चर ढूंढती है। रीइन्फोर्समेंट लर्निंग गेम्स जैसे माहौल में इनाम पाकर सीखती है।",
+   "hash": "13590ee804d33a"
+  },
+  {
+   "id": "on_the_go:hi:136be7105d4301",
+   "demo": "on_the_go",
+   "lang": "hi",
+   "text": "सीमाएँ और नैतिकता. मॉडल पक्षपातपूर्ण हो सकते हैं, एज केस पर नाजुक और गहरे नेटवर्क में अपारदर्शी। चिकित्सा और न्याय जैसे उच्च-दांव वाले उपयोगों में निगरानी और पारदर्शिता की जरूरत होती है। एमएल मानवीय निर्णय को बढ़ाता है, यह जवाबदेही की जगह नहीं लेता।",
+   "hash": "136be7105d4301"
+  },
+  {
+   "id": "on_the_go:hi:15020fbc8acc3f",
+   "demo": "on_the_go",
+   "lang": "hi",
+   "text": "अवलोकन. आपका स्वागत है। इस पाठ में हम मशीन लर्निंग के परिचय का अन्वेषण करेंगे। हम 8 भागों को कवर करेंगे, जो Learning from Examples, Data Splits, Features and Models, Training Loop, Overfitting, Evaluation, Deployment और Limits and Ethics से शुरू होते हैं। जैसे आप सुनते हैं, ध्यान दें कि कैसे हर भाग पिछले वाले पर आधारित होता है — आपको नोट्स लेने की जरूरत नहीं, बस साथ चलें।",
+   "hash": "15020fbc8acc3f"
+  },
+  {
+   "id": "on_the_go:hi:1b6c4f8ed35a11",
+   "demo": "on_the_go",
+   "lang": "hi",
+   "text": "डेटा विभाजन. डेटा को ट्रेनिंग, वैलिडेशन और टेस्ट सेट्स में बांटा जाता है ताकि जेनरलाइजेशन को मापा जा सके। लीकेज—ट्रेनिंग में टेस्ट की जानकारी—स्कोर को गलत तरीके से बढ़ा देता है। क्रॉस-वैलिडेशन छोटे डेटासेट्स पर ज्यादा विश्वसनीय अनुमान देता है।",
+   "hash": "1b6c4f8ed35a11"
+  },
+  {
+   "id": "on_the_go:km:0383b86fdf0905",
+   "demo": "on_the_go",
+   "lang": "km",
+   "text": "រង្វង់បណ្តុះបណ្តាល. មុខងារបាត់បង់វាស់កំហុស; អុបទីម៉ាយស័រដូចជា Adam កែតម្រូវទម្ងន់ដើម្បីកាត់បន្ថយការបាត់បង់ក្នុងអំឡុងពេល epochs។ Batch size និង learning rate ប៉ះពាល់ដល់ស្ថេរភាព និងល្បឿន។ GPUs បង្កើនល្បឿនប្រតិបត្តិការម៉ាទ្រីសក្នុងការបង្វឹកម៉ូដែលធំៗ។",
+   "hash": "0383b86fdf0905"
+  },
+  {
+   "id": "on_the_go:km:03e99f41906739",
+   "demo": "on_the_go",
+   "lang": "km",
+   "text": "ការសមស្របលើស. ម៉ូដែលដែលទន្ទេញសំឡេងរំខានពីការហ្វឹកហ្វឺន នឹងបរាជ័យនៅពេលជួបទិន្នន័យថ្មី។ ការធ្វើឱ្យទៀងទាត់ ការទម្លាក់ និងការឈប់មុន ជួយកាត់បន្ថយការសមស្របហួសហេតុ។ ទិន្នន័យដែលមានភាពចម្រុះជាញឹកញាប់ជួយបានច្រើនជាងការពង្រីកម៉ូដែលឱ្យធំឥតឈប់ឈរ។",
+   "hash": "03e99f41906739"
+  },
+  {
+   "id": "on_the_go:km:03ff13d9780a8e",
+   "demo": "on_the_go",
+   "lang": "km",
+   "text": "ការវាយតម្លៃ. ការចាត់ថ្នាក់ប្រើ precision, recall និង F1 ជាពិសេសនៅពេលដែល classes មិនស្មើគ្នា។ Regression ប្រើ MAE និង RMSE។ ជ្រើសរើស metrics ដែលស្របនឹងការចំណាយពិតប្រាកដនៃ false positives និង false negatives។",
+   "hash": "03ff13d9780a8e"
+  },
+  {
+   "id": "on_the_go:km:0f6e1830eb81b9",
+   "demo": "on_the_go",
+   "lang": "km",
+   "text": "ទិដ្ឋភាពទូទៅ. សូមស្វាគមន៍។ នៅក្នុងមេរៀននេះ យើងនឹងស្វែងយល់ពី Intro to Machine Learning។ យើងនឹងគ្របដណ្តប់លើ ៨ ផ្នែក ដោយចាប់ផ្តើមពី Learning from Examples, Data Splits, Features and Models, Training Loop, Overfitting, Evaluation, Deployment, និង Limits and Ethics។ នៅពេលអ្នកស្តាប់ សូមកត់សម្គាល់ពីរបៀបដែលផ្នែកនីមួយៗបង្កើតឡើងលើផ្នែកមុនៗ — អ្នកមិនចាំបាច់កត់ត្រាទេ គ្រាន់តែតាមដានប៉ុណ្ណោះ។",
+   "hash": "0f6e1830eb81b9"
+  },
+  {
+   "id": "on_the_go:km:164f398b6ff8ea",
+   "demo": "on_the_go",
+   "lang": "km",
+   "text": "ការបែងចែកទិន្នន័យ. ទិន្នន័យត្រូវបានបំបែកជាសំណុំហ្វឹកហ្វាត សំណុំផ្ទៀងផ្ទាត់ និងសំណុំសាកល្បង ដើម្បីវាស់វែងការធ្វើទូទៅ។ ការលេចធ្លាយ—ព័ត៌មានសាកល្បងចូលទៅក្នុងការហ្វឹកហ្វាត—ធ្វើឱ្យពិន្ទុហួសហេតុដោយបំភាន់។ ការផ្ទៀងផ្ទាត់ឆ្លងកាត់ផ្តល់នូវការប៉ាន់ស្មានដែលរឹងមាំលើសំណុំទិន្នន័យតូចជាង។",
+   "hash": "164f398b6ff8ea"
+  },
+  {
+   "id": "on_the_go:km:195e6bf203d686",
+   "demo": "on_the_go",
+   "lang": "km",
+   "text": "ការដាក់ពង្រាយ. ម៉ូដែលផ្តល់ការព្យាករណ៍តាមរយៈ API ឬការសន្និដ្ឋាននៅលើឧបករណ៍។ ការត្រួតពិនិត្យរកឃើញការរសាត់ទិន្នន័យនៅពេលដែលធាតុចូលពិតប្រាកដផ្លាស់ប្តូរ។ ការអនុវត្ត MLOps កំណត់ជំនាន់ទិន្នន័យ កូដ និងម៉ូដែលសម្រាប់ការផលិតឡើងវិញបាន។",
+   "hash": "195e6bf203d686"
+  },
+  {
+   "id": "on_the_go:km:1a66f4cc827642",
+   "demo": "on_the_go",
+   "lang": "km",
+   "text": "ចំណុចសំខាន់ៗ. គន្លឹះសំខាន់ៗ។ តោះសង្ខេបចំណុចសំខាន់ៗ។ ការរៀនពីឧទាហរណ៍។ ម៉ាស៊ីនរៀនបង្កើតម៉ូដែលដែលអាចកែលម្អការងារដោយស្វែងរកលំនាំក្នុងទិន្នន័យ ជំនួសឱ្យការសរសេរច្បាប់ដោយដៃ។ ការរៀនមានការត្រួតពិនិត្យប្រើឧទាហរណ៍ដែលមានស្លាក។ ការរៀនគ្មានការត្រួតពិនិត្យស្វែងរករចនាសម្ព័ន្ធដោយគ្មានស្លាក។ ការរៀនពង្រឹងរៀនពីរង្វាន់នៅក្នុងបរិយាកាសដូចជាហ្គេម។ ការបែងចែកទិន្នន័យ។ ទិន្នន័យត្រូវបែងចែកជាសំណុំហ្វឹកហាត់ សុពលភាព និងសាកល្បង ដើម្បីវាស់ស្ទង់ការធ្វើទូទៅ។ ការលេចធ្លាយ—ព័ត៌មានសាកល្បងនៅក្នុងការហ្វឹកហាត់—ធ្វើឱ្យពិន្ទុហើមខ្ពស់ដោយមិនពិត។ ការផ្ទៀងផ្ទាត់ឆ្លងផ្តល់ការប៉ាន់ស្មានរឹងមាំលើទិន្នន័យតូច។ លក្ខណៈពិសេស និងម៉ូដែល។ លក្ខណៈពិសេសគឺជាធាតុចូល។ ស្លាកគឺជាគោលដៅក្នុងការចាត់ថ្នាក់ និងការតំរែតំរង់។ ម៉ូដែលលីនេអ៊ែរជាមូលដ្ឋានដែលអាចបកស្រាយបាន។ ក្រុមដើមឈើដំណើរការល្អលើទិន្នន័យតារាង។ បណ្តាញសរសៃប្រសាទពូកែលើរូបភាព សំឡេង និងអត្ថបទ នៅពេលមានទិន្នន័យ និងកុំព្យូទ័រគ្រប់គ្រាន់។ រង្វង់ហ្វឹកហាត់។ មុខងារបាត់បង់វាស់កំហុស។ អ",
+   "hash": "1a66f4cc827642"
+  },
+  {
+   "id": "on_the_go:km:1bedfa4e8909e7",
+   "demo": "on_the_go",
+   "lang": "km",
+   "text": "ការរៀនពីឧទាហរណ៍. ការរៀនម៉ាស៊ីនបង្កើតម៉ូដែលដែលធ្វើឱ្យប្រសើរឡើងលើកិច្ចការដោយស្វែងរកគំរូនៅក្នុងទិន្នន័យជំនួសឱ្យច្បាប់ដែលសរសេរដោយដៃ។ ការរៀនតាមការត្រួតពិនិត្យប្រើប្រាស់ឧទាហរណ៍ដែលមានស្លាក។ ការរៀនដោយគ្មានការត្រួតពិនិត្យរកឃើញរចនាសម្ព័ន្ធដោយគ្មានស្លាក។ ការរៀនពង្រឹងរៀនពីរង្វាន់នៅក្នុងបរិយាកាសដូចជាហ្គេម។",
+   "hash": "1bedfa4e8909e7"
+  },
+  {
+   "id": "on_the_go:km:1d5f25c555fab3",
+   "demo": "on_the_go",
+   "lang": "km",
+   "text": "លក្ខណៈពិសេស និងម៉ូដែល. លក្ខណៈពិសេសគឺជាធាតុចូល រីឯស្លាកគឺជាគោលដៅក្នុងការចាត់ថ្នាក់ និងការតំរែតំរង់។ ម៉ូដែលលីនេអ៊ែរជាមូលដ្ឋានដែលអាចបកស្រាយបាន រីឯក្រុមដើមឈើគ្រប់គ្រងទិន្នន័យតារាងបានល្អ។ បណ្តាញសរសៃប្រសាទពូកែលើរូបភាព សំឡេង និងអត្ថបទ នៅពេលមានទិន្នន័យ និងការគណនាគ្រប់គ្រាន់។",
+   "hash": "1d5f25c555fab3"
+  },
+  {
+   "id": "on_the_go:km:1e39a2ea6c9f46",
+   "demo": "on_the_go",
+   "lang": "km",
+   "text": "ដែនកំណត់ និង សីលធម៌. ម៉ូដែលអាចមានភាពលម្អៀង ងាយផុយស្រួយនៅករណីគែម និងមិនច្បាស់លាស់នៅក្នុងបណ្តាញជ្រៅ។ ការប្រើប្រាស់ក្នុងវិស័យដែលមានហានិភ័យខ្ពស់ដូចជាវេជ្ជសាស្ត្រ និងយុត្តិធម៌ ត្រូវការការត្រួតពិនិត្យ និងភាពថ្លាថ្លា។ ML ជួយពង្រឹងការវិនិច្ឆ័យរបស់មនុស្ស មិនមែនជំនួសការទទួលខុសត្រូវនោះទេ។",
+   "hash": "1e39a2ea6c9f46"
+  },
+  {
+   "id": "on_the_go:sw:06cab3ebcdae4a",
+   "demo": "on_the_go",
+   "lang": "sw",
+   "text": "Kujifunza kutokana na mifano. Ujifunzaji wa mashine hujenga mifano inayoboresha utendaji wa kazi kwa kutafuta mifumo katika data badala ya sheria zilizowekwa kwa mkono. Ujifunzaji unaosimamiwa hutumia mifano iliyo na lebo; ujifunzaji usiosimamiwa hupata muundo bila lebo. Ujifunzaji wa kuimarisha hujifunza kutokana na zawadi katika mazingira kama michezo.",
+   "hash": "06cab3ebcdae4a"
+  },
+  {
+   "id": "on_the_go:sw:0b2ca25458b43a",
+   "demo": "on_the_go",
+   "lang": "sw",
+   "text": "Kitanzi cha mafunzo. Loss functions hupima makosa; optimizers kama Adam hurekebisha uzito ili kupunguza loss katika epochs. Ukubwa wa batch na kiwango cha kujifunza huathiri uthabiti na kasi. GPUs huharakisha operesheni za matrix wakati wa kufundisha mifano mikubwa.",
+   "hash": "0b2ca25458b43a"
+  },
+  {
+   "id": "on_the_go:sw:0e11c8d6278f5a",
+   "demo": "on_the_go",
+   "lang": "sw",
+   "text": "Mgawanyo wa data. Data hugawanywa katika seti za mafunzo, uthibitishaji na majaribio ili kupima ujumla. Uvujaji—taarifa za majaribio katika mafunzo—huongeza alama kwa njia ya kupotosha. Uthibitishaji mtambuka hutoa makadirio thabiti kwenye seti ndogo za data.",
+   "hash": "0e11c8d6278f5a"
+  },
+  {
+   "id": "on_the_go:sw:0fd5aec79f41e8",
+   "demo": "on_the_go",
+   "lang": "sw",
+   "text": "Mipaka na maadili. Modeli zinaweza kuwa na upendeleo, dhaifu katika hali za kipekee, na zisizoeleweka katika mitandao ya kina. Matumizi yenye hatari kubwa katika dawa na haki yanahitaji usimamizi na uwazi. ML huongeza uamuzi wa binadamu; haibadilishi uwajibikaji.",
+   "hash": "0fd5aec79f41e8"
+  },
+  {
+   "id": "on_the_go:sw:1268223430b877",
+   "demo": "on_the_go",
+   "lang": "sw",
+   "text": "Kufaa kupita kiasi. Miundo inayokumbuka kelele za data ya mafunzo hushindwa kwenye data mpya. Regularization, dropout na early stopping hupunguza overfitting. Data yenye anuwai zaidi mara nyingi husaidia zaidi kuliko kuongeza ukubwa wa miundo bila kikomo.",
+   "hash": "1268223430b877"
+  },
+  {
+   "id": "on_the_go:sw:161f6e52beed2c",
+   "demo": "on_the_go",
+   "lang": "sw",
+   "text": "Muhtasari. Karibu. Katika somo hili tunachunguza Utangulizi wa Kujifunza kwa Mashine. Tutashughulikia sehemu nane, kuanzia na Kujifunza kutoka kwa Mifano, Mgawanyo wa Data, Vipengele na Mifano, Mzunguko wa Mafunzo, Overfitting, Tathmini, Utekelezaji, na Mipaka na Maadili. Unaposikiliza, angalia jinsi kila sehemu inavyojengwa juu ya ile iliyotangulia — hauhitaji kuchukua maelezo, fuata tu.",
+   "hash": "161f6e52beed2c"
+  },
+  {
+   "id": "on_the_go:sw:166bc5932cfeff",
+   "demo": "on_the_go",
+   "lang": "sw",
+   "text": "Upelekwaji. Modeli hutoa utabiri kupitia API au kwa kufanya inference moja kwa moja kwenye kifaa. Ufuatiliaji hugundua mabadiliko ya data wakati pembejeo za ulimwengu halisi zinabadilika. Mazoea ya MLOps yanahifadhi matoleo ya data, msimbo na modeli ili kuhakikisha uzalishwaji upya.",
+   "hash": "166bc5932cfeff"
+  },
+  {
+   "id": "on_the_go:sw:189abc9c29f2bf",
+   "demo": "on_the_go",
+   "lang": "sw",
+   "text": "Vipengele na Mifano. Vipengele ni viingizo; lebo ni malengo katika uainishaji na urejeshaji. Mifano ya mstari ni baselines zinazoweza kufasiriwa; ensembles za miti hushughulikia data ya jedwali vizuri. Mitandao ya neva huwa bora kwenye picha, sauti na maandishi ikiwa na data na nguvu ya kompyuta ya kutosha.",
+   "hash": "189abc9c29f2bf"
+  },
+  {
+   "id": "on_the_go:sw:18ce01e557288b",
+   "demo": "on_the_go",
+   "lang": "sw",
+   "text": "Tathmini. Uainishaji hutumia usahihi, ukumbusho, na F1 hasa wakati madarasa hayana usawa. Urejeshaji hutumia MAE na RMSE. Chagua vipimo vinavyolingana na gharama halisi za chanya za uwongo na hasi za uwongo.",
+   "hash": "18ce01e557288b"
+  },
+  {
+   "id": "on_the_go:sw:1dcea06f3672d8",
+   "demo": "on_the_go",
+   "lang": "sw",
+   "text": "Mambo muhimu. Mambo muhimu ya kujifunza. Hebu tuangalie tena mambo makuu. Kujifunza kutoka kwa Mifano. Machine learning hujenga mifano inayoboresha utendaji wa kazi kwa kutafuta mifumo katika data badala ya sheria zilizowekwa kwa mkono. Supervised learning hutumia mifano iliyo na lebo; unsupervised learning hupata muundo bila lebo. Reinforcement learning hujifunza kutoka kwa zawadi katika mazingira kama michezo. Mgawanyo wa Data. Data hugawanywa katika seti za mafunzo, uthibitishaji na majaribio ili kupima uwezo wa kujumlisha. Leakage—taarifa za majaribio zikiingia kwenye mafunzo—inapandisha alama kwa njia ya kupotosha. Cross-validation hutoa makadirio thabiti kwenye seti ndogo za data. Vipengele na Mifano. Vipengele ni pembejeo; lebo ni malengo katika uainishaji na urejeshaji. Mifano ya mstari ni baselines zinazoeleweka; tree ensembles hushughulikia data ya tabular vizuri. Neural networks hufanya vizuri kwenye picha, sauti na maandishi ikiwa kuna data na nguvu za kutosha. Kitanzi cha Mafunzo. Kazi za hasara hupima makosa; optimizers kama Adam hurekebisha uzito ili kupunguza hasara kwa wakati wa epochs. Ukubwa wa batch na kiwango cha kujifunza huathiri uthabiti na kasi. GPUs huharakisha operesheni za matrix wakati wa kufundisha mifano mikubwa. Overfitting. Mifano inayokumbuka kelele za mafunzo inashindwa kwenye data mpya. Regularization, dropout na early stopping hupunguza overfitting. Data yenye anuwai zaidi mara nyingi husaidia zaidi kuliko kuongeza ukubwa wa mifano bila kikomo. Tathmini. Uainishaji hutumia precision, recall na F1 hasa wakati madarasa hayana usawa. Urejeshaji hutumia MAE na RMSE. Chagua metriki zinazolingana na gharama halisi za positive false na negative false. Utekelezaji. Mifano hutoa utabiri kupitia API au inference kwenye kifaa. Ufuatiliaji hugundua data drift wakati pembejeo za ulimwengu halisi zinabadilika. Mazoea ya MLOps yanatoa toleo la data, code na mifano kwa ajili ya uzalishaji tena. Mipaka na Maadili. Mifano inaweza kuwa na upendeleo, dhaifu kwenye kesi za pembeni na isiyoeleweka katika mitandao ya kina. Matumizi ya hatari kubwa katika dawa na haki yanahitaji usimamizi na uwazi. ML huongeza uamuzi wa binadamu; haibadilishi uwajibikaji. Kumbuka haya, na utakuwa na ufahamu mzuri wa Utangulizi wa Machine Learning. Hiyo ndiyo mwisho wa somo hili — asante kwa kusikiliza.",
+   "hash": "1dcea06f3672d8"
+  },
+  {
+   "id": "on_the_go:th:059a1d0164f51b",
+   "demo": "on_the_go",
+   "lang": "th",
+   "text": "การประเมิน. การจำแนกประเภทใช้ precision, recall และ F1 โดยเฉพาะเมื่อคลาสไม่สมดุล การถดถอยใช้ MAE และ RMSE เลือกเมตริกให้ตรงกับต้นทุนจริงของ false positive และ false negative",
+   "hash": "059a1d0164f51b"
+  },
+  {
+   "id": "on_the_go:th:06cf191fb92aa7",
+   "demo": "on_the_go",
+   "lang": "th",
+   "text": "ภาพรวม. ยินดีต้อนรับ ในบทเรียนนี้ เราจะสำรวจ Intro to Machine Learning เราจะครอบคลุม 8 ส่วน เริ่มต้นด้วย Learning from Examples, Data Splits, Features and Models, Training Loop, Overfitting, Evaluation, Deployment และ Limits and Ethics ขณะที่คุณฟัง ให้สังเกตว่าส่วนแต่ละส่วนต่อเนื่องจากส่วนก่อนหน้าได้อย่างไร คุณไม่จำเป็นต้องจดบันทึก เพียงแค่ติดตามไป",
+   "hash": "06cf191fb92aa7"
+  },
+  {
+   "id": "on_the_go:th:094b81dd81b89c",
+   "demo": "on_the_go",
+   "lang": "th",
+   "text": "ลูปการฝึก. ฟังก์ชัน loss วัดค่าความผิดพลาด ส่วนออพติไมเซอร์อย่าง Adam จะปรับน้ำหนักเพื่อลด loss ลงไปตาม epochs ขนาดแบตช์และอัตราการเรียนรู้มีผลต่อความเสถียรและความเร็ว ส่วน GPU ช่วยเร่งการคำนวณเมทริกซ์ตอนเทรนโมเดลขนาดใหญ่",
+   "hash": "094b81dd81b89c"
+  },
+  {
+   "id": "on_the_go:th:0ccc851573b8d4",
+   "demo": "on_the_go",
+   "lang": "th",
+   "text": "การแบ่งข้อมูล. ข้อมูลถูกแบ่งเป็นชุดฝึก ชุดตรวจสอบ และชุดทดสอบ เพื่อวัดการสรุปผลทั่วไป การรั่วไหลของข้อมูล—ข้อมูลจากชุดทดสอบที่ปนอยู่ในชุดฝึก—ทำให้คะแนนสูงเกินจริงอย่างหลอกลวง การตรวจสอบแบบไขว้ให้ค่าประมาณที่แข็งแรงบนชุดข้อมูลขนาดเล็ก",
+   "hash": "0ccc851573b8d4"
+  },
+  {
+   "id": "on_the_go:th:0e68671d6021b5",
+   "demo": "on_the_go",
+   "lang": "th",
+   "text": "การเรียนรู้จากตัวอย่าง. การเรียนรู้ของเครื่องสร้างโมเดลที่พัฒนาขึ้นในการทำงานโดยการหาแพทเทิร์นในข้อมูลแทนที่จะใช้กฎที่เขียนด้วยมือ การเรียนรู้แบบมีผู้สอนใช้ตัวอย่างที่มีป้ายกำกับ ส่วนการเรียนรู้แบบไม่มีผู้สอนจะหาโครงสร้างโดยไม่มีป้ายกำกับ การเรียนรู้แบบเสริมแรงเรียนรู้จากรางวัลในสภาพแวดล้อมอย่างเกม",
+   "hash": "0e68671d6021b5"
+  },
+  {
+   "id": "on_the_go:th:10442cb1966d24",
+   "demo": "on_the_go",
+   "lang": "th",
+   "text": "โอเวอร์ฟิตติ้ง. โมเดลที่จำ noise จากข้อมูลฝึกจะล้มเหลวกับข้อมูลใหม่ เรกูลาร์ไรเซชัน ดรอปเอาต์ และเออร์ลีสต็อปปิ้ง ช่วยลดการโอเวอร์ฟิตติ้ง ข้อมูลที่หลากหลายมักจะช่วยได้มากกว่าการทำให้โมเดลใหญ่ขึ้นไม่หยุด",
+   "hash": "10442cb1966d24"
+  },
+  {
+   "id": "on_the_go:th:12208d92e40d63",
+   "demo": "on_the_go",
+   "lang": "th",
+   "text": "การนำไปใช้. โมเดลให้บริการการทำนายผ่าน API หรือการอนุมานบนอุปกรณ์ การตรวจสอบจะตรวจพบ data drift เมื่ออินพุตจากโลกจริงเปลี่ยนแปลง แนวปฏิบัติ MLOps จะควบคุมเวอร์ชันข้อมูล โค้ด และโมเดลเพื่อความสามารถในการทำซ้ำได้",
+   "hash": "12208d92e40d63"
+  },
+  {
+   "id": "on_the_go:th:14027766c7970c",
+   "demo": "on_the_go",
+   "lang": "th",
+   "text": "ขีดจำกัดและจริยธรรม. โมเดลอาจมีอคติ แตกหักง่ายในกรณีขอบ และไม่โปร่งใสในเครือข่ายลึก การใช้งานที่มีความเสี่ยงสูงในวงการแพทย์และยุติธรรมต้องการการกำกับดูแลและความโปร่งใส ML เสริมการตัดสินใจของมนุษย์ แต่ไม่ได้แทนที่ความรับผิดชอบ",
+   "hash": "14027766c7970c"
+  },
+  {
+   "id": "on_the_go:th:161c9592d79394",
+   "demo": "on_the_go",
+   "lang": "th",
+   "text": "ประเด็นสำคัญ. ประเด็นสำคัญ สรุปประเด็นหลักกัน Learning from Examples การเรียนรู้ของเครื่องสร้างโมเดลที่พัฒนาขึ้นในงานต่างๆ โดยการหาแพทเทิร์นในข้อมูลแทนที่จะใช้กฎที่เขียนด้วยมือ Supervised learning ใช้ตัวอย่างที่มีป้ายกำกับ Unsupervised learning หาโครงสร้างโดยไม่มีป้ายกำกับ Reinforcement learning เรียนรู้จากรางวัลในสภาพแวดล้อมอย่างเกม Data Splits ข้อมูลถูกแบ่งเป็นชุดฝึก ชุดตรวจสอบ และชุดทดสอบ เพื่อวัดการ generalize Leakage—ข้อมูลทดสอบปนอยู่ในชุดฝึก—ทำให้คะแนนสูงเกินจริง Cross-validation ให้การประมาณที่แข็งแรงในชุดข้อมูลขนาดเล็ก Features and Models Features คืออินพุต Labels คือเป้าหมายใน classification และ regression Linear models เป็น baseline ที่ตีความได้ Tree ensembles จัดการข้อมูลแบบตารางได้ดี Neural networks เก่งในภาพ เสียง และข้อความเมื่อมีข้อมูลและการคำนวณพอ Training Loop Loss functions วัดความผิดพลาด Optimizers อย่าง Adam ปรับน้ำหนักเพื่อลด loss ในแต่ละ epoch Batch size และ learning rate ส่งผลต่อความเสถียรและความเร็ว GPUs เร่งการคำนวณเมทริกซ์สำหรับฝึกโมเดลขนาดใหญ่ Overfitting โมเดลที่จำ noise ในข้อมูลฝึกจะล้มเหลวกับข้อมูลใหม่ Regularization, dropout และ early stopping ช่วยลด overfitting ข้อมูลที่หลากหลายมักช่วยมากกว่าการทำให้โมเดลใหญ่ขึ้นเรื่อยๆ Evaluation Classification ใช้ precision, recall และ F1 โดยเฉพาะเมื่อคลาสไม่สมดุล Regression ใช้ MAE และ RMSE เลือกเมตริกที่สอดคล้องกับต้นทุนจริงของ false positives และ false negatives Deployment โมเดลให้บริการการทำนายผ่าน API หรือการอนุมานบนอุปกรณ์ Monitoring ตรวจจับ data drift เมื่ออินพุตในโลกจริงเปลี่ยน MLOps ปฏิบัติการเวอร์ชันข้อมูล โค้ด และโมเดลเพื่อ reproducibility Limits and Ethics โมเดลอาจมี bias, brittle กับ edge cases และ opaque ใน deep networks การใช้ในงานที่มี stakes สูงอย่างการแพทย์และความยุติธรรมต้องการการกำกับดูแลและความโปร่งใส ML เสริมการตัดสินใจของมนุษย์ ไม่แทนที่ความรับผิดชอบ เก็บสิ่งเหล่านี้ไว้ในใจ แล้วคุณจะมีพื้นฐานที่มั่นคงของ Intro to Machine Learning นั่นคือจุดสิ้นสุดของบทเรียนนี้ ขอบคุณที่ฟัง",
+   "hash": "161c9592d79394"
+  },
+  {
+   "id": "on_the_go:th:180d910725554f",
+   "demo": "on_the_go",
+   "lang": "th",
+   "text": "คุณสมบัติและโมเดล. ฟีเจอร์คืออินพุต เลเบลคือเป้าหมายในงานจำแนกประเภทและการถดถอย โมเดลเชิงเส้นเป็นเบสไลน์ที่ตีความได้ง่าย เอนเซมเบิลต้นไม้จัดการข้อมูลแบบตารางได้ดี เครือข่ายประสาททำงานได้ดีกับภาพ เสียง และข้อความ เมื่อมีข้อมูลและทรัพยากรการคำนวณเพียงพอ",
+   "hash": "180d910725554f"
+  },
+  {
+   "id": "on_the_go:vi:0218ef90ffcd0c",
+   "demo": "on_the_go",
+   "lang": "vi",
+   "text": "Đánh giá. Phân loại dùng precision, recall và F1, đặc biệt khi các lớp bị mất cân bằng. Hồi quy dùng MAE và RMSE. Nên chọn chỉ số phù hợp với chi phí thực tế của false positive và false negative.",
+   "hash": "0218ef90ffcd0c"
+  },
+  {
+   "id": "on_the_go:vi:04f1fad4f1e544",
+   "demo": "on_the_go",
+   "lang": "vi",
+   "text": "Vòng lặp huấn luyện. Các hàm loss đo lường sai số; các optimizer như Adam điều chỉnh trọng số để giảm loss qua các epoch. Batch size và learning rate ảnh hưởng đến độ ổn định và tốc độ. GPU tăng tốc các phép toán ma trận khi huấn luyện mô hình lớn.",
+   "hash": "04f1fad4f1e544"
+  },
+  {
+   "id": "on_the_go:vi:05ed6152816c08",
+   "demo": "on_the_go",
+   "lang": "vi",
+   "text": "Triển khai. Các mô hình cung cấp dự đoán thông qua API hoặc chạy inference trên thiết bị. Giám sát phát hiện data drift khi đầu vào thực tế thay đổi. Thực hành MLOps phiên bản hóa dữ liệu, mã nguồn và mô hình để đảm bảo khả năng tái tạo.",
+   "hash": "05ed6152816c08"
+  },
+  {
+   "id": "on_the_go:vi:061a4045644f6d",
+   "demo": "on_the_go",
+   "lang": "vi",
+   "text": "Phân chia dữ liệu. Dữ liệu được chia thành tập huấn luyện, tập kiểm định và tập kiểm tra để đánh giá khả năng khái quát hóa. Rò rỉ dữ liệu—thông tin từ tập kiểm tra xuất hiện trong tập huấn luyện—làm thổi phồng điểm số một cách sai lệch. Xác thực chéo mang lại các ước lượng đáng tin cậy trên các tập dữ liệu nhỏ hơn.",
+   "hash": "061a4045644f6d"
+  },
+  {
+   "id": "on_the_go:vi:0b842dc3e79706",
+   "demo": "on_the_go",
+   "lang": "vi",
+   "text": "Tính năng và Mô hình. Đặc trưng là đầu vào; nhãn là mục tiêu trong phân loại và hồi quy. Mô hình tuyến tính là các baseline dễ diễn giải; các ensemble cây xử lý tốt dữ liệu dạng bảng. Mạng nơ-ron vượt trội trên hình ảnh, âm thanh và văn bản khi có đủ dữ liệu cùng tài nguyên tính toán.",
+   "hash": "0b842dc3e79706"
+  },
+  {
+   "id": "on_the_go:vi:13a60d09d94b49",
+   "demo": "on_the_go",
+   "lang": "vi",
+   "text": "Tổng quan. Chào mừng. Trong bài học này chúng ta sẽ khám phá Intro to Machine Learning. Chúng ta sẽ đề cập 8 phần, bắt đầu với Learning from Examples, Data Splits, Features and Models, Training Loop, Overfitting, Evaluation, Deployment, và Limits and Ethics. Khi lắng nghe, hãy chú ý cách mỗi phần xây dựng dựa trên phần trước — bạn không cần ghi chép, chỉ cần theo dõi.",
+   "hash": "13a60d09d94b49"
+  },
+  {
+   "id": "on_the_go:vi:13bd17e77a2a79",
+   "demo": "on_the_go",
+   "lang": "vi",
+   "text": "Quá khớp. Các mô hình ghi nhớ nhiễu trong dữ liệu huấn luyện sẽ thất bại khi gặp dữ liệu mới. Regularization, dropout và early stopping giúp giảm overfitting. Dữ liệu đa dạng hơn thường mang lại hiệu quả tốt hơn so với việc cứ làm mô hình ngày càng lớn.",
+   "hash": "13bd17e77a2a79"
+  },
+  {
+   "id": "on_the_go:vi:1785fe44876dd0",
+   "demo": "on_the_go",
+   "lang": "vi",
+   "text": "Học từ các ví dụ. Học máy xây dựng các mô hình giúp cải thiện hiệu suất trên các tác vụ bằng cách tìm các mẫu trong dữ liệu thay vì dùng các quy tắc được lập trình thủ công. Học có giám sát sử dụng các ví dụ đã được gán nhãn; học không giám sát tìm cấu trúc mà không cần nhãn. Học tăng cường học từ phần thưởng trong các môi trường như trò chơi.",
+   "hash": "1785fe44876dd0"
+  },
+  {
+   "id": "on_the_go:vi:1b4310ecb6656d",
+   "demo": "on_the_go",
+   "lang": "vi",
+   "text": "Giới hạn và Đạo đức. Các mô hình có thể có thiên kiến, dễ vỡ ở các trường hợp biên, và khó giải thích trong mạng sâu. Ứng dụng rủi ro cao trong y tế và tư pháp đòi hỏi giám sát cùng minh bạch. Học máy bổ trợ phán đoán của con người chứ không thay thế trách nhiệm giải trình.",
+   "hash": "1b4310ecb6656d"
+  },
+  {
+   "id": "on_the_go:vi:1e89306ac75b9c",
+   "demo": "on_the_go",
+   "lang": "vi",
+   "text": "Những điểm chính. Những điểm chính cần nhớ. Hãy tóm tắt lại các ý chính. Học từ Ví dụ. Học máy xây dựng mô hình cải thiện hiệu suất trên các tác vụ bằng cách tìm ra các mẫu trong dữ liệu thay vì dùng các quy tắc được viết thủ công. Học có giám sát sử dụng các ví dụ đã được gán nhãn; học không giám sát tìm cấu trúc mà không cần nhãn. Học tăng cường học từ phần thưởng trong môi trường như trò chơi. Chia dữ liệu. Dữ liệu được chia thành tập huấn luyện, tập xác thực và tập kiểm tra để đo lường khả năng khái quát hóa. Rò rỉ dữ liệu—thông tin từ tập kiểm tra lẫn vào tập huấn luyện—làm tăng điểm số một cách sai lệch. Kiểm định chéo cho ước lượng ổn định hơn trên tập dữ liệu nhỏ. Đặc trưng và Mô hình. Đặc trưng là đầu vào; nhãn là mục tiêu trong bài toán phân loại và hồi quy. Mô hình tuyến tính là baseline dễ giải thích; các mô hình ensemble dựa trên cây hoạt động tốt với dữ liệu dạng bảng. Mạng nơ-ron vượt trội trên hình ảnh, âm thanh và văn bản khi có đủ dữ liệu và tài nguyên tính toán. Vòng lặp Huấn luyện. Hàm mất mát đo lường sai số; các thuật toán tối ưu như Adam điều chỉnh trọng số để giảm mất mát qua các epoch. Kích thước batch và tốc độ học ảnh hưởng đến độ ổn định và tốc độ. GPU tăng tốc các phép toán ma trận khi huấn luyện mô hình lớn. Quá khớp. Các mô hình ghi nhớ nhiễu trong dữ liệu huấn luyện sẽ thất bại trên dữ liệu mới. Chính quy hóa, dropout và dừng sớm giúp giảm quá khớp. Dữ liệu đa dạng thường hiệu quả hơn việc cứ mãi làm mô hình lớn hơn. Đánh giá. Phân loại dùng precision, recall và F1, đặc biệt khi các lớp mất cân bằng. Hồi quy dùng MAE và RMSE. Chọn chỉ số phù hợp với chi phí thực tế của các trường hợp dương tính giả và âm tính giả. Triển khai. Mô hình cung cấp dự đoán qua API hoặc chạy suy luận ngay trên thiết bị. Giám sát phát hiện hiện tượng data drift khi dữ liệu thực tế thay đổi. Thực hành MLOps giúp phiên bản hóa dữ liệu, mã nguồn và mô hình để đảm bảo khả năng tái lập. Giới hạn và Đạo đức. Mô hình có thể thiên kiến, dễ vỡ với các trường hợp biên và khó giải thích ở mạng sâu. Các ứng dụng quan trọng trong y tế và tư pháp đòi hỏi giám sát và minh bạch. Học máy hỗ trợ phán đoán của con người chứ không thay thế trách nhiệm giải trình. Hãy ghi nhớ những điều này, bạn sẽ nắm vững kiến thức cơ bản về Nhập môn Học máy. Đó là kết thúc bài học—cảm ơn bạn đã lắng nghe.",
+   "hash": "1e89306ac75b9c"
+  },
+  {
+   "id": "on_the_go:zh:05d51a18968746",
+   "demo": "on_the_go",
+   "lang": "zh",
+   "text": "部署. 模型通过 API 或设备端推理提供预测。监控可以在真实世界输入发生变化时检测到数据漂移。MLOps 实践会对数据、代码和模型进行版本控制，以确保可重复性。",
+   "hash": "05d51a18968746"
+  },
+  {
+   "id": "on_the_go:zh:0822cf0a8d793a",
+   "demo": "on_the_go",
+   "lang": "zh",
+   "text": "从例子中学习. 机器学习通过从数据中寻找模式来构建能在任务上改进的模型，而不是依靠手动编写的规则。监督学习使用带标签的示例；无监督学习在没有标签的情况下发现结构。强化学习从像游戏这样的环境中的奖励中学习。",
+   "hash": "0822cf0a8d793a"
+  },
+  {
+   "id": "on_the_go:zh:0c8e609965180c",
+   "demo": "on_the_go",
+   "lang": "zh",
+   "text": "关键要点. 关键要点。我们来回顾一下主要内容。 从例子中学习。机器学习通过在数据中寻找模式来构建模型，从而改进任务，而不是依赖手动编写的规则。监督学习使用带标签的示例；无监督学习则在没有标签的情况下发现数据结构。强化学习通过像游戏这样的环境中的奖励来学习。 数据分割。数据会被分成训练集、验证集和测试集，以评估模型的泛化能力。数据泄漏——即训练集中混入测试信息——会误导性地拉高分数。交叉验证则能在较小数据集上给出更稳健的估计。 特征与模型。特征是输入，标签是分类和回归任务中的目标。线性模型是可解释的基线模型；树集成在表格数据上表现不错。神经网络在数据和算力充足时，在图像、音频和文本任务上表现突出。 训练循环。损失函数衡量误差；像Adam这样的优化器会在多个epoch中调整权重以降低损失。批量大小和学习率会影响训练的稳定性和速度。GPU能加速矩阵运算，帮助训练大型模型。 过拟合。记住训练噪声的模型在新数据上会失效。正则化、dropout和早停都能缓解过拟合。更多样化的数据往往比一味扩大模型更有帮助。 评估。分类任务常用精确率、召回率和F1值，尤其在类别不平衡时。回归任务则用MAE和RMSE。选择指标时，要考虑假阳性和假阴性的实际代价。 部署。模型可通过API或设备端推理提供预测。监控能发现真实世界输入变化导致的数据漂移。MLOps实践会对数据、代码和模型进行版本管理，确保可复现性。 局限与伦理。模型可能存在偏见，在边缘案例上脆弱，深度网络也往往不够透明。在医学和司法等高风险场景中，需要加强监督和透明度。机器学习是辅助人类判断的工具，并不能取代责任。 记住这些要点，你就能扎实掌握机器学习入门的内容。本节课到此结束，感谢收听。",
+   "hash": "0c8e609965180c"
+  },
+  {
+   "id": "on_the_go:zh:0d7c788c036d85",
+   "demo": "on_the_go",
+   "lang": "zh",
+   "text": "训练循环. 损失函数用于衡量误差；像Adam这样的优化器会调整权重，以在多个epoch中减少损失。批次大小和学习率会影响稳定性和速度。GPU加速矩阵运算，用于训练大型模型。",
+   "hash": "0d7c788c036d85"
+  },
+  {
+   "id": "on_the_go:zh:0fa654fdccf5d3",
+   "demo": "on_the_go",
+   "lang": "zh",
+   "text": "数据分割. 数据被划分为训练集、验证集和测试集，以衡量泛化能力。数据泄漏——训练中混入测试信息——会误导性地夸大分数。交叉验证能在较小数据集上给出更稳健的估计。",
+   "hash": "0fa654fdccf5d3"
+  },
+  {
+   "id": "on_the_go:zh:1821f30b2c516f",
+   "demo": "on_the_go",
+   "lang": "zh",
+   "text": "概述. 欢迎。在本节课中，我们将探索机器学习入门。我们会涵盖8个部分，从Learning from Examples、Data Splits、Features and Models、Training Loop、Overfitting、Evaluation、Deployment，到Limits and Ethics。在聆听的过程中，请注意每个部分是如何在前一个部分的基础上展开的——你不需要做笔记，只需跟上即可。",
+   "hash": "1821f30b2c516f"
+  },
+  {
+   "id": "on_the_go:zh:186ccd2d3ed921",
+   "demo": "on_the_go",
+   "lang": "zh",
+   "text": "评估. 分类任务，尤其是类别不平衡时，会使用精确率、召回率和F1。回归任务则使用MAE和RMSE。选择与假阳性和假阴性的实际成本相符的指标。",
+   "hash": "186ccd2d3ed921"
+  },
+  {
+   "id": "on_the_go:zh:188b85c2c22eb4",
+   "demo": "on_the_go",
+   "lang": "zh",
+   "text": "功能和模型. 特征是输入；标签是分类和回归中的目标。线性模型是可解释的基线；树集成模型在处理表格数据时表现很好。神经网络在有足够数据和计算资源的情况下，在图像、音频和文本上表现优异。",
+   "hash": "188b85c2c22eb4"
+  },
+  {
+   "id": "on_the_go:zh:1cf6fdc89e69cb",
+   "demo": "on_the_go",
+   "lang": "zh",
+   "text": "界限与伦理. 模型可能存在偏见，在边缘案例上表现脆弱，在深度网络中不透明。医学和司法等高风险应用需要监督和透明。机器学习是辅助人类判断，而非取代问责。",
+   "hash": "1cf6fdc89e69cb"
+  },
+  {
+   "id": "on_the_go:zh:1ecc433d9b9100",
+   "demo": "on_the_go",
+   "lang": "zh",
+   "text": "过拟合. 记住训练噪声的模型在新数据上会失败。正则化、dropout 和早停可以减少过拟合。更多样化的数据通常比无休止地扩大模型更有帮助。",
+   "hash": "1ecc433d9b9100"
+  },
+  {
+   "id": "vision_play:en:001fe2abc48f11",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the capital of Kenya?",
+   "hash": "001fe2abc48f11"
+  },
+  {
+   "id": "vision_play:en:002717cf607f99",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which blood cells carry oxygen?",
+   "hash": "002717cf607f99"
+  },
+  {
+   "id": "vision_play:en:006c25684d4ff3",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What do you drink that comes from cows?",
+   "hash": "006c25684d4ff3"
+  },
+  {
+   "id": "vision_play:en:00b273887cc75a",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the unit of frequency?",
+   "hash": "00b273887cc75a"
+  },
+  {
+   "id": "vision_play:en:00bb6ba4293ea9",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the capital of the United Kingdom?",
+   "hash": "00bb6ba4293ea9"
+  },
+  {
+   "id": "vision_play:en:00fa8d1582bc91",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What do you eat soup with?",
+   "hash": "00fa8d1582bc91"
+  },
+  {
+   "id": "vision_play:en:00ffd5b3c8a915",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which planet is famous for its rings?",
+   "hash": "00ffd5b3c8a915"
+  },
+  {
+   "id": "vision_play:en:0117f4d789df00",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which country hosted the 2022 FIFA World Cup?",
+   "hash": "0117f4d789df00"
+  },
+  {
+   "id": "vision_play:en:0120ff3fbaa184",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which is the most populated country?",
+   "hash": "0120ff3fbaa184"
+  },
+  {
+   "id": "vision_play:en:0149aa6cf27c3f",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the SI unit of energy?",
+   "hash": "0149aa6cf27c3f"
+  },
+  {
+   "id": "vision_play:en:014d1b5799dbc4",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the capital of China?",
+   "hash": "014d1b5799dbc4"
+  },
+  {
+   "id": "vision_play:en:0171269f24e727",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "How many days are in a leap year?",
+   "hash": "0171269f24e727"
+  },
+  {
+   "id": "vision_play:en:0194dbd3d3f271",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What do we call words with opposite meanings?",
+   "hash": "0194dbd3d3f271"
+  },
+  {
+   "id": "vision_play:en:01e542117a4b78",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "How many sides does an octagon have?",
+   "hash": "01e542117a4b78"
+  },
+  {
+   "id": "vision_play:en:02002436ed3fd9",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What do we call a baby frog?",
+   "hash": "02002436ed3fd9"
+  },
+  {
+   "id": "vision_play:en:021e338379241a",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Who was the first President of the United States?",
+   "hash": "021e338379241a"
+  },
+  {
+   "id": "vision_play:en:0237da178d2622",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the chemical symbol for sodium?",
+   "hash": "0237da178d2622"
+  },
+  {
+   "id": "vision_play:en:023dfb61e96f57",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Karaoke sing-along. Pick a song. The words stay large, and your language sings louder than the English track.",
+   "hash": "023dfb61e96f57"
+  },
+  {
+   "id": "vision_play:en:025614e3f9cc90",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Listen. Theodore is getting the next listening round.",
+   "hash": "025614e3f9cc90"
+  },
+  {
+   "id": "vision_play:en:02614010373705",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which philosopher wrote The Republic?",
+   "hash": "02614010373705"
+  },
+  {
+   "id": "vision_play:en:0277a05541ab8a",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "How many continents are there?",
+   "hash": "0277a05541ab8a"
+  },
+  {
+   "id": "vision_play:en:02782f6cfcf359",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which animal says quack?",
+   "hash": "02782f6cfcf359"
+  },
+  {
+   "id": "vision_play:en:02824b5e8986ac",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "How many chambers does the human heart have?",
+   "hash": "02824b5e8986ac"
+  },
+  {
+   "id": "vision_play:en:02b454559f3693",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which of these is an even number?",
+   "hash": "02b454559f3693"
+  },
+  {
+   "id": "vision_play:en:02bdec61e44661",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which desert covers much of Mongolia?",
+   "hash": "02bdec61e44661"
+  },
+  {
+   "id": "vision_play:en:02e59c26fdbba7",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which part of a plant takes in water?",
+   "hash": "02e59c26fdbba7"
+  },
+  {
+   "id": "vision_play:en:02ea366d0e3e95",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which metal is liquid at room temperature?",
+   "hash": "02ea366d0e3e95"
+  },
+  {
+   "id": "vision_play:en:0306e545b0961b",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the largest hot desert?",
+   "hash": "0306e545b0961b"
+  },
+  {
+   "id": "vision_play:en:030f2bd230b75e",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which planet has the most moons?",
+   "hash": "030f2bd230b75e"
+  },
+  {
+   "id": "vision_play:en:0321bfddd37d06",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "How many wheels does a bike have?",
+   "hash": "0321bfddd37d06"
+  },
+  {
+   "id": "vision_play:en:0347a6c423e869",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which animal says oink?",
+   "hash": "0347a6c423e869"
+  },
+  {
+   "id": "vision_play:en:035f4081544f14",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which ocean lies between Africa and Australia?",
+   "hash": "035f4081544f14"
+  },
+  {
+   "id": "vision_play:en:036950f5006ba2",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the tallest mountain above sea level?",
+   "hash": "036950f5006ba2"
+  },
+  {
+   "id": "vision_play:en:036bdcfa74568c",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which word is a noun?",
+   "hash": "036bdcfa74568c"
+  },
+  {
+   "id": "vision_play:en:0393e713d0255e",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Who won Nobel Prizes in both physics and chemistry?",
+   "hash": "0393e713d0255e"
+  },
+  {
+   "id": "vision_play:en:03a17f0607ec5a",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which river flows through Baghdad?",
+   "hash": "03a17f0607ec5a"
+  },
+  {
+   "id": "vision_play:en:03aae05dd17aa5",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "How many players per side are on court in basketball?",
+   "hash": "03aae05dd17aa5"
+  },
+  {
+   "id": "vision_play:en:03b1c5515e0e77",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Wink challenge. Wink one eye at Theodore.",
+   "hash": "03b1c5515e0e77"
+  },
+  {
+   "id": "vision_play:en:03c939ce622514",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What do you wear on your feet?",
+   "hash": "03c939ce622514"
+  },
+  {
+   "id": "vision_play:en:03d0c562f5cf6a",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the scientific study of earthquakes called?",
+   "hash": "03d0c562f5cf6a"
+  },
+  {
+   "id": "vision_play:en:03f59316a227e8",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Who was the first woman to fly solo across the Atlantic?",
+   "hash": "03f59316a227e8"
+  },
+  {
+   "id": "vision_play:en:042ae25176ac05",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which is the largest continent?",
+   "hash": "042ae25176ac05"
+  },
+  {
+   "id": "vision_play:en:047f3657c083f4",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What particle has a negative charge?",
+   "hash": "047f3657c083f4"
+  },
+  {
+   "id": "vision_play:en:0486fab73df4ee",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the capital of Canada?",
+   "hash": "0486fab73df4ee"
+  },
+  {
+   "id": "vision_play:en:0490f951bcd267",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which ancient wonder was in Egypt?",
+   "hash": "0490f951bcd267"
+  },
+  {
+   "id": "vision_play:en:049767eedaa79e",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Make a heart. Use both hands. Fingertips dip together at the top and thumbs meet at the bottom. A circle does not count.",
+   "hash": "049767eedaa79e"
+  },
+  {
+   "id": "vision_play:en:04b9eea411dc8b",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which word is a verb?",
+   "hash": "04b9eea411dc8b"
+  },
+  {
+   "id": "vision_play:en:04beb814ec4c93",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which blood type is the universal donor?",
+   "hash": "04beb814ec4c93"
+  },
+  {
+   "id": "vision_play:en:04db83ea817b55",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What color is snow?",
+   "hash": "04db83ea817b55"
+  },
+  {
+   "id": "vision_play:en:04dd4b8dcb9c43",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is seven times eight?",
+   "hash": "04dd4b8dcb9c43"
+  },
+  {
+   "id": "vision_play:en:04ebea8912ba8f",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which animal hops and has long ears?",
+   "hash": "04ebea8912ba8f"
+  },
+  {
+   "id": "vision_play:en:04ffd64e952ffd",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Pick a listening game. Choose Say the letter or a game under Listen, then use the microphone.",
+   "hash": "04ffd64e952ffd"
+  },
+  {
+   "id": "vision_play:en:051c50fa137016",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which animal has a very long neck?",
+   "hash": "051c50fa137016"
+  },
+  {
+   "id": "vision_play:en:052a4a7b69a08c",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is a baby dog called?",
+   "hash": "052a4a7b69a08c"
+  },
+  {
+   "id": "vision_play:en:055419ebe2a82f",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "How many hands do you have?",
+   "hash": "055419ebe2a82f"
+  },
+  {
+   "id": "vision_play:en:058d221f1e01e0",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Pop Quiz Toss. Getting your next question…",
+   "hash": "058d221f1e01e0"
+  },
+  {
+   "id": "vision_play:en:059af149c28d2a",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the smallest prime number?",
+   "hash": "059af149c28d2a"
+  },
+  {
+   "id": "vision_play:en:05a621fe61eba8",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which number comes after one?",
+   "hash": "05a621fe61eba8"
+  },
+  {
+   "id": "vision_play:en:05bbf6f4403a7d",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "I have an idea!. Hold one index finger up in the air.",
+   "hash": "05bbf6f4403a7d"
+  },
+  {
+   "id": "vision_play:en:05ca602667069b",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the chemical symbol for silver?",
+   "hash": "05ca602667069b"
+  },
+  {
+   "id": "vision_play:en:05e1d4f18293e6",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the hottest planet in our solar system?",
+   "hash": "05e1d4f18293e6"
+  },
+  {
+   "id": "vision_play:en:05e8490d5a0336",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What color is grass?",
+   "hash": "05e8490d5a0336"
+  },
+  {
+   "id": "vision_play:en:05f567cf24097c",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What shape is a window usually?",
+   "hash": "05f567cf24097c"
+  },
+  {
+   "id": "vision_play:en:0607788db60c1f",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the value of pi rounded to two decimals?",
+   "hash": "0607788db60c1f"
+  },
+  {
+   "id": "vision_play:en:060a5ec4ed4baa",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which animal has a long trunk?",
+   "hash": "060a5ec4ed4baa"
+  },
+  {
+   "id": "vision_play:en:0642e7ee17d5a5",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the freezing point of water in Fahrenheit?",
+   "hash": "0642e7ee17d5a5"
+  },
+  {
+   "id": "vision_play:en:06491c7dc2e587",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which programming language has a snake as its logo?",
+   "hash": "06491c7dc2e587"
+  },
+  {
+   "id": "vision_play:en:0671b8d55cb123",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Who wrote Hamlet?",
+   "hash": "0671b8d55cb123"
+  },
+  {
+   "id": "vision_play:en:06aff62f6f5ca6",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Face chase. Move your face into the glowing circle.",
+   "hash": "06aff62f6f5ca6"
+  },
+  {
+   "id": "vision_play:en:06c092158df653",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Pick a game. That activity is not wired yet. Choose another from the list.",
+   "hash": "06c092158df653"
+  },
+  {
+   "id": "vision_play:en:06dee17d6456ae",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Blow a kiss. Make a little O, bring a hand near your mouth, then send it away.",
+   "hash": "06dee17d6456ae"
+  },
+  {
+   "id": "vision_play:en:07092c47bb02f8",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which composer kept writing music after going deaf?",
+   "hash": "07092c47bb02f8"
+  },
+  {
+   "id": "vision_play:en:070d8195ab65b0",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Who wrote Harry Potter?",
+   "hash": "070d8195ab65b0"
+  },
+  {
+   "id": "vision_play:en:0736713f74e178",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Who painted the ceiling of the Sistine Chapel?",
+   "hash": "0736713f74e178"
+  },
+  {
+   "id": "vision_play:en:075c1acfd9a744",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Seated reach. Seated-only is on. Reach both hands high instead.",
+   "hash": "075c1acfd9a744"
+  },
+  {
+   "id": "vision_play:en:079a32c40124e6",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What do plants need to grow besides sun?",
+   "hash": "079a32c40124e6"
+  },
+  {
+   "id": "vision_play:en:07a3561dbca517",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What do the angles of a triangle add up to?",
+   "hash": "07a3561dbca517"
+  },
+  {
+   "id": "vision_play:en:07a3b3e80c51fc",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which vitamin prevents scurvy?",
+   "hash": "07a3b3e80c51fc"
+  },
+  {
+   "id": "vision_play:en:07a7301cd0fa43",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the currency of the United Kingdom?",
+   "hash": "07a7301cd0fa43"
+  },
+  {
+   "id": "vision_play:en:07a739244363fe",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Who composed The Four Seasons?",
+   "hash": "07a739244363fe"
+  },
+  {
+   "id": "vision_play:en:07b3113a54c949",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which animal has black and white stripes?",
+   "hash": "07b3113a54c949"
+  },
+  {
+   "id": "vision_play:en:07ce8146bd8eee",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Who wrote The Hobbit?",
+   "hash": "07ce8146bd8eee"
+  },
+  {
+   "id": "vision_play:en:07f4f1596cf60f",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "How many sides does a pentagon have?",
+   "hash": "07f4f1596cf60f"
+  },
+  {
+   "id": "vision_play:en:07faf94cf7fc28",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What does HTML describe?",
+   "hash": "07faf94cf7fc28"
+  },
+  {
+   "id": "vision_play:en:0811e750bc666e",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What star gives us light and heat?",
+   "hash": "0811e750bc666e"
+  },
+  {
+   "id": "vision_play:en:0816581faa69c7",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "In which year did the Berlin Wall fall?",
+   "hash": "0816581faa69c7"
+  },
+  {
+   "id": "vision_play:en:081d854b0f59e7",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which mountain range includes Everest?",
+   "hash": "081d854b0f59e7"
+  },
+  {
+   "id": "vision_play:en:08522913ab657e",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What process do plants use to make food?",
+   "hash": "08522913ab657e"
+  },
+  {
+   "id": "vision_play:en:08732693aafd03",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Try again. I could not check that answer.",
+   "hash": "08732693aafd03"
+  },
+  {
+   "id": "vision_play:en:08ed38d6bfec98",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which animal says meow?",
+   "hash": "08ed38d6bfec98"
+  },
+  {
+   "id": "vision_play:en:09034e58fd1aeb",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which sea animal has eight arms?",
+   "hash": "09034e58fd1aeb"
+  },
+  {
+   "id": "vision_play:en:090d1e311ae8d9",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "At what Celsius temperature does water freeze?",
+   "hash": "090d1e311ae8d9"
+  },
+  {
+   "id": "vision_play:en:09288f3548160f",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which fruit is long and yellow?",
+   "hash": "09288f3548160f"
+  },
+  {
+   "id": "vision_play:en:09554ac86ebb12",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which is the smallest continent?",
+   "hash": "09554ac86ebb12"
+  },
+  {
+   "id": "vision_play:en:0955a83bab5fc1",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Type instead. Speech recognition is unavailable here.",
+   "hash": "0955a83bab5fc1"
+  },
+  {
+   "id": "vision_play:en:09603f04faf426",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the square root of 144?",
+   "hash": "09603f04faf426"
+  },
+  {
+   "id": "vision_play:en:0974b2402fea53",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the capital of Russia?",
+   "hash": "0974b2402fea53"
+  },
+  {
+   "id": "vision_play:en:0977d05b3086dd",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the chemical formula for table salt?",
+   "hash": "0977d05b3086dd"
+  },
+  {
+   "id": "vision_play:en:0978509b973793",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the capital of Thailand?",
+   "hash": "0978509b973793"
+  },
+  {
+   "id": "vision_play:en:097938a9734512",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the most abundant element in the universe?",
+   "hash": "097938a9734512"
+  },
+  {
+   "id": "vision_play:en:09954c96c2bedd",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which city hosted the 2016 Summer Olympics?",
+   "hash": "09954c96c2bedd"
+  },
+  {
+   "id": "vision_play:en:09d3b4a9217bed",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which language has the most native speakers?",
+   "hash": "09d3b4a9217bed"
+  },
+  {
+   "id": "vision_play:en:09dcb2597f782b",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What do cows give us?",
+   "hash": "09dcb2597f782b"
+  },
+  {
+   "id": "vision_play:en:0a0fd61308ddc3",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What do you wear on your head?",
+   "hash": "0a0fd61308ddc3"
+  },
+  {
+   "id": "vision_play:en:0a1209ecd8afad",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is a group of fish called?",
+   "hash": "0a1209ecd8afad"
+  },
+  {
+   "id": "vision_play:en:0a1602531a2eb8",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the square root of eighty-one?",
+   "hash": "0a1602531a2eb8"
+  },
+  {
+   "id": "vision_play:en:0a485f10cdbf2d",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which Roman god was the king of the gods?",
+   "hash": "0a485f10cdbf2d"
+  },
+  {
+   "id": "vision_play:en:0a4c3d64a02b87",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What do you smell with?",
+   "hash": "0a4c3d64a02b87"
+  },
+  {
+   "id": "vision_play:en:0a69c2a80c9ae7",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which animal has feathers and flies?",
+   "hash": "0a69c2a80c9ae7"
+  },
+  {
+   "id": "vision_play:en:0a9045b4f4311b",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which vitamin do we get from sunlight?",
+   "hash": "0a9045b4f4311b"
+  },
+  {
+   "id": "vision_play:en:0ab3743be8b32d",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the atomic number of hydrogen?",
+   "hash": "0ab3743be8b32d"
+  },
+  {
+   "id": "vision_play:en:0ac67655533564",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What language do people speak in Mexico?",
+   "hash": "0ac67655533564"
+  },
+  {
+   "id": "vision_play:en:0ad34d737b42c7",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the currency of Brazil?",
+   "hash": "0ad34d737b42c7"
+  },
+  {
+   "id": "vision_play:en:0ad860d0b58816",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What do chickens lay?",
+   "hash": "0ad860d0b58816"
+  },
+  {
+   "id": "vision_play:en:0ae341e0fc9ca9",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which of these is a reptile?",
+   "hash": "0ae341e0fc9ca9"
+  },
+  {
+   "id": "vision_play:en:0ae4964d2ee3ed",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Make a pose. Raise both hands and hold your biggest hero pose.",
+   "hash": "0ae4964d2ee3ed"
+  },
+  {
+   "id": "vision_play:en:0ae9fde56dff69",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What language do people speak in Germany?",
+   "hash": "0ae9fde56dff69"
+  },
+  {
+   "id": "vision_play:en:0aed97c4f072fa",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What do bees make?",
+   "hash": "0aed97c4f072fa"
+  },
+  {
+   "id": "vision_play:en:0af4d60f94c559",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "How many legs does a spider have?",
+   "hash": "0af4d60f94c559"
+  },
+  {
+   "id": "vision_play:en:0b1054126bb8e4",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Rainbow reach. Stretch both hands toward opposite top corners.",
+   "hash": "0b1054126bb8e4"
+  },
+  {
+   "id": "vision_play:en:0b106e072e4c72",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Who developed the theory of relativity?",
+   "hash": "0b106e072e4c72"
+  },
+  {
+   "id": "vision_play:en:0b1c1e462c3ec4",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What color do red and blue make?",
+   "hash": "0b1c1e462c3ec4"
+  },
+  {
+   "id": "vision_play:en:0b1fa0fb98420c",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the opposite of big?",
+   "hash": "0b1fa0fb98420c"
+  },
+  {
+   "id": "vision_play:en:0b2155077b441e",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Who wrote The Great Gatsby?",
+   "hash": "0b2155077b441e"
+  },
+  {
+   "id": "vision_play:en:0b343ef6c9093c",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which continent is the coldest?",
+   "hash": "0b343ef6c9093c"
+  },
+  {
+   "id": "vision_play:en:0b3c31db3896c6",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Who painted the Mona Lisa?",
+   "hash": "0b3c31db3896c6"
+  },
+  {
+   "id": "vision_play:en:0b54a35cc8eb5f",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What color is a carrot?",
+   "hash": "0b54a35cc8eb5f"
+  },
+  {
+   "id": "vision_play:en:0b5c70c07a310f",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is ten times ten?",
+   "hash": "0b5c70c07a310f"
+  },
+  {
+   "id": "vision_play:en:0b75e5942553d0",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the chemical symbol for gold?",
+   "hash": "0b75e5942553d0"
+  },
+  {
+   "id": "vision_play:en:0ba20c3c45385f",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What color is a banana?",
+   "hash": "0ba20c3c45385f"
+  },
+  {
+   "id": "vision_play:en:0bc2b97fbc01c1",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Dance!. Move any way you like… freeze when Theodore says freeze.",
+   "hash": "0bc2b97fbc01c1"
+  },
+  {
+   "id": "vision_play:en:0bdda3908b13e0",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which of these is a mammal?",
+   "hash": "0bdda3908b13e0"
+  },
+  {
+   "id": "vision_play:en:0bed62c51f2055",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "At what Celsius temperature does water boil at sea level?",
+   "hash": "0bed62c51f2055"
+  },
+  {
+   "id": "vision_play:en:0bf0c5e0415bfb",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Stand up. Step back so Theodore sees you, then stand gently.",
+   "hash": "0bf0c5e0415bfb"
+  },
+  {
+   "id": "vision_play:en:0c08fbdb0cb52a",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What color is a fire truck?",
+   "hash": "0c08fbdb0cb52a"
+  },
+  {
+   "id": "vision_play:en:0c2b307e618f9c",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is fifteen percent of one hundred?",
+   "hash": "0c2b307e618f9c"
+  },
+  {
+   "id": "vision_play:en:0c6aed73f0a995",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which philosopher said I think, therefore I am?",
+   "hash": "0c6aed73f0a995"
+  },
+  {
+   "id": "vision_play:en:0c6fec9bb61db8",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the smallest country in the world?",
+   "hash": "0c6fec9bb61db8"
+  },
+  {
+   "id": "vision_play:en:0c871e3e9fefff",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the opposite of in?",
+   "hash": "0c871e3e9fefff"
+  },
+  {
+   "id": "vision_play:en:0cac5468ab6a05",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Who wrote The Odyssey?",
+   "hash": "0cac5468ab6a05"
+  },
+  {
+   "id": "vision_play:en:0ce7c3c485c408",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which animal says baa?",
+   "hash": "0ce7c3c485c408"
+  },
+  {
+   "id": "vision_play:en:0cf55ac2318033",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Who proposed the laws of motion and gravity?",
+   "hash": "0cf55ac2318033"
+  },
+  {
+   "id": "vision_play:en:0d045283b8b074",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the chemical symbol for lead?",
+   "hash": "0d045283b8b074"
+  },
+  {
+   "id": "vision_play:en:0d0cf43ae1e022",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Who was president during the American Civil War?",
+   "hash": "0d0cf43ae1e022"
+  },
+  {
+   "id": "vision_play:en:0d1272cdfc9946",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which part of the cell contains DNA?",
+   "hash": "0d1272cdfc9946"
+  },
+  {
+   "id": "vision_play:en:0d14efc9d1800c",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "How many eyes do you have?",
+   "hash": "0d14efc9d1800c"
+  },
+  {
+   "id": "vision_play:en:0d3a263bcd0050",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What do you use to write on paper?",
+   "hash": "0d3a263bcd0050"
+  },
+  {
+   "id": "vision_play:en:0d5983f7dbedfb",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Flap like a bird. Lift both hands up and down. Fly!",
+   "hash": "0d5983f7dbedfb"
+  },
+  {
+   "id": "vision_play:en:0d5dc6144b1f0c",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the powerhouse of the cell?",
+   "hash": "0d5dc6144b1f0c"
+  },
+  {
+   "id": "vision_play:en:0d6b7eca326e70",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which of these is a prime number?",
+   "hash": "0d6b7eca326e70"
+  },
+  {
+   "id": "vision_play:en:0d71baf4dca677",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the capital of France?",
+   "hash": "0d71baf4dca677"
+  },
+  {
+   "id": "vision_play:en:0d9879382996be",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which animal is the largest on land?",
+   "hash": "0d9879382996be"
+  },
+  {
+   "id": "vision_play:en:0d9b0db0af258f",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which country is shaped like a boot?",
+   "hash": "0d9b0db0af258f"
+  },
+  {
+   "id": "vision_play:en:0da0ff6be70bc1",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which empire was ruled by Julius Caesar?",
+   "hash": "0da0ff6be70bc1"
+  },
+  {
+   "id": "vision_play:en:0da6e1e876c278",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the capital of the United States?",
+   "hash": "0da6e1e876c278"
+  },
+  {
+   "id": "vision_play:en:0db183fde43c44",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the capital of Argentina?",
+   "hash": "0db183fde43c44"
+  },
+  {
+   "id": "vision_play:en:0db6e9696c2caa",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Who discovered penicillin?",
+   "hash": "0db6e9696c2caa"
+  },
+  {
+   "id": "vision_play:en:0dcbe46f6b2c9f",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which force pulls things toward the ground?",
+   "hash": "0dcbe46f6b2c9f"
+  },
+  {
+   "id": "vision_play:en:0deba7f8dacaef",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the capital of Egypt?",
+   "hash": "0deba7f8dacaef"
+  },
+  {
+   "id": "vision_play:en:0e1e0fe12fa2f6",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Fist bump!. Make a fist and bump Theodore.",
+   "hash": "0e1e0fe12fa2f6"
+  },
+  {
+   "id": "vision_play:en:0e5314234c1c05",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the capital of New Zealand?",
+   "hash": "0e5314234c1c05"
+  },
+  {
+   "id": "vision_play:en:0e61ea54f2aab9",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which country has the Great Wall?",
+   "hash": "0e61ea54f2aab9"
+  },
+  {
+   "id": "vision_play:en:0ea9ea0a69fd35",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which strait separates Europe and Asia at Istanbul?",
+   "hash": "0ea9ea0a69fd35"
+  },
+  {
+   "id": "vision_play:en:0eb6df1147319d",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Freeze!",
+   "hash": "0eb6df1147319d"
+  },
+  {
+   "id": "vision_play:en:0ee2ceda00b194",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the capital of Italy?",
+   "hash": "0ee2ceda00b194"
+  },
+  {
+   "id": "vision_play:en:0f21b446411807",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which ocean is the smallest?",
+   "hash": "0f21b446411807"
+  },
+  {
+   "id": "vision_play:en:0f25f43c537506",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Who wrote Charlie and the Chocolate Factory?",
+   "hash": "0f25f43c537506"
+  },
+  {
+   "id": "vision_play:en:0f3a4028d29512",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the largest bone in the human body?",
+   "hash": "0f3a4028d29512"
+  },
+  {
+   "id": "vision_play:en:0f4b0e2f970670",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which season is snowy?",
+   "hash": "0f4b0e2f970670"
+  },
+  {
+   "id": "vision_play:en:0f4d6cdd665899",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What do you sleep in?",
+   "hash": "0f4d6cdd665899"
+  },
+  {
+   "id": "vision_play:en:0f596edcef4004",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What do bees collect from flowers?",
+   "hash": "0f596edcef4004"
+  },
+  {
+   "id": "vision_play:en:0f5d374db351bd",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Who wrote Don Quixote?",
+   "hash": "0f5d374db351bd"
+  },
+  {
+   "id": "vision_play:en:0f8cf4e203cc85",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What do you brush every day?",
+   "hash": "0f8cf4e203cc85"
+  },
+  {
+   "id": "vision_play:en:0f91b3c789fe0e",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What shines in the sky at night?",
+   "hash": "0f91b3c789fe0e"
+  },
+  {
+   "id": "vision_play:en:0fa01584ebc5f6",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What gas do plants take in?",
+   "hash": "0fa01584ebc5f6"
+  },
+  {
+   "id": "vision_play:en:0fb219662f7db5",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the currency of South Africa?",
+   "hash": "0fb219662f7db5"
+  },
+  {
+   "id": "vision_play:en:0fd7936bbb3453",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which animal gives us wool?",
+   "hash": "0fd7936bbb3453"
+  },
+  {
+   "id": "vision_play:en:0fe94170905197",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the hardest part of your body?",
+   "hash": "0fe94170905197"
+  },
+  {
+   "id": "vision_play:en:0fef2137e4e1ad",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which country has the pyramids of Giza?",
+   "hash": "0fef2137e4e1ad"
+  },
+  {
+   "id": "vision_play:en:10035023810a45",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What color is the sun?",
+   "hash": "10035023810a45"
+  },
+  {
+   "id": "vision_play:en:1003ed0a176a0e",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the currency of India?",
+   "hash": "1003ed0a176a0e"
+  },
+  {
+   "id": "vision_play:en:100a15a60f8eca",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Now sit down. Move gently back to your seat.",
+   "hash": "100a15a60f8eca"
+  },
+  {
+   "id": "vision_play:en:10225374d567d8",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "In which year did humans first land on the Moon?",
+   "hash": "10225374d567d8"
+  },
+  {
+   "id": "vision_play:en:10599bbb1ac318",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What language do people speak in Japan?",
+   "hash": "10599bbb1ac318"
+  },
+  {
+   "id": "vision_play:en:107b919c523690",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which animal carries its house on its back?",
+   "hash": "107b919c523690"
+  },
+  {
+   "id": "vision_play:en:107c62784905b9",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which planet is known for its rings?",
+   "hash": "107c62784905b9"
+  },
+  {
+   "id": "vision_play:en:108752e4958c66",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which bird cannot fly and lives in Antarctica?",
+   "hash": "108752e4958c66"
+  },
+  {
+   "id": "vision_play:en:1090d73bce90c0",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which animal hops and says ribbit?",
+   "hash": "1090d73bce90c0"
+  },
+  {
+   "id": "vision_play:en:10bae5bb605a16",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which season is the hottest?",
+   "hash": "10bae5bb605a16"
+  },
+  {
+   "id": "vision_play:en:10dc86017a0c61",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the opposite of day?",
+   "hash": "10dc86017a0c61"
+  },
+  {
+   "id": "vision_play:en:11014e8a3f6a27",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What force keeps planets in orbit?",
+   "hash": "11014e8a3f6a27"
+  },
+  {
+   "id": "vision_play:en:1101525ac9b64f",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What colorful arch appears after rain?",
+   "hash": "1101525ac9b64f"
+  },
+  {
+   "id": "vision_play:en:11248c822611b3",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Who wrote War and Peace?",
+   "hash": "11248c822611b3"
+  },
+  {
+   "id": "vision_play:en:112c7ea998fc37",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which animal is the king of the jungle?",
+   "hash": "112c7ea998fc37"
+  },
+  {
+   "id": "vision_play:en:117340cd6ce484",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "In which year did the French Revolution begin?",
+   "hash": "117340cd6ce484"
+  },
+  {
+   "id": "vision_play:en:11744168b230bf",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Now send it!. Sweep your hand away to send the kiss flying.",
+   "hash": "11744168b230bf"
+  },
+  {
+   "id": "vision_play:en:11825c6f51e942",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the largest moon of Saturn?",
+   "hash": "11825c6f51e942"
+  },
+  {
+   "id": "vision_play:en:11934c99d4bbff",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Who wrote Romeo and Juliet?",
+   "hash": "11934c99d4bbff"
+  },
+  {
+   "id": "vision_play:en:11c40978140cd5",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Who wrote the novel 1984?",
+   "hash": "11c40978140cd5"
+  },
+  {
+   "id": "vision_play:en:11de0111116d9e",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "How many fingers are on one hand?",
+   "hash": "11de0111116d9e"
+  },
+  {
+   "id": "vision_play:en:11eae59ffa3f29",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is half of one hundred?",
+   "hash": "11eae59ffa3f29"
+  },
+  {
+   "id": "vision_play:en:123a8ca77282ca",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the next prime after seven?",
+   "hash": "123a8ca77282ca"
+  },
+  {
+   "id": "vision_play:en:12604d2357045b",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which mammal can truly fly?",
+   "hash": "12604d2357045b"
+  },
+  {
+   "id": "vision_play:en:129c93e8346ebf",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Bop to the beat. Move your head gently up and down.",
+   "hash": "129c93e8346ebf"
+  },
+  {
+   "id": "vision_play:en:12b8f015df7f64",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What do we call animals that only eat plants?",
+   "hash": "12b8f015df7f64"
+  },
+  {
+   "id": "vision_play:en:12bdd25028978f",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which river runs through Egypt?",
+   "hash": "12bdd25028978f"
+  },
+  {
+   "id": "vision_play:en:12d441e72896b4",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the capital of Japan?",
+   "hash": "12d441e72896b4"
+  },
+  {
+   "id": "vision_play:en:1304ef91ea7989",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which tool measures length?",
+   "hash": "1304ef91ea7989"
+  },
+  {
+   "id": "vision_play:en:130d2f7c916eb4",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "In which year did World War II end?",
+   "hash": "130d2f7c916eb4"
+  },
+  {
+   "id": "vision_play:en:133633e0cf1420",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Play time is up. Thanks for playing! Tap home to start a fresh 10-minute session.",
+   "hash": "133633e0cf1420"
+  },
+  {
+   "id": "vision_play:en:135411d67cd15f",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which country has the most time zones?",
+   "hash": "135411d67cd15f"
+  },
+  {
+   "id": "vision_play:en:135474ebe4013d",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which tool measures temperature?",
+   "hash": "135474ebe4013d"
+  },
+  {
+   "id": "vision_play:en:1354efa2fa93f3",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What do we call a baby cow?",
+   "hash": "1354efa2fa93f3"
+  },
+  {
+   "id": "vision_play:en:13a481dbad9722",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What do you hear with?",
+   "hash": "13a481dbad9722"
+  },
+  {
+   "id": "vision_play:en:13a6c4df31becc",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the hardest natural substance?",
+   "hash": "13a6c4df31becc"
+  },
+  {
+   "id": "vision_play:en:13abd2bfb22df5",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the unit of electrical resistance?",
+   "hash": "13abd2bfb22df5"
+  },
+  {
+   "id": "vision_play:en:13e3f18925c5da",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What do you taste with?",
+   "hash": "13e3f18925c5da"
+  },
+  {
+   "id": "vision_play:en:13f14d23a2b9ac",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What language do people speak in Brazil?",
+   "hash": "13f14d23a2b9ac"
+  },
+  {
+   "id": "vision_play:en:13f4018cada0c5",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What color is the sky on a sunny day?",
+   "hash": "13f4018cada0c5"
+  },
+  {
+   "id": "vision_play:en:13fe2b15fbf678",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "How many bones are in the adult human body?",
+   "hash": "13fe2b15fbf678"
+  },
+  {
+   "id": "vision_play:en:1414f33b06bdfe",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the currency of Sweden?",
+   "hash": "1414f33b06bdfe"
+  },
+  {
+   "id": "vision_play:en:141cc5a0207350",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "How many sides does a triangle have?",
+   "hash": "141cc5a0207350"
+  },
+  {
+   "id": "vision_play:en:141d9ee491faa7",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the capital of Morocco?",
+   "hash": "141d9ee491faa7"
+  },
+  {
+   "id": "vision_play:en:143466833f704f",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which economist wrote The Wealth of Nations?",
+   "hash": "143466833f704f"
+  },
+  {
+   "id": "vision_play:en:143d58ebd9d358",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What do plants make using sunlight?",
+   "hash": "143d58ebd9d358"
+  },
+  {
+   "id": "vision_play:en:1445d86997ac5e",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What shape is a ball?",
+   "hash": "1445d86997ac5e"
+  },
+  {
+   "id": "vision_play:en:1468f55e489c2f",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the pH of pure water?",
+   "hash": "1468f55e489c2f"
+  },
+  {
+   "id": "vision_play:en:1489d094c4f492",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the closest star to Earth?",
+   "hash": "1489d094c4f492"
+  },
+  {
+   "id": "vision_play:en:14932495161202",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which is the largest ocean?",
+   "hash": "14932495161202"
+  },
+  {
+   "id": "vision_play:en:15094bcb727c3f",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is a baby cat called?",
+   "hash": "15094bcb727c3f"
+  },
+  {
+   "id": "vision_play:en:15223a8df137ae",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the opposite of hot?",
+   "hash": "15223a8df137ae"
+  },
+  {
+   "id": "vision_play:en:1537cffebfb300",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which animal says woof?",
+   "hash": "1537cffebfb300"
+  },
+  {
+   "id": "vision_play:en:15543b7336e46f",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which planet is closest to the Sun?",
+   "hash": "15543b7336e46f"
+  },
+  {
+   "id": "vision_play:en:15780f43cd9b72",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which animal swims and has fins?",
+   "hash": "15780f43cd9b72"
+  },
+  {
+   "id": "vision_play:en:159c30858ad1d6",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the official language of Brazil?",
+   "hash": "159c30858ad1d6"
+  },
+  {
+   "id": "vision_play:en:15ac3947711bab",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the chemical formula for water?",
+   "hash": "15ac3947711bab"
+  },
+  {
+   "id": "vision_play:en:16038e4b1e7c79",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What do magnets attract?",
+   "hash": "16038e4b1e7c79"
+  },
+  {
+   "id": "vision_play:en:163808c4e92717",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which is the third planet from the Sun?",
+   "hash": "163808c4e92717"
+  },
+  {
+   "id": "vision_play:en:163a60aaeead14",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which animal lays eggs and says cluck?",
+   "hash": "163a60aaeead14"
+  },
+  {
+   "id": "vision_play:en:1654a9641d9978",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Who wrote Pride and Prejudice?",
+   "hash": "1654a9641d9978"
+  },
+  {
+   "id": "vision_play:en:16572407534c34",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What do you ride on snow?",
+   "hash": "16572407534c34"
+  },
+  {
+   "id": "vision_play:en:165de5934284c6",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the largest mammal?",
+   "hash": "165de5934284c6"
+  },
+  {
+   "id": "vision_play:en:1680bff531c124",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which animal sleeps hanging upside down?",
+   "hash": "1680bff531c124"
+  },
+  {
+   "id": "vision_play:en:169be54f39179a",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What do you wear when it rains?",
+   "hash": "169be54f39179a"
+  },
+  {
+   "id": "vision_play:en:16ef7fc135ccd0",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the capital of Turkey?",
+   "hash": "16ef7fc135ccd0"
+  },
+  {
+   "id": "vision_play:en:16f0e0d8e3b4c8",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the smallest unit of an element?",
+   "hash": "16f0e0d8e3b4c8"
+  },
+  {
+   "id": "vision_play:en:16f521674fd21e",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which food do monkeys love?",
+   "hash": "16f521674fd21e"
+  },
+  {
+   "id": "vision_play:en:172258bf8c6cf0",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the opposite of happy?",
+   "hash": "172258bf8c6cf0"
+  },
+  {
+   "id": "vision_play:en:173f4d6064462f",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the capital of Scotland?",
+   "hash": "173f4d6064462f"
+  },
+  {
+   "id": "vision_play:en:1741c5ad38848c",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What do we use to see?",
+   "hash": "1741c5ad38848c"
+  },
+  {
+   "id": "vision_play:en:1789241867b39c",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What galaxy do we live in?",
+   "hash": "1789241867b39c"
+  },
+  {
+   "id": "vision_play:en:179975b6287f08",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which season has falling leaves?",
+   "hash": "179975b6287f08"
+  },
+  {
+   "id": "vision_play:en:17af91b9538d91",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Who painted The Starry Night?",
+   "hash": "17af91b9538d91"
+  },
+  {
+   "id": "vision_play:en:17cbe50072ae0b",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the currency of Switzerland?",
+   "hash": "17cbe50072ae0b"
+  },
+  {
+   "id": "vision_play:en:17cf6342184d3b",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is H2O?",
+   "hash": "17cf6342184d3b"
+  },
+  {
+   "id": "vision_play:en:17d4b29a72600c",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which number comes after nine?",
+   "hash": "17d4b29a72600c"
+  },
+  {
+   "id": "vision_play:en:17eda7cb08ef49",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Air drums. Hit the drum pads with your hands on the beat.",
+   "hash": "17eda7cb08ef49"
+  },
+  {
+   "id": "vision_play:en:17f27da71242d0",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What falls from the clouds when it rains?",
+   "hash": "17f27da71242d0"
+  },
+  {
+   "id": "vision_play:en:1805c618b8f77b",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "How many legs does a dog have?",
+   "hash": "1805c618b8f77b"
+  },
+  {
+   "id": "vision_play:en:182f44436271dc",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which sport uses a shuttlecock?",
+   "hash": "182f44436271dc"
+  },
+  {
+   "id": "vision_play:en:18345edae7fd8f",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is nine times nine?",
+   "hash": "18345edae7fd8f"
+  },
+  {
+   "id": "vision_play:en:1853f1d4e159b6",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which element has the symbol O?",
+   "hash": "1853f1d4e159b6"
+  },
+  {
+   "id": "vision_play:en:18591816f464a3",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which is the longest river in Africa?",
+   "hash": "18591816f464a3"
+  },
+  {
+   "id": "vision_play:en:186d8214f31188",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Play time is up. Thanks for playing!",
+   "hash": "186d8214f31188"
+  },
+  {
+   "id": "vision_play:en:18779090bc01b7",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which language is spoken in Brazil?",
+   "hash": "18779090bc01b7"
+  },
+  {
+   "id": "vision_play:en:188181b02090d2",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "In what year did World War I begin?",
+   "hash": "188181b02090d2"
+  },
+  {
+   "id": "vision_play:en:18efb8cdc78602",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which civilization built Machu Picchu?",
+   "hash": "18efb8cdc78602"
+  },
+  {
+   "id": "vision_play:en:1910979b57b617",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What do caterpillars eat?",
+   "hash": "1910979b57b617"
+  },
+  {
+   "id": "vision_play:en:192491d5088584",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "How many months are in a year?",
+   "hash": "192491d5088584"
+  },
+  {
+   "id": "vision_play:en:1927563461efb9",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the capital of Australia?",
+   "hash": "1927563461efb9"
+  },
+  {
+   "id": "vision_play:en:193088b66c6d79",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which vehicle floats on water?",
+   "hash": "193088b66c6d79"
+  },
+  {
+   "id": "vision_play:en:1946e5bb167e87",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Where do fish live?",
+   "hash": "1946e5bb167e87"
+  },
+  {
+   "id": "vision_play:en:19579ad02425f2",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which state of matter is air?",
+   "hash": "19579ad02425f2"
+  },
+  {
+   "id": "vision_play:en:196d748b303efa",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the capital of South Korea?",
+   "hash": "196d748b303efa"
+  },
+  {
+   "id": "vision_play:en:1982d9211b1097",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What do we call words that mean the same?",
+   "hash": "1982d9211b1097"
+  },
+  {
+   "id": "vision_play:en:19938505babf55",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which animal says moo?",
+   "hash": "19938505babf55"
+  },
+  {
+   "id": "vision_play:en:19adbe6351acb2",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Who wrote The Divine Comedy?",
+   "hash": "19adbe6351acb2"
+  },
+  {
+   "id": "vision_play:en:19bc48e3337bdf",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which sense organ do we use to hear?",
+   "hash": "19bc48e3337bdf"
+  },
+  {
+   "id": "vision_play:en:19c28416dd59cc",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which vehicle flies in the sky?",
+   "hash": "19c28416dd59cc"
+  },
+  {
+   "id": "vision_play:en:19c4ee5311ce52",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the capital of Germany?",
+   "hash": "19c4ee5311ce52"
+  },
+  {
+   "id": "vision_play:en:19c5b48e65debe",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What color is a strawberry?",
+   "hash": "19c5b48e65debe"
+  },
+  {
+   "id": "vision_play:en:19d1a4cb2f7c99",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which planet spins on its side?",
+   "hash": "19d1a4cb2f7c99"
+  },
+  {
+   "id": "vision_play:en:19e88a1ffc09bf",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which molecule carries genetic information?",
+   "hash": "19e88a1ffc09bf"
+  },
+  {
+   "id": "vision_play:en:19eb75654b13ab",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Freeze!. Hold still like a statue!",
+   "hash": "19eb75654b13ab"
+  },
+  {
+   "id": "vision_play:en:1a239c30150197",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Listen again. I could not load that listening round.",
+   "hash": "1a239c30150197"
+  },
+  {
+   "id": "vision_play:en:1a3d95db710bba",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which sea animal has a hard shell and claws?",
+   "hash": "1a3d95db710bba"
+  },
+  {
+   "id": "vision_play:en:1a415b026a056d",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Who was the first person to walk on the Moon?",
+   "hash": "1a415b026a056d"
+  },
+  {
+   "id": "vision_play:en:1a461b33e4e6ac",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the opposite of ancient?",
+   "hash": "1a461b33e4e6ac"
+  },
+  {
+   "id": "vision_play:en:1a6b41608354e2",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the chemical symbol for potassium?",
+   "hash": "1a6b41608354e2"
+  },
+  {
+   "id": "vision_play:en:1a8b2aad7a5fe7",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the biggest planet?",
+   "hash": "1a8b2aad7a5fe7"
+  },
+  {
+   "id": "vision_play:en:1a93282fb40ce9",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which mathematician helped break the Enigma code?",
+   "hash": "1a93282fb40ce9"
+  },
+  {
+   "id": "vision_play:en:1a9db360e75563",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the largest organ of the human body?",
+   "hash": "1a9db360e75563"
+  },
+  {
+   "id": "vision_play:en:1b1780969ad2df",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the chemical symbol for tungsten?",
+   "hash": "1b1780969ad2df"
+  },
+  {
+   "id": "vision_play:en:1b23659cca3651",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the chemical formula for carbon dioxide?",
+   "hash": "1b23659cca3651"
+  },
+  {
+   "id": "vision_play:en:1b36d3c78534cd",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the capital of Switzerland?",
+   "hash": "1b36d3c78534cd"
+  },
+  {
+   "id": "vision_play:en:1b553ffdb4c948",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What color do blue and yellow make?",
+   "hash": "1b553ffdb4c948"
+  },
+  {
+   "id": "vision_play:en:1b752732924b89",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "How many rings are on the Olympic flag?",
+   "hash": "1b752732924b89"
+  },
+  {
+   "id": "vision_play:en:1b906c229d7223",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Wow face!. Open your mouth and raise your eyebrows like a surprise.",
+   "hash": "1b906c229d7223"
+  },
+  {
+   "id": "vision_play:en:1ba09d52297265",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "How many sides does a hexagon have?",
+   "hash": "1ba09d52297265"
+  },
+  {
+   "id": "vision_play:en:1be749d388289b",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Who painted Guernica?",
+   "hash": "1be749d388289b"
+  },
+  {
+   "id": "vision_play:en:1becbf140fa11b",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "How many days are in a week?",
+   "hash": "1becbf140fa11b"
+  },
+  {
+   "id": "vision_play:en:1becee2685f815",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Pop Quiz Toss. I could not load a question. Try again in a moment.",
+   "hash": "1becee2685f815"
+  },
+  {
+   "id": "vision_play:en:1beeed19014150",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the chemical symbol for iron?",
+   "hash": "1beeed19014150"
+  },
+  {
+   "id": "vision_play:en:1bf4b0d1c4a524",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "How many legs does a bird have?",
+   "hash": "1bf4b0d1c4a524"
+  },
+  {
+   "id": "vision_play:en:1bfad7ec0aba9d",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Who formulated the uncertainty principle?",
+   "hash": "1bfad7ec0aba9d"
+  },
+  {
+   "id": "vision_play:en:1c1837432d998f",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Pick a listening game. Choose Say the letter or a game under Listen, then check what was said.",
+   "hash": "1c1837432d998f"
+  },
+  {
+   "id": "vision_play:en:1c4865e01369b9",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which letter is a vowel?",
+   "hash": "1c4865e01369b9"
+  },
+  {
+   "id": "vision_play:en:1c798c95190ffe",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the opposite of open?",
+   "hash": "1c798c95190ffe"
+  },
+  {
+   "id": "vision_play:en:1c839ff6a1f59f",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which organ pumps blood around the body?",
+   "hash": "1c839ff6a1f59f"
+  },
+  {
+   "id": "vision_play:en:1c9770fafe41c3",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which instrument has eighty-eight keys?",
+   "hash": "1c9770fafe41c3"
+  },
+  {
+   "id": "vision_play:en:1c9ed57f1df475",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the opposite of fast?",
+   "hash": "1c9ed57f1df475"
+  },
+  {
+   "id": "vision_play:en:1cb27fdac58556",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "How many minutes are in an hour?",
+   "hash": "1cb27fdac58556"
+  },
+  {
+   "id": "vision_play:en:1ce7bd039ac375",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which gas makes up most of the air?",
+   "hash": "1ce7bd039ac375"
+  },
+  {
+   "id": "vision_play:en:1ceb282df7a9d7",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "I'll wait. Come back into the camera. The timer is paused.",
+   "hash": "1ceb282df7a9d7"
+  },
+  {
+   "id": "vision_play:en:1d3238f14b5962",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is steam?",
+   "hash": "1d3238f14b5962"
+  },
+  {
+   "id": "vision_play:en:1d480dbe53e652",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What shape is a pizza slice?",
+   "hash": "1d480dbe53e652"
+  },
+  {
+   "id": "vision_play:en:1d4e006129b294",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which is the largest country by area?",
+   "hash": "1d4e006129b294"
+  },
+  {
+   "id": "vision_play:en:1d54d12acc2686",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which is the longest river in Europe?",
+   "hash": "1d54d12acc2686"
+  },
+  {
+   "id": "vision_play:en:1d745efa19417d",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "In which year did the Soviet Union dissolve?",
+   "hash": "1d745efa19417d"
+  },
+  {
+   "id": "vision_play:en:1d858f5d494f20",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "How many strings does a standard violin have?",
+   "hash": "1d858f5d494f20"
+  },
+  {
+   "id": "vision_play:en:1d98e376484e4a",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the cube of three?",
+   "hash": "1d98e376484e4a"
+  },
+  {
+   "id": "vision_play:en:1d9a2b05fa8f12",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What color is a school bus?",
+   "hash": "1d9a2b05fa8f12"
+  },
+  {
+   "id": "vision_play:en:1dd1ea3d0980bd",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the currency of Japan?",
+   "hash": "1dd1ea3d0980bd"
+  },
+  {
+   "id": "vision_play:en:1dea69288e4dc7",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the capital of Myanmar?",
+   "hash": "1dea69288e4dc7"
+  },
+  {
+   "id": "vision_play:en:1ded4907f1e9c0",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Who developed the theory of evolution by natural selection?",
+   "hash": "1ded4907f1e9c0"
+  },
+  {
+   "id": "vision_play:en:1def0433a85970",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which animal says tweet?",
+   "hash": "1def0433a85970"
+  },
+  {
+   "id": "vision_play:en:1dfac00f01f05b",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which planet do we live on?",
+   "hash": "1dfac00f01f05b"
+  },
+  {
+   "id": "vision_play:en:1e0ca7bf0ad358",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the capital of Pakistan?",
+   "hash": "1e0ca7bf0ad358"
+  },
+  {
+   "id": "vision_play:en:1e1baf43f782dc",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What do we call a scientist who studies space?",
+   "hash": "1e1baf43f782dc"
+  },
+  {
+   "id": "vision_play:en:1e33159305cf7c",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the largest planet in our solar system?",
+   "hash": "1e33159305cf7c"
+  },
+  {
+   "id": "vision_play:en:1e4c91f34fe858",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the unit of force?",
+   "hash": "1e4c91f34fe858"
+  },
+  {
+   "id": "vision_play:en:1e4f12d99dc19d",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What does a seismograph measure?",
+   "hash": "1e4f12d99dc19d"
+  },
+  {
+   "id": "vision_play:en:1e5393cfdd4f6f",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the capital of Spain?",
+   "hash": "1e5393cfdd4f6f"
+  },
+  {
+   "id": "vision_play:en:1e604a61b21443",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the main language of Egypt?",
+   "hash": "1e604a61b21443"
+  },
+  {
+   "id": "vision_play:en:1e6928ac8351a9",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the opposite of up?",
+   "hash": "1e6928ac8351a9"
+  },
+  {
+   "id": "vision_play:en:1e7cbd2685d718",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "How many players does a soccer team have on the field?",
+   "hash": "1e7cbd2685d718"
+  },
+  {
+   "id": "vision_play:en:1e8f23f30e9a79",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which fruit is red and grows on trees?",
+   "hash": "1e8f23f30e9a79"
+  },
+  {
+   "id": "vision_play:en:1ed2167b2a7829",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which planet is called the Red Planet?",
+   "hash": "1ed2167b2a7829"
+  },
+  {
+   "id": "vision_play:en:1ef730e7412f4c",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which ocean is the deepest?",
+   "hash": "1ef730e7412f4c"
+  },
+  {
+   "id": "vision_play:en:1efe76a888ecaa",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the capital of Vietnam?",
+   "hash": "1efe76a888ecaa"
+  },
+  {
+   "id": "vision_play:en:1f0c193c54c0d4",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is frozen water called?",
+   "hash": "1f0c193c54c0d4"
+  },
+  {
+   "id": "vision_play:en:1f293b7b7ebeb2",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the capital of Brazil?",
+   "hash": "1f293b7b7ebeb2"
+  },
+  {
+   "id": "vision_play:en:1f3570bc58d971",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What does a caterpillar turn into?",
+   "hash": "1f3570bc58d971"
+  },
+  {
+   "id": "vision_play:en:1f4e6de046dcb4",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What does the Moon go around?",
+   "hash": "1f4e6de046dcb4"
+  },
+  {
+   "id": "vision_play:en:1f4e9ad2bb6efb",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What do we call a baby horse?",
+   "hash": "1f4e9ad2bb6efb"
+  },
+  {
+   "id": "vision_play:en:1f6efed86b9d5d",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the capital of Nigeria?",
+   "hash": "1f6efed86b9d5d"
+  },
+  {
+   "id": "vision_play:en:1f7930c3e5ecbb",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which organelle is the powerhouse of the cell?",
+   "hash": "1f7930c3e5ecbb"
+  },
+  {
+   "id": "vision_play:en:1fa54c2743f198",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What do you use to dry off after a bath?",
+   "hash": "1fa54c2743f198"
+  },
+  {
+   "id": "vision_play:en:1faf286ba5c604",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "What is the fastest land animal?",
+   "hash": "1faf286ba5c604"
+  },
+  {
+   "id": "vision_play:en:1fe531c3d52361",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "In what year did the Titanic sink?",
+   "hash": "1fe531c3d52361"
+  },
+  {
+   "id": "vision_play:en:1fe8bd028fd4b1",
+   "demo": "vision_play",
+   "lang": "en",
+   "text": "Which is the longest river in South America?",
+   "hash": "1fe8bd028fd4b1"
+  }
+ ]
+}

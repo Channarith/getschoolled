@@ -69,3 +69,9 @@ def test_question_timer_pauses_when_the_learner_is_away_and_touch_side_is_sticky
     assert "voiceAway" in paused and "flying" in paused and "hearingUntil" in paused
     # One touch press stays on one tracker even when the swipe crosses the middle of the screen.
     assert "pq.screenSide" in game
+
+
+@pytest.mark.skipif(not NODE, reason="node is not installed")
+def test_clone_voice_hash_and_fallbacks_match_python():
+    result = subprocess.run([NODE, str(ROOT / "tests/clone_voice_check.mjs")], check=False, capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr or result.stdout

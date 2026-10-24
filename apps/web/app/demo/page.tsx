@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 
 import { getToken } from "../lib/api";
 import { DemoOnlyShowcase } from "../components/DemoOnly";
+import DemoVoiceSelect from "../components/DemoVoiceSelect";
 import { useFlags } from "../lib/flags";
 import {
   SALES_DEMO_COURSES,
@@ -53,6 +54,8 @@ export default function SalesDemoPage() {
         .sales-demo-card { animation: sales-demo-enter .45s ease both; transition: transform .2s ease; }
         .sales-demo-card:hover { transform: translateY(-4px) scale(1.01); }
       `}</style>
+
+      <div style={{ textAlign: "right", marginBottom: 10 }}><DemoVoiceSelect /></div>
 
       <section
         style={{
