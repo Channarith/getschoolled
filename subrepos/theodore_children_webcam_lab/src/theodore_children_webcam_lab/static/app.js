@@ -351,18 +351,33 @@ async function start(camera=true) {
   if (camera) {
     try {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error("insecure-context");
-      state.stream = await navigator.mediaDevices.getUserMedia({
-        video:{facingMode:"user",width:{ideal:1280},height:{ideal:720}}, audio:false
-      });
+      setStatus("Asking for your camera… tap Allow when your phone asks");
+      const permissionHint = setTimeout(() => setStatus("Still waiting for the camera. Tap Allow in the pop-up, or open Camera check below"), 9000);
+      try {
+        state.stream = await navigator.mediaDevices.getUserMedia({
+          video:{facingMode:"user",width:{ideal:1280},height:{ideal:720}}, audio:false
+        });
+        clearTimeout(permissionHint);
+      } catch (first) {
+        clearTimeout(permissionHint);
+        // Some phones refuse the size or facing hint (OverconstrainedError) or have the
+        // camera briefly busy: ask for any camera once before giving up.
+        if (first?.name === "NotAllowedError" || first?.name === "SecurityError") throw first;
+        state.stream = await navigator.mediaDevices.getUserMedia({video:true, audio:false});
+      }
       if (video) {
         video.srcObject = state.stream;
-        await video.play();
+        // autoplay + muted + playsinline normally start it; a rejected play() must not
+        // throw the whole camera away.
+        try { await video.play(); } catch (_) {}
       }
       setStatus("Camera live · loading face & hands…");
       await initVision();
     } catch (error) {
       state.demo = true;
-      setStatus(`Pointer demo · camera unavailable (${error.name || error.message || "blocked"})`);
+      state.cameraError = String(error?.name || error?.message || "blocked");
+      setStatus(`Pointer demo · camera unavailable (${state.cameraError})`);
+      openVisionCheck(true);
     }
   } else {
     setStatus("Pointer demo · move over the screen");
@@ -374,51 +389,171 @@ async function start(camera=true) {
   chooseGame();
 }
 
+function visionSources(selfHosted) {
+  const cdn = {
+    name: "cdn", module: `${VISION_CDN}/+esm`, wasm: `${VISION_CDN}/wasm`,
+    face: `${MODEL_ROOT}/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
+    hand: `${MODEL_ROOT}/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task`,
+  };
+  const local = {
+    name: "this site", module: "/vendor/vision/tasks-vision.mjs", wasm: "/vendor/vision/wasm",
+    face: "/vendor/vision/face_landmarker.task", hand: "/vendor/vision/hand_landmarker.task",
+  };
+  return selfHosted ? [local, cdn] : [cdn];
+}
+
 async function initVision() {
+  const diag = state.visionDiag = {source: "", library: "pending", face: "pending", hands: "pending", errors: []};
+  let selfHosted = false;
   try {
-    let moduleUrl=`${VISION_CDN}/+esm`,wasmUrl=`${VISION_CDN}/wasm`;
-    let faceModel=`${MODEL_ROOT}/face_landmarker/face_landmarker/float16/1/face_landmarker.task`;
-    let handModel=`${MODEL_ROOT}/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task`;
+    // On salareen.com, /health is the orchestrator. The lab health is proxied
+    // beside the page so vision_assets is the lab's answer, not the API's.
+    const healthUrl = location.pathname.indexOf("/children-lab")===0?"/children-live-audio/health":"/health";
+    const runtime = await fetch(healthUrl).then(response => response.ok ? response.json() : null);
+    selfHosted = runtime?.vision_assets === "self-hosted";
+  } catch (_) {}
+  const note = (where, error) => diag.errors.push(`${where}: ${String(error?.message || error || "failed").slice(0, 140)}`);
+  for (const source of visionSources(selfHosted)) {
     try {
-      // Asking for a path that is intentionally absent generated a scary 404
-      // on every load. The health contract already says whether local assets
-      // were mounted, so use that instead.
-      // On salareen.com, /health is the orchestrator. The lab health is proxied
-      // beside the page so vision_assets is the lab's answer, not the API's.
-      const healthUrl=location.pathname.indexOf("/children-lab")===0?"/children-live-audio/health":"/health";
-      const runtime=await fetch(healthUrl).then(response=>response.ok?response.json():null);
-      if(runtime?.vision_assets==="self-hosted"){moduleUrl="/vendor/vision/tasks-vision.mjs";wasmUrl="/vendor/vision/wasm";faceModel="/vendor/vision/face_landmarker.task";handModel="/vendor/vision/hand_landmarker.task";}
-    } catch (_) {}
-    const vision = await import(moduleUrl);
-    const files = await vision.FilesetResolver.forVisionTasks(wasmUrl);
-    const delegates = ["GPU","CPU"];
-    for (const delegate of delegates) {
-      try {
-        state.face = await vision.FaceLandmarker.createFromOptions(files, {
-          baseOptions:{modelAssetPath:faceModel,delegate},
-          runningMode:"VIDEO",numFaces:1,outputFaceBlendshapes:true
-        });
-        break;
-      } catch (_) {}
+      diag.source = source.name;
+      const vision = await import(source.module);
+      diag.library = "ok";
+      const files = await vision.FilesetResolver.forVisionTasks(source.wasm);
+      state.face = null; state.hands = null;
+      diag.face = "pending"; diag.hands = "pending";
+      for (const delegate of ["GPU", "CPU"]) {
+        try {
+          state.face = await vision.FaceLandmarker.createFromOptions(files, {
+            baseOptions: {modelAssetPath: source.face, delegate},
+            runningMode:"VIDEO",numFaces:1,outputFaceBlendshapes:true
+          });
+          diag.face = `ready (${delegate})`;
+          break;
+        } catch (error) { note(`face ${delegate}`, error); }
+      }
+      if (!state.face) diag.face = "failed";
+      for (const delegate of ["GPU", "CPU"]) {
+        try {
+          state.hands = await vision.HandLandmarker.createFromOptions(files, {
+            baseOptions: {modelAssetPath: source.hand, delegate},
+            runningMode:"VIDEO",numHands:2
+          });
+          state.handConnections = (vision.HandLandmarker.HAND_CONNECTIONS || []).map((c) => (
+            Array.isArray(c) ? [c[0], c[1]] : [c.start, c.end]
+          )).filter((pair) => Number.isFinite(pair[0]) && Number.isFinite(pair[1]));
+          diag.hands = `ready (${delegate})`;
+          break;
+        } catch (error) { note(`hands ${delegate}`, error); }
+      }
+      if (!state.hands) diag.hands = "failed";
+      if (state.face && state.hands) break;
+    } catch (error) {
+      diag.library = diag.library === "ok" ? diag.library : "failed";
+      note(`library (${source.name})`, error);
+      console.warn("[children-lab] vision source failed", source.name, error);
     }
-    for (const delegate of delegates) {
-      try {
-        state.hands = await vision.HandLandmarker.createFromOptions(files, {
-          baseOptions:{modelAssetPath:handModel,delegate},
-          runningMode:"VIDEO",numHands:2
-        });
-        state.handConnections = (vision.HandLandmarker.HAND_CONNECTIONS || []).map((c) => (
-          Array.isArray(c) ? [c[0], c[1]] : [c.start, c.end]
-        )).filter((pair) => Number.isFinite(pair[0]) && Number.isFinite(pair[1]));
-        break;
-      } catch (_) {}
-    }
-    setStatus(state.face && state.hands ? "Face + two hands ready" : "Camera ready · some gesture models unavailable");
-  } catch (error) {
+  }
+  if (state.face && state.hands) {
+    setStatus("Face + two hands ready");
+  } else if (state.face || state.hands) {
+    setStatus("Camera ready · some gesture models unavailable");
+  } else {
     setStatus("Camera live · pointer fallback (vision model unavailable)");
-    console.warn("[children-lab] vision init failed", error);
+    openVisionCheck(true);
   }
 }
+
+
+// ---- Camera & vision self-check ------------------------------------------------------------
+// Phones fail in quiet ways (permission blocked, model download blocked, no GPU). This shows
+// what is actually happening and what to try, with Sala instead of a console message.
+function visionCheckAdvice(report) {
+  const out = [];
+  if (!report.secure) out.push("Open Salareen with https:// - browsers only allow the camera on secure pages.");
+  if (report.camera === "denied" || /NotAllowed|Security/.test(state.cameraError || "")) {
+    out.push("The camera is blocked. Tap the lock or camera icon in the address bar (or Settings > Safari/Chrome > Camera) and choose Allow, then try again.");
+  }
+  if (/NotFound|Overconstrained/.test(state.cameraError || "")) out.push("No camera was found. Plug one in or try another device.");
+  if (/NotReadable|Abort/.test(state.cameraError || "")) out.push("Another app is using the camera. Close it, then try again.");
+  const d = state.visionDiag;
+  if (d && d.library === "failed") out.push("The hand and face models could not be downloaded. Check your connection (or turn off a content blocker) and try again.");
+  if (d && (d.face === "failed" || d.hands === "failed") && d.library === "ok") out.push("This phone could not start the face/hand models. Close other tabs and try again.");
+  if (!out.length) out.push("Everything looks fine. Make sure your hand is in the picture and the room is bright.");
+  return out;
+}
+
+async function visionCheckReport() {
+  const report = {
+    secure: window.isSecureContext !== false,
+    camera: "unknown",
+    stream: "not started",
+    webgl: (() => { try { const c = document.createElement("canvas"); return Boolean(c.getContext("webgl2") || c.getContext("webgl")); } catch (_) { return false; } })(),
+  };
+  try {
+    const status = await navigator.permissions?.query({name: "camera"});
+    if (status?.state) report.camera = status.state;
+  } catch (_) {}
+  const track = state.stream?.getVideoTracks?.()[0];
+  if (track) {
+    const s = track.getSettings?.() || {};
+    report.stream = `${track.readyState === "live" ? "live" : track.readyState}${s.width ? ` ${s.width}x${s.height}` : ""}${s.facingMode ? ` ${s.facingMode}` : ""}`;
+  }
+  return report;
+}
+
+async function openVisionCheck(auto = false) {
+  const existing = document.getElementById("vision-check");
+  if (existing) existing.remove();
+  const report = await visionCheckReport();
+  const d = state.visionDiag || {library: "not started", face: "not started", hands: "not started", source: "", errors: []};
+  const box = document.createElement("div");
+  box.id = "vision-check";
+  box.className = "vc-overlay";
+  box.setAttribute("role", "dialog");
+  box.setAttribute("aria-modal", "true");
+  box.setAttribute("aria-label", "Camera and vision check");
+  const ok = (value) => /^(ok|ready|live|granted|true)/.test(String(value));
+  const row = (label, value) => `<li class="${ok(value) ? "vc-ok" : /pending|not started|unknown/.test(String(value)) ? "vc-wait" : "vc-bad"}"><span>${label}</span><b>${String(value).replace(/[<>&]/g, "")}</b></li>`;
+  const advice = visionCheckAdvice(report).map((x) => `<p>${x.replace(/[<>&]/g, "")}</p>`).join("");
+  box.innerHTML = `<div class="vc-card">
+    <img src="/static/sala-gold.png" alt="" class="vc-sala" width="72" height="72">
+    <h2>${auto ? "Sala can't see your camera yet" : "Camera &amp; vision check"}</h2>
+    <ul class="vc-list">
+      ${row("Secure page", report.secure ? "ok" : "not https")}
+      ${row("Camera permission", report.camera)}
+      ${row("Camera stream", state.stream ? report.stream : (state.cameraError || "not started"))}
+      ${row("Vision library", d.library + (d.source ? ` (${d.source})` : ""))}
+      ${row("Face model", d.face)}
+      ${row("Hand model", d.hands)}
+      ${row("Graphics (WebGL)", report.webgl ? "ok" : "unavailable, using CPU")}
+    </ul>
+    <div class="vc-advice">${advice}</div>
+    ${d.errors?.length ? `<details><summary>Details for the Salareen team</summary><pre>${d.errors.join("\n").replace(/[<>&]/g, "")}</pre></details>` : ""}
+    <div class="vc-actions"><button type="button" data-vc="test" class="primary">Test camera</button><button type="button" data-vc="close" class="secondary">Close</button></div>
+    <p class="vc-result" aria-live="polite"></p>
+  </div>`;
+  document.body.append(box);
+  const result = box.querySelector(".vc-result");
+  box.addEventListener("click", async (event) => {
+    const action = event.target?.closest?.("[data-vc]")?.getAttribute("data-vc");
+    if (action === "close" || event.target === box) { box.remove(); return; }
+    if (action === "test") {
+      result.textContent = "Asking for the camera…";
+      try {
+        const probe = await navigator.mediaDevices.getUserMedia({video: true, audio: false});
+        probe.getTracks().forEach((track) => track.stop());
+        result.textContent = "Camera works. Close this and press Start.";
+      } catch (error) {
+        state.cameraError = String(error?.name || error?.message || "blocked");
+        result.textContent = `Camera problem: ${state.cameraError}.`;
+      }
+    }
+  });
+  box.addEventListener("keydown", (event) => { if (event.key === "Escape") box.remove(); });
+  box.querySelector("[data-vc='test']")?.focus();
+}
+$("vision-check-open")?.addEventListener("click", () => openVisionCheck(false));
+window.__openVisionCheck = openVisionCheck;
 
 function blendshapeMap(result) {
   const out = {};
