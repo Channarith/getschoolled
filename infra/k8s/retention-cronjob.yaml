@@ -16,7 +16,7 @@ spec:
           containers:
             - name: retention-purge
               image: aoep/memory:latest
-              command: ["python3", "scripts/retention_purge.py"]
+              command: ["python3", "/app/scripts/retention_purge.py"]
               resources:
                 requests:
                   cpu: "100m"
@@ -27,6 +27,11 @@ spec:
               env:
                 - name: MEMORY_URL
                   value: "http://memory:8000"
+                - name: INTERNAL_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: aoep-secrets
+                      key: INTERNAL_TOKEN
                 - name: DATABASE_URL
                   valueFrom:
                     secretKeyRef:
