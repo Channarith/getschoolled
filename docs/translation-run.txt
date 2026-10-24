@@ -27,7 +27,16 @@ Merge: rsync -a one machine's ~/translations/ onto the other. Files never collid
 
 Notes:
   - Output folder: AOEP_COURSE_TRANSLATION_DIR (default ~/translations).
-  - NLLB_DEVICE=cuda|cpu forces the device; CONCURRENCY=N changes parallel jobs (default 4).
+  - Device policy (aoep_shared/devices.py): on the DGX Spark CUDA is REQUIRED. NLLB_DEVICE=cpu and an
+    empty CUDA_VISIBLE_DEVICES are ignored there with a loud warning unless AOEP_ALLOW_CPU=1 is also set,
+    and a missing or broken CUDA fails fast instead of falling back to the CPU. On the iBuyPower CUDA is
+    preferred and CPU is allowed. The gateway reports the device in use at GET /device (503 when the
+    policy is violated) and in the "device" field of /translate. A CUDA failure on the Spark returns 503
+    from /translate; it is never turned into a phrasebook or passthrough answer.
+  - NLLB runs in batches (NLLB_BATCH_SIZE, default 16; NLLB_NUM_BEAMS, default 4; NLLB_DTYPE bf16|fp16|fp32,
+    default bf16 on CUDA). A GPU only helps when it is fed batches. The speed-up on the Spark is
+    UNMEASURED: run scripts/nllb_bench.py on each device and compare before relying on any number.
+  - CONCURRENCY=N changes parallel jobs (default 4).
   - Khmer, Swahili and Bengali are weaker in NLLB; spot-check before shipping.
   - Course Studio courses are not included (script flag --audio-only); rerun
     scripts/translate_courses_batch.py without it later.

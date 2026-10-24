@@ -173,3 +173,32 @@ LIMITS THIS TOOLING CANNOT COVER
     floor if systemd-run is not usable.
   - The GB10 reports no GPU memory figure (unified memory), so GPU contention is judged by the number
     of GPU processes, not by video memory.
+
+CUDA POLICY (DGX Spark)
+  Rule: on the Spark all GPU work uses CUDA and nothing is pinned to the CPU. The single place that decides
+  is aoep_shared/devices.py (pick_device). Components call it instead of testing torch.cuda themselves:
+  NLLB translation, the CosyVoice ingest ASR (Whisper large-v3, MMS Khmer, language detection), fine-tune
+  and evaluate in training/, and the Khmer eval script.
+
+  Host role: AOEP_HOST_ROLE=spark|kalel|mac|other, else ~/.config/aoep/host.env (KEY=VALUE lines), else the
+  hostname (contains "spark" -> spark, "kal-el" -> kalel). AOEP_REQUIRE_CUDA=1|0 overrides the role default.
+    spark        CUDA required. No CUDA, no kernels for this GPU, or no PyTorch: the job stops at start with
+                 the torch version, CUDA build, capability and arch list in the message. A CPU request
+                 (NLLB_DEVICE=cpu, AOEP_ASR_DEVICE=cpu, --device cpu, CUDA_VISIBLE_DEVICES empty) is ignored
+                 with a warning unless AOEP_ALLOW_CPU=1 is also set (use it only on purpose).
+    kalel        CUDA preferred, CPU allowed with a warning (RTX 5060 Ti, 8 GB: one GPU job at a time).
+    mac / other  MPS or CPU is fine.
+  A startup smoke check runs real kernels (matmul and an fp16 Linear) so a PyTorch build without kernels for
+  the GB10 (sm_121) is caught immediately, not hours into a batch.
+
+  One-time setup on the Spark:
+    mkdir -p ~/.config/aoep && printf 'AOEP_HOST_ROLE=spark\n' > ~/.config/aoep/host.env
+
+  Why this exists: the Spark's NLLB gateway ran with NLLB_DEVICE=cpu for 39 hours (about 660% CPU, GPU at
+  0%), and the CosyVoice ingest defaulted AOEP_ASR_DEVICE to "cpu", so Whisper large-v3 ran on the CPU.
+
+  Check a machine (read-only; flags CPU pins and "GPU idle while CPU-bound"):
+    scripts/fleet_cuda_check.sh                        this machine
+    scripts/fleet_cuda_check.sh nvidia@192.168.1.107   the Spark over ssh (key login)
+  The translation gateway answers GET http://127.0.0.1:8002/device with the device in use, whether CUDA is
+  required, free GPU memory and ok true/false (503 when the policy is violated).

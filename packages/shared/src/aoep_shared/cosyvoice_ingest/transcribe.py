@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
+from ..devices import DevicePolicyError, pick_device
 from .guard import available_mb, env_int, is_memory_error
 
 
@@ -115,9 +116,7 @@ def _faster_engine(model_name: str, device: str, compute_type: str):
 def _detect_language_whisper(wav: Path, model_name: str) -> Optional[str]:
     """Top Whisper language for a clip, or None when detection is unavailable."""
     try:
-        import torch
-
-        if not torch.cuda.is_available():
+        if pick_device("asr-langid", os.environ.get("AOEP_ASR_DEVICE")) != "cuda":
             return None
         import whisper
 
@@ -128,6 +127,8 @@ def _detect_language_whisper(wav: Path, model_name: str) -> Optional[str]:
         ).to(engine.device)
         _, probs = engine.detect_language(mel)
         return max(probs, key=probs.get) if probs else None
+    except DevicePolicyError:
+        raise  # CUDA is required on this host: fail loudly, never skip language detection quietly
     except Exception:  # noqa: BLE001
         return None
 
@@ -146,7 +147,7 @@ def _transcribe_mms_khmer(wav: Path) -> Optional[TranscriptResult]:
         def factory():
             processor = AutoProcessor.from_pretrained("facebook/mms-1b-all")
             model = Wav2Vec2ForCTC.from_pretrained("facebook/mms-1b-all", torch_dtype=torch.float32)
-            device = "cuda" if torch.cuda.is_available() else "cpu"
+            device = pick_device("asr-mms-khmer", os.environ.get("AOEP_ASR_DEVICE"))
             model = model.to(device)
             processor.tokenizer.set_target_lang("khm")
             model.load_adapter("khm")
@@ -168,6 +169,8 @@ def _transcribe_mms_khmer(wav: Path) -> Optional[TranscriptResult]:
         return TranscriptResult(text, "km", "mms-1b-all:khm", True, "ok")
     except MemoryError:
         return _oom_result("km", "mms-1b-all:khm")
+    except DevicePolicyError:
+        raise  # a required-CUDA failure must not quietly fall back to Whisper
     except Exception as exc:  # noqa: BLE001 — fall back to Whisper on any MMS failure
         if is_memory_error(str(exc)):
             return _oom_result("km", "mms-1b-all:khm")
@@ -287,8 +290,10 @@ def transcribe_wav(
     if os.environ.get("AOEP_ASR_DETECT_LANGUAGE", "").strip().lower() in {"1", "true", "yes"}:
         language = ""
 
-    ctype = compute_type or os.environ.get("AOEP_ASR_COMPUTE_TYPE", "int8")
-    device = os.environ.get("AOEP_ASR_DEVICE", "cpu").strip().lower() or "cpu"
+    # Device comes from the host policy (aoep_shared.devices): CUDA on the Spark, and a CPU default here is
+    # what left the ingest's Whisper large-v3 on the CPU. AOEP_ASR_DEVICE=cpu is honoured only where CPU is allowed.
+    device = pick_device("asr", os.environ.get("AOEP_ASR_DEVICE"))
+    ctype = compute_type or os.environ.get("AOEP_ASR_COMPUTE_TYPE") or ("float16" if device == "cuda" else "int8")
     engine_name = os.environ.get("AOEP_ASR_ENGINE", "faster-whisper").strip().lower()
     if engine_name in {"openai", "openai-whisper", "whisper", "gpu"}:
         openai_device = "cuda" if device == "cuda" else device

@@ -9,7 +9,8 @@
 #   scripts/translate_on_machine.sh status          # files written so far
 #
 # Output: $AOEP_COURSE_TRANSLATION_DIR (default ~/translations). Safe to rerun:
-# finished course-languages are skipped. NLLB_DEVICE=cuda|cpu overrides auto.
+# finished course-languages are skipped. The device follows aoep_shared/devices.py: on the DGX Spark CUDA is
+# required (NLLB_DEVICE=cpu is ignored there unless AOEP_ALLOW_CPU=1); elsewhere CUDA is preferred.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT="$PWD"
@@ -33,11 +34,17 @@ langs_for() {
 
 start_gateway() {
   export RATE_LIMIT_DISABLED=1
-  if curl -sf "http://127.0.0.1:$PORT/languages" >/dev/null 2>&1; then return; fi
+  if curl -sf "http://127.0.0.1:$PORT/languages" >/dev/null 2>&1; then
+    echo "gateway already running; device: $(curl -s "http://127.0.0.1:$PORT/device" | head -c 300)"
+    return
+  fi
   nohup uvicorn speech_gw.main:app --app-dir services/speech/src --port "$PORT" \
     > "$OUT/gateway.log" 2>&1 &
   for _ in $(seq 1 60); do
-    curl -sf "http://127.0.0.1:$PORT/languages" >/dev/null 2>&1 && return
+    if curl -sf "http://127.0.0.1:$PORT/languages" >/dev/null 2>&1; then
+      echo "translation device: $(curl -s "http://127.0.0.1:$PORT/device" | head -c 300)"
+      return
+    fi
     sleep 1
   done
   echo "speech gateway did not start; see $OUT/gateway.log" >&2; exit 1

@@ -91,6 +91,13 @@ def _plan(cfg: dict, rows: List[Dict], base_model: str, device: str) -> str:
 
 
 def _detect_device(requested: str) -> str:
+    """Host policy first (CUDA is required on the Spark and a CPU request is ignored there)."""
+    try:
+        from aoep_shared.devices import pick_device  # noqa: PLC0415
+    except ImportError:
+        pick_device = None
+    if pick_device is not None:
+        return pick_device("finetune", None if requested == "auto" else requested)
     if requested != "auto":
         return requested
     try:

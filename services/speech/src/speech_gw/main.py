@@ -339,6 +339,23 @@ def delivery_plan(req: DeliveryPlanRequest) -> DeliveryPlanResponse:
     )
 
 
+@app.get("/device")
+def device() -> dict:
+    """Readiness for the translation device: which device is in use and whether the CUDA policy holds.
+    503 when this host requires CUDA and the model is not on it (or CUDA is unusable)."""
+    from aoep_shared.devices import cuda_smoke, require_cuda
+    from aoep_shared.nllb import nllb_status
+
+    status = nllb_status()
+    if require_cuda() and not status.get("model_loaded"):
+        ok, detail = cuda_smoke()
+        if not ok:
+            status.update(ok=False, reason=f"CUDA required but unusable: {detail}")
+    if not status.get("ok", False):
+        raise HTTPException(status_code=503, detail=status)
+    return status
+
+
 class TranslateRequest(BaseModel):
     text: str
     source: str
@@ -371,15 +388,22 @@ def translate(req: TranslateRequest) -> dict:
             status_code=422,
             detail=f"unsupported language pair {source}->{target}",
         )
+    from aoep_shared.devices import DevicePolicyError
+
     provider = app.state.factory.speech()
     try:
         translated = provider.translate(req.text, source=source, target=target)
+    except DevicePolicyError as exc:
+        raise HTTPException(status_code=503, detail=f"GPU required but unavailable: {exc}") from exc
     except Exception:
         translated = None
     if translated:
+        from aoep_shared.nllb import nllb_status
+
         return {
             "source": source, "target": target, "text": translated,
             "engine": "provider", "degraded": False,
+            "device": nllb_status().get("device"),
         }
     phrase = translate_phrase(req.text, source, target)
     if phrase:
