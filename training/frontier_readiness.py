@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import html
 import json
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -154,28 +155,41 @@ def translation_coverage(jobs: list, root: Path, languages: tuple[str, ...] = SP
     }
 
 
+def latest_batch_progress(paths: list[Path]) -> dict | None:
+    """Use the log that has moved farthest through the 222-course run."""
+    best = None
+    for path in paths:
+        if not path.is_file():
+            continue
+        text = path.read_bytes().replace(b"\x00", b"").decode("utf-8", "replace")
+        marker = text.rfind("222 courses x 21")
+        got = parse_batch_progress(text[marker:] if marker >= 0 else text)
+        if got and (best is None or got["done"] >= best["done"]):
+            best = got
+    return best
+
+
+_TALLY = re.compile(
+    r"\[(\d+)/(\d+)\].*?\(written=(\d+) skipped=(\d+) failed=(\d+)\)"
+)
+
+
 def parse_batch_progress(text: str) -> dict | None:
     last = None
     for line in text.splitlines():
-        if "/4662]" in line or "] " in line and "written=" in line:
-            last = line.strip()
-    if not last or "written=" not in last:
+        match = _TALLY.search(line)
+        if match:
+            last = match
+    if last is None:
         return None
-    # [62/4662] skipped ... (written=0 skipped=60 failed=2)
-    try:
-        head, tail = last.split("]", 1)
-        done, total = head.strip().lstrip("[").split("/")
-        parts = tail[tail.rfind("(") + 1:tail.rfind(")")].split()
-        fields = dict(piece.split("=", 1) for piece in parts if "=" in piece)
-        return {
-            "done": int(done),
-            "total": int(total),
-            "written": int(fields.get("written", 0)),
-            "skipped": int(fields.get("skipped", 0)),
-            "failed": int(fields.get("failed", 0)),
-        }
-    except (ValueError, IndexError):
-        return None
+    done, total, written, skipped, failed = (int(part) for part in last.groups())
+    return {
+        "done": done,
+        "total": total,
+        "written": written,
+        "skipped": skipped,
+        "failed": failed,
+    }
 
 
 def _pct(value: float | None) -> str:
@@ -286,6 +300,8 @@ def _bar(score: float, floor: float) -> str:
 def render_html(snapshot: dict, history: list[dict]) -> str:
     e = html.escape
     weak = snapshot.get("weakest_split") or {}
+    frozen_weak = snapshot.get("weakest_frozen") or {}
+    stem_weak = snapshot.get("weakest_stem") or {}
     truth = snapshot["truth"]
     translation = snapshot.get("translation") or {}
     batch = snapshot.get("batch")
@@ -303,7 +319,9 @@ def render_html(snapshot: dict, history: list[dict]) -> str:
             "/" + str(row["total"]) + "</td><td>" + str(row["partial"]) + "</td></tr>"
         )
     demo = translation.get("demo") or {}
-    demo_bits = ", ".join(f"{e(code)} {e(state)}" for code, state in demo.items() if state != "missing") or "none playable yet"
+    demo_bits = ", ".join(
+        f"{e(code)} {e(state)}" for code, state in demo.items() if state != "playable"
+    ) or "all playable"
     hist_bits = []
     for row in history[-12:]:
         hist_bits.append(
@@ -354,8 +372,8 @@ def render_html(snapshot: dict, history: list[dict]) -> str:
 <main>
   <section class="grid">
     <div class="card"><b>{_pct(snapshot["split_accuracy"])}</b><span>STEM adapter on the 41-item split. Base is {_pct(snapshot["split_base"])}. Weakest sampled subject: {e(str(weak.get("subject") or "—"))} {_pct(weak.get("score"))}.</span></div>
-    <div class="card"><b>{_pct(snapshot["frozen_accuracy"])}</b><span>Adapter on the frozen 200-item exam. Base {_pct(snapshot["frozen_base"])}. Target {_pct(snapshot["target_frozen_f1"])}. A blank means this cycle has not finished that file.</span></div>
-    <div class="card"><b>{_pct(snapshot["stem_accuracy"])}</b><span>Adapter on the frozen STEM exam ({snapshot["stem_exam_items"]} items, linear algebra n={algebra_n}). Subject floor {_pct(snapshot["stem_subject_min"])}.</span></div>
+    <div class="card"><b>{_pct(snapshot["frozen_accuracy"])}</b><span>Adapter on the frozen 200-item exam. Base {_pct(snapshot["frozen_base"])}. Target {_pct(snapshot["target_frozen_f1"])}. Weakest subject: {e(str(frozen_weak.get("subject") or "—"))} {_pct(frozen_weak.get("score"))}.</span></div>
+    <div class="card"><b>{_pct(snapshot["stem_accuracy"])}</b><span>Adapter on the frozen STEM exam ({snapshot["stem_exam_items"]} items, linear algebra n={algebra_n}). Weakest subject: {e(str(stem_weak.get("subject") or "—"))} {_pct(stem_weak.get("score"))}.</span></div>
     <div class="card"><b>{snapshot["cards"]}</b><span>Outside cards. A person of record and a {ACCREDITATION_FLOOR:.0%} subject floor are required even to ask. Salareen does not print the card.</span></div>
   </section>
 
@@ -406,7 +424,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--translation-dir", default=str(Path.home() / ".cache" / "aoep" / "course_translations"))
     ap.add_argument("--html", action="append", default=[])
     ap.add_argument("--history", default="")
-    ap.add_argument("--batch-log", default=str(Path.home() / "batch-spark.log"))
+    ap.add_argument(
+        "--batch-log",
+        action="append",
+        default=[],
+        help="Translation log. Repeatable. Default: the live service log and ~/batch-spark.log.",
+    )
     ap.add_argument("--record", action="store_true")
     ap.add_argument("--skip-catalog", action="store_true")
     args = ap.parse_args(argv)
@@ -415,12 +438,11 @@ def main(argv: list[str] | None = None) -> int:
     translation = None
     if not args.skip_catalog:
         translation = translation_coverage(_catalog_jobs(), Path(args.translation_dir))
-    batch = None
-    log_path = Path(args.batch_log)
-    if log_path.is_file():
-        text = log_path.read_bytes().replace(b"\x00", b"").decode("utf-8", "replace")
-        marker = text.rfind("222 courses x 21")
-        batch = parse_batch_progress(text[marker:] if marker >= 0 else text)
+    log_paths = [Path(raw) for raw in args.batch_log] or [
+        Path.home() / ".local" / "share" / "aoep-train" / "translate.log",
+        Path.home() / "batch-spark.log",
+    ]
+    batch = latest_batch_progress(log_paths)
     snapshot = build_snapshot(spark_out=spark_out, translation=translation, batch=batch)
     history_path = Path(args.history or (spark_out / "readiness_history.jsonl"))
     if args.record:
@@ -430,6 +452,7 @@ def main(argv: list[str] | None = None) -> int:
     targets = args.html or [
         str(spark_out / "frontier-readiness.html"),
         str(ROOT / "docs" / "status" / "frontier-readiness.html"),
+        str(ROOT / "docs" / "frontier-readiness.html"),
     ]
     for raw in targets:
         dest = Path(raw)

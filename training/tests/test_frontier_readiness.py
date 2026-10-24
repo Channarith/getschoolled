@@ -52,7 +52,32 @@ def test_translation_coverage_counts_matching_lengths_only(tmp_path):
     assert coverage["demo"]["yue"] == "partial"
 
 
+def test_latest_batch_progress_prefers_the_farther_log(tmp_path):
+    stale = tmp_path / "old.log"
+    live = tmp_path / "live.log"
+    stale.write_text(
+        "222 courses x 21 languages (4662 jobs)\n[10/4662] skipped x (written=0 skipped=10 failed=0)\n",
+        encoding="utf-8",
+    )
+    live.write_text(
+        "222 courses x 21 languages (4662 jobs)\n[1508/4662] written x (written=502 skipped=1004 failed=2)\n",
+        encoding="utf-8",
+    )
+    got = report.latest_batch_progress([stale, live])
+    assert got["done"] == 1508
+    assert got["failed"] == 2
+
+
 def test_batch_progress_reads_the_latest_tally():
+    text = (
+        "222 courses x 21 languages (4662 jobs)\n"
+        "[62/4662] skipped x (written=1 skipped=60 failed=2)\n"
+        "[63/4662] failed x (written=1 skipped=60 failed=3) — empty translation (timeout/rate-limit/provider error)\n"
+        "  retry 1/4 en->he: gateway error (sleep 2s)\n"
+    )
+    got = report.parse_batch_progress(text)
+    assert got["done"] == 63
+    assert got["failed"] == 3
     text = "222 courses x 21 languages (4662 jobs)\n[62/4662] skipped x (written=1 skipped=60 failed=2)\n"
     got = report.parse_batch_progress(text)
     assert got == {"done": 62, "total": 4662, "written": 1, "skipped": 60, "failed": 2}
@@ -81,8 +106,12 @@ def test_page_names_the_weak_subject_and_the_recheck_command():
         {"subject": "linear-algebra", "score": 0.1379, "n": 1, "under_floor": True}
     ]
     snapshot["weakest_split"] = {"subject": "linear-algebra", "score": 0.1379}
+    snapshot["weakest_frozen"] = {"subject": "Health & Wellness", "score": 0.1024}
+    snapshot["weakest_stem"] = {"subject": "calculus-1", "score": 0.1122}
     page = report.render_html(snapshot, [])
     assert "linear-algebra" in page
+    assert "Health &amp; Wellness" in page
+    assert "calculus-1" in page
     assert "frontier_readiness.py --record" in page
     assert "Outside cards" in page
 
