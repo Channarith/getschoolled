@@ -103,8 +103,10 @@ def studio_jobs() -> list[CourseJob]:
 def engine_translator(*, retries: int = 4, verbose: bool = False):
     from theodore_audio_translation_lab.providers import TranslationEngine
 
-    # Batch segments are longer than chat utterances; 15s dies under load.
-    os.environ.setdefault("TRANSLATION_TIMEOUT_S", "60")
+    # A long lesson segment on CPU NLLB exceeds 60s while the STEM exam
+    # is using the machine. 180s lets that segment finish instead of
+    # failing the course language.
+    os.environ.setdefault("TRANSLATION_TIMEOUT_S", "180")
 
     engine = TranslationEngine()
     if not engine.gateway_url and not engine.xai_key:

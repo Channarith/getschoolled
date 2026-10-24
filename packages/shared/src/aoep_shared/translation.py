@@ -20,8 +20,17 @@ def is_supported(language: str) -> bool:
 
 
 def is_pair_supported(source: str, target: str) -> bool:
-    """NLLB-200 covers translation between any two supported languages."""
-    return is_supported(source) and is_supported(target)
+    """NLLB-200 covers translation between supported languages, plus Cantonese.
+
+    ``yue`` is its own FLORES language. It is not one of the 27 platform
+    languages, so lesson delivery still treats a Cantonese student as
+    unsupported until a signed program asks for that file.
+    """
+    return _translatable(source) and _translatable(target)
+
+
+def _translatable(language: str) -> bool:
+    return language in SUPPORTED_LANGUAGES or language == "yue"
 
 
 def tts_engine_for(language: str) -> str:

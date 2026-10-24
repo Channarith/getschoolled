@@ -21,6 +21,12 @@ transcription model knows, and Khmer is not. Do not send ``th``, a Thai voice
 id, or instructions that tell the model it is speaking Thai. Narrate Khmer
 with edge-tts ``km-KH-SreymomNeural`` (a Cambodian voice). If that render
 fails, the speech gateway's existing ElevenLabs fallback still runs.
+
+Dutch, Polish, Ukrainian, Hebrew, Urdu, Persian, Thai, Swahili, Greek, and
+Czech are in our 27 and have a dedicated neural voice. They are not in the
+speech-to-speech table. An empty hint is ignored and the session auto-detects
+a different language, so those codes stay off the xAI socket and use that
+neural voice. A code with no dedicated voice is not spoken as English Aria.
 """
 
 from __future__ import annotations
@@ -236,15 +242,12 @@ def plan_spoken_language(language: str) -> SpokenLanguagePlan:
             reason="xAI speech-to-speech code for Chinese (Simplified) is zh.",
         )
     hint = _XAI_HINT.get(requested, "")
+    if not hint:
+        return _ours_not_xai(requested)
     name = LANGUAGE_NAMES.get(requested, requested)
     instructions = ""
     if requested != "en":
-        if hint:
-            instructions = f"Speak {name} ({hint})."
-        else:
-            instructions = (
-                f"Speak {name} ({requested}). Do not switch to another language."
-            )
+        instructions = f"Speak {name} ({hint})."
     return SpokenLanguagePlan(
         requested=requested,
         engine="xai-grok-voice",
@@ -253,10 +256,45 @@ def plan_spoken_language(language: str) -> SpokenLanguagePlan:
         instructions=instructions,
         edge_voice="",
         hint="",
+        reason=f"xAI language_hint {hint}.",
+    )
+
+
+def _ours_not_xai(requested: str) -> SpokenLanguagePlan:
+    """A language xAI cannot speak. Use a dedicated neural voice, never Aria."""
+    from .meeting.natural_tts import _NEURAL_VOICES
+
+    name = LANGUAGE_NAMES.get(requested, requested)
+    edge = _NEURAL_VOICES.get(requested, "")
+    if edge and not edge.startswith("en-"):
+        return SpokenLanguagePlan(
+            requested=requested,
+            engine="edge-tts",
+            use_xai=False,
+            xai_language="",
+            instructions=(
+                f"Speak {name} ({requested}). Do not switch to another language."
+            ),
+            edge_voice=edge,
+            hint=(
+                f"{name} uses our neural voice ({edge}). "
+                f"xAI speech-to-speech has no {name} voice."
+            ),
+            reason=(
+                f"xAI speech-to-speech does not speak {name}. Narration uses {edge}."
+            ),
+        )
+    return SpokenLanguagePlan(
+        requested=requested,
+        engine="edge-tts",
+        use_xai=False,
+        xai_language="",
+        instructions="",
+        edge_voice="",
+        hint="",
         reason=(
-            f"xAI language_hint {hint}."
-            if hint
-            else f"{requested} is not an xAI speech-to-speech code; instructions name it and no hint is sent."
+            f"{requested} is not an xAI speech-to-speech code and has no dedicated "
+            "neural voice. An English voice is not used as a stand-in."
         ),
     )
 

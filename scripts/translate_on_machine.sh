@@ -16,7 +16,8 @@ ROOT="$PWD"
 OUT="${AOEP_COURSE_TRANSLATION_DIR:-$HOME/translations}"
 PORT="${TRANSLATE_PORT:-8002}"
 DEMO="audio-intro-to-machine-learning"
-SPARK_LANGS="es fr de it pt nl pl ru uk tr ar he hi bn ur fa zh ja ko vi"
+# yue is Cantonese, written as its own file. It is not part of the 27-language demo list.
+SPARK_LANGS="es fr de it pt nl pl ru uk tr ar he hi bn ur fa zh ja ko vi yue"
 IBUY_LANGS="th id sw el cs km"
 
 activate() { [ -f .venv/bin/activate ] && . .venv/bin/activate; }

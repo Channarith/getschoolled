@@ -32,6 +32,7 @@ def run_bakeoff(
     primary: str = "accuracy",
     higher_is_better: bool = True,
     max_fairness_gap: float | None = None,
+    min_subject_score: float | None = None,
 ) -> dict:
     """Score candidates on the same metrics and pick the champion.
 
@@ -44,8 +45,19 @@ def run_bakeoff(
     rejected: list[dict] = []
     for c in candidates:
         gap = float(c.metrics.get("fairness_gap", 0.0))
+        weakest = c.metrics.get("subject_min")
         if max_fairness_gap is not None and gap > max_fairness_gap:
             rejected.append({"name": c.name, "fairness_gap": gap, "reason": "fairness_gate"})
+        elif (
+            min_subject_score is not None
+            and weakest is not None
+            and float(weakest) < min_subject_score
+        ):
+            rejected.append({
+                "name": c.name,
+                "subject_min": float(weakest),
+                "reason": "subject_floor",
+            })
         else:
             eligible.append(c)
 
@@ -82,6 +94,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--primary", default="accuracy")
     ap.add_argument("--lower-is-better", action="store_true")
     ap.add_argument("--max-fairness-gap", type=float, default=None)
+    ap.add_argument("--min-subject-score", type=float, default=None)
     ap.add_argument("--champion-path", default=None,
                     help="if set, persist the winner as the served champion pointer")
     args = ap.parse_args(argv)
@@ -90,7 +103,8 @@ def main(argv: list[str] | None = None) -> int:
     cands = [Candidate(d["name"], d.get("metrics", {})) for d in data]
     result = run_bakeoff(cands, primary=args.primary,
                          higher_is_better=not args.lower_is_better,
-                         max_fairness_gap=args.max_fairness_gap)
+                         max_fairness_gap=args.max_fairness_gap,
+                         min_subject_score=args.min_subject_score)
     if args.champion_path:
         result.update(promote_champion(result, args.champion_path))
     print(json.dumps(result, indent=2))

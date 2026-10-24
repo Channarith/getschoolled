@@ -31,6 +31,8 @@ _FLORES: dict[str, str] = {
     "ur": "urd_Arab",
     "fa": "pes_Arab",
     "zh": "zho_Hans",
+    # Cantonese is its own FLORES language. Do not alias it to Mandarin.
+    "yue": "yue_Hant",
     "ja": "jpn_Jpan",
     "ko": "kor_Hang",
     "vi": "vie_Latn",

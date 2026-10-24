@@ -21,6 +21,9 @@ from .languages import SUPPORTED_LANGUAGES, normalize_language
 TARGET_LANGUAGES: tuple[str, ...] = tuple(
     code for code in SUPPORTED_LANGUAGES if code != "en"
 )
+# Cantonese is its own file (yue.json). It is not one of the 27 platform
+# languages, so it stays out of the language picker and the demo list.
+EXTRA_TRANSLATION_LANGUAGES: tuple[str, ...] = ("yue",)
 
 _INDEX = "index.json"
 _LOCK = threading.Lock()

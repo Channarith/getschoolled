@@ -64,10 +64,18 @@ def aggregate_scores(items: List[Dict]) -> Dict:
 
     by_category = _means("category")
     by_group = _means("group")
+    by_category_n: Dict[str, int] = {}
+    for i in items:
+        key = i.get("category")
+        if key is None:
+            continue
+        name = str(key)
+        by_category_n[name] = by_category_n.get(name, 0) + 1
     fairness_gap = (max(by_group.values()) - min(by_group.values())) if len(by_group) >= 2 else 0.0
     return {
         "overall": round(overall, 4),
         "by_category": {k: round(v, 4) for k, v in by_category.items()},
+        "by_category_n": by_category_n,
         "fairness_gap": round(fairness_gap, 4),
         "n": len(scores),
     }
@@ -115,6 +123,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--max-new-tokens", type=int, default=128)
     ap.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda"])
     ap.add_argument("--metrics-out", default="", help="write accuracy + fairness_gap JSON here")
+    ap.add_argument("--truth-log", default="", help="append groundedness and abstention rows (JSONL)")
     args = ap.parse_args(argv)
 
     rows = read_jsonl(args.eval)
@@ -161,18 +170,26 @@ def main(argv: list[str] | None = None) -> int:
         if not row.get("response"):
             print("WARNING: skipping row without 'response' field", file=sys.stderr)
             continue
-        items.append(
-            {
-                "score": token_f1(text, row.get("response", "")),
-                "category": _category(row),
-                "group": _group(row),
-            }
-        )
+        from truth_curve import append_truth_row, exam_fields, truth_fields
+
+        fields = truth_fields(text, row)
+        fields.update(exam_fields(args.eval, args.adapter))
+        fields["score"] = token_f1(text, row.get("response", ""))
+        fields["group"] = _group(row)
+        if not fields.get("category"):
+            fields["category"] = _category(row)
+        items.append(fields)
+        if args.truth_log:
+            append_truth_row(args.truth_log, fields)
 
     if not items:
         print("ERROR: eval file is empty", file=sys.stderr)
         return 1
+    from promotion_gate import subject_min
+
     agg = aggregate_scores(items)
+    grounded = [float(i["groundedness"]) for i in items if "groundedness" in i]
+    abstain = [1.0 if i.get("abstain_correct") else 0.0 for i in items if "abstain_correct" in i]
     # accuracy is the bake-off primary (token-overlap F1 from this file).
     summary = {
         "n": agg["n"],
@@ -180,6 +197,10 @@ def main(argv: list[str] | None = None) -> int:
         "accuracy": agg["overall"],
         "fairness_gap": agg["fairness_gap"],
         "by_category": agg["by_category"],
+        "by_category_n": agg["by_category_n"],
+        "subject_min": subject_min(agg["by_category"], agg["by_category_n"]),
+        "groundedness": round(sum(grounded) / len(grounded), 4) if grounded else None,
+        "abstain_accuracy": round(sum(abstain) / len(abstain), 4) if abstain else None,
     }
     if args.metrics_out:
         from pathlib import Path
