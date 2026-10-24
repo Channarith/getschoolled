@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Image, Pressable, ScrollView, StyleSheet, Text, View,
 } from "react-native";
@@ -9,7 +9,8 @@ import { useAndroidBack } from "../hooks/useAndroidBack";
 import { useT, type StringKey } from "../i18n";
 import { useLearningPhrase } from "../learningPhrases";
 import { MASCOT_IMAGES } from "../mascots/imageAssets";
-import { PUBLIC_DEMOS, type PublicDemo } from "../publicDemos";
+import { HIDDEN_ON_THE_GO_DEMO, PUBLIC_DEMOS, type PublicDemo } from "../publicDemos";
+import { createTapCounter } from "../secretTaps";
 import { theme } from "../theme";
 
 type Step = "landing" | "demos" | "login" | "create";
@@ -19,11 +20,6 @@ const DEMO_COPY: Record<string, { title: StringKey; subtitle: StringKey; body: S
     title: "guest.demoSoloTitle",
     subtitle: "guest.demoSoloSub",
     body: "guest.demoSoloBody",
-  },
-  "on-the-go": {
-    title: "guest.demoDriveTitle",
-    subtitle: "guest.demoDriveSub",
-    body: "guest.demoDriveBody",
   },
   arcade: {
     title: "guest.demoArcadeTitle",
@@ -38,6 +34,11 @@ export default function GuestHomeScreen() {
   const [step, setStep] = useState<Step>("landing");
   const [demo, setDemo] = useState<PublicDemo | null>(null);
   const mascot = MASCOT_IMAGES[locale] ?? MASCOT_IMAGES.en;
+  const taps = useRef(createTapCounter()).current;
+  // Four quick taps on the Salareen logo or mascot open the hidden audio demo. No hint, no label.
+  const onLogoTap = () => {
+    if (taps.tap()) setDemo(HIDDEN_ON_THE_GO_DEMO);
+  };
 
   useAndroidBack(() => {
     if (demo) {
@@ -73,7 +74,9 @@ export default function GuestHomeScreen() {
         <Pressable onPress={() => setStep("landing")} testID="guest-back" hitSlop={8}>
           <Text style={styles.back}>{t("guest.back")}</Text>
         </Pressable>
-        <Image source={mascot} style={styles.mascotSmall} resizeMode="contain" accessibilityIgnoresInvertColors />
+        <Pressable accessible={false} onPress={onLogoTap}>
+          <Image source={mascot} style={styles.mascotSmall} resizeMode="contain" accessibilityIgnoresInvertColors />
+        </Pressable>
         <Text style={styles.kicker}>{learnPhrase}</Text>
         {PUBLIC_DEMOS.map((item) => {
           const copy = DEMO_COPY[item.id];
@@ -97,13 +100,17 @@ export default function GuestHomeScreen() {
 
   return (
     <View testID="guest-landing" style={styles.landing}>
-      <Text style={styles.brand}>Salareen</Text>
-      <Image
-        source={mascot}
-        style={styles.mascot}
-        resizeMode="contain"
-        accessibilityLabel="Salareen mascot"
-      />
+      <Pressable accessible={false} onPress={onLogoTap}>
+        <Text style={styles.brand}>Salareen</Text>
+      </Pressable>
+      <Pressable accessible={false} onPress={onLogoTap}>
+        <Image
+          source={mascot}
+          style={styles.mascot}
+          resizeMode="contain"
+          accessibilityLabel="Salareen mascot"
+        />
+      </Pressable>
       <Text style={styles.kicker}>{learnPhrase}</Text>
       <Pressable
         testID="guest-try-demo"

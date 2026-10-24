@@ -11,7 +11,6 @@ export default function DriversEdDemoPage() {
       <p className="course-stage-links">
         <Link href="/">← Back to Salareen</Link>
         <Link href="/learn/drivers-ed">Full course</Link>
-        <Link href="/demo/on-the-go">Audio only</Link>
       </p>
       <CourseStudioFrame
         fill

@@ -41,7 +41,7 @@ describe("GuestHomeScreen", () => {
 
     fireEvent.press(screen.getByTestId("guest-try-demo"));
     expect(screen.getByTestId("guest-demo-drivers-ed")).toBeTruthy();
-    expect(screen.getByTestId("guest-demo-on-the-go")).toBeTruthy();
+    expect(screen.queryByTestId("guest-demo-on-the-go")).toBeNull();
     expect(screen.getByTestId("guest-demo-arcade")).toBeTruthy();
 
     fireEvent.press(screen.getByTestId("guest-back"));
@@ -53,6 +53,15 @@ describe("GuestHomeScreen", () => {
     const screen = render(<GuestHomeScreen />);
     fireEvent.press(screen.getByTestId("guest-try-demo"));
     fireEvent.press(screen.getByTestId("guest-demo-arcade"));
+    expect(screen.getByTestId("demo-web")).toBeTruthy();
+  });
+
+  test("four quick taps on the logo open the hidden audio demo; fewer do not", () => {
+    const screen = render(<GuestHomeScreen />);
+    const brand = screen.getByText("Salareen");
+    for (let i = 0; i < 3; i += 1) fireEvent.press(brand);
+    expect(screen.queryByTestId("demo-web")).toBeNull();
+    fireEvent.press(brand);
     expect(screen.getByTestId("demo-web")).toBeTruthy();
   });
 });

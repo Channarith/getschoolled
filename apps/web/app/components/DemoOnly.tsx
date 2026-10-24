@@ -8,6 +8,7 @@ import MascotImage from "./MascotImage";
 import { useFlag, useFlags, useLoginGateHidden } from "../lib/flags";
 import { useT } from "../lib/i18n";
 import { useLearningPhrase } from "../lib/learningPhrases";
+import { useSecretLogoTaps } from "../lib/useSecretLogoTaps";
 import { DEMO_ONLY_FEATURE_IDS, SALES_DEMO_FEATURES, SALES_DEMO_FLAGS } from "../lib/salesDemo";
 
 // Screens for demo-only mode (sales_demo.exclusive): a minimal landing with just the
@@ -23,6 +24,7 @@ function DemoOnlyShell({
   brand?: boolean;
 }) {
   const learnPhrase = useLearningPhrase();
+  const onLogoClick = useSecretLogoTaps();
   return (
     <main className="landing-hero guest-landing">
       <div
@@ -37,6 +39,7 @@ function DemoOnlyShell({
       <div className="landing-inner" style={{ textAlign: "center" }}>
         {brand && (
           <div
+            onClick={onLogoClick}
             style={{
               color: "#fff",
               fontSize: 32,

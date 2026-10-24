@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSecretLogoTaps } from "../lib/useSecretLogoTaps";
 import MascotImage from "./MascotImage";
 
 /**
@@ -17,10 +18,11 @@ import MascotImage from "./MascotImage";
  *   [Log in]       → /login
  */
 export default function DNAnonLanding() {
+  const onLogoClick = useSecretLogoTaps();
   return (
     <main className="dn-anon-landing">
       <div className="dn-anon-content">
-        <div className="dn-anon-brand" aria-hidden>
+        <div className="dn-anon-brand" aria-hidden onClick={onLogoClick}>
           Salareen
         </div>
         <MascotImage

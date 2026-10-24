@@ -93,15 +93,6 @@ export const DEMO_FEATURES = [
     color: "#6366f1",
   },
   {
-    id: "drive",
-    flagKey: "sales_demo.drive_mode",
-    emoji: "🎧",
-    title: "Serenity · On-the-Go",
-    subtitle: "Learn hands-free",
-    description: "Full audio-only mode. Learn while commuting, exercising, or anywhere without looking at a screen.",
-    color: "#f59e0b",
-  },
-  {
     id: "arcade",
     flagKey: "sales_demo.arcade_games",
     emoji: "🎮",
