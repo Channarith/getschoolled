@@ -90,7 +90,7 @@ def score_server(
             continue
         items.append(
             {
-                "score": token_f1(text, row.get("response", "")),
+                "score": token_f1(text, row.get("response", ""), legacy_ascii=True),
                 "category": _category(row),
                 "group": _group(row),
             }

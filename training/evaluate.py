@@ -138,7 +138,9 @@ def run_eval(
             continue
         text = generate(_prompt(row))
         if reference:
-            f1 = token_f1(text, reference)
+            lang = str((row.get("context") or {}).get("language") or "en")
+            # English keeps the original tokenizer so frozen-exam scores stay comparable over time.
+            f1 = token_f1(text, reference, legacy_ascii=(lang == "en"))
             item = {"score": f1, "category": _category(row), "group": _group(row)}
             if eval_path:
                 from truth_curve import append_truth_row, exam_fields, truth_fields
@@ -153,7 +155,6 @@ def run_eval(
                 if truth_log:
                     append_truth_row(truth_log, fields)
             items.append(item)
-            lang = str((row.get("context") or {}).get("language") or "en")
             by_lang.setdefault(lang, []).append(f1)
         got = score_behaviour({**row, "scorer": scorer}, text) if scorer else None
         if got is not None:

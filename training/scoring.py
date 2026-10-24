@@ -68,9 +68,21 @@ def tokenize(text: str) -> List[str]:
     return tokens
 
 
-def token_f1(prediction: str, reference: str) -> float:
-    pred = tokenize(prediction)
-    ref = tokenize(reference)
+_LEGACY_TOKEN = re.compile(r"[a-z0-9]+")
+
+
+def legacy_tokenize(text: str) -> List[str]:
+    """The original English tokenizer: lowercase ASCII letters and digits only.
+
+    Every score on record for the frozen English exams (adapter 20.4%, base 19.9%) was measured with
+    this, so English rows keep it and those numbers stay comparable. Other languages use tokenize().
+    """
+    return _LEGACY_TOKEN.findall((text or "").lower())
+
+
+def token_f1(prediction: str, reference: str, *, legacy_ascii: bool = False) -> float:
+    pred = legacy_tokenize(prediction) if legacy_ascii else tokenize(prediction)
+    ref = legacy_tokenize(reference) if legacy_ascii else tokenize(reference)
     if not pred or not ref:
         return 0.0
     ref_counts: Dict[str, int] = {}

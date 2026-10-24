@@ -23,7 +23,10 @@ import scoring
 
 ROOT = Path(__file__).resolve().parents[2]
 TRAINING = ROOT / "training"
-FROZEN_SHA256 = "368c80375c41c9ac1b7b68634ad98931397176648f906231b13b061e5f940462"
+# The frozen set was regenerated once, on 2026-10-22 (PR #728, build_eval_set.py v2: every item carries its
+# passage). Every Spark score on record (20.4% adapter, 19.9% base) was measured on this version, so it is
+# the frozen set. The earlier hash was 368c8037...; do not regenerate again.
+FROZEN_SHA256 = "d7409c2b87acf3d76b284bc46a381a1c345e858be8b04c5315c25cbf837deb66"
 
 
 def lines(path: Path):
