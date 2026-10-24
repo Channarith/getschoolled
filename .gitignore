@@ -164,3 +164,10 @@ data/voice/
 
 # merge train kill switch (local state, never committed)
 scripts/train/PAUSE
+
+# Company voice clones: recordings, consent records and models never go in git
+/voices/
+**/voices/*/consent.json
+**/voices/*/samples/
+**/voices/*/forms/
+*-clones/

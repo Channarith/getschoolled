@@ -42,7 +42,11 @@ class CosyVoice2Adapter(Adapter):
 
         self._model = self._model or CosyVoice2(self.options.get("model_dir", "pretrained_models/CosyVoice2-0.5B"))
         prompt = load_wav(self.options["prompt_wav"], 16000)
-        parts = [j["tts_speech"] for j in self._model.inference_cross_lingual(text, prompt, stream=False)]
+        if self.options.get("prompt_text") and self.options.get("prompt_lang") == lang:  # same language as the sample: zero-shot
+            gen = self._model.inference_zero_shot(text, self.options["prompt_text"], prompt, stream=False)
+        else:
+            gen = self._model.inference_cross_lingual(text, prompt, stream=False)
+        parts = [j["tts_speech"] for j in gen]
         import torch
 
         wav = torch.cat(parts, dim=1)
