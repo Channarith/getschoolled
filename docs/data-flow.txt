@@ -1,0 +1,73 @@
+DATA FLOW BETWEEN THE MAC, THE IBUYPOWER AND THE DGX SPARK
+============================================================
+Plain text on purpose (repo no-markdown house rule).
+
+THE RULE
+  Nothing unlicensed ships. Translations are machine output until staff review
+  them, and voice audio from third-party YouTube channels has no recorded license
+  or consent. Both stay local until they pass the checks below. Raw copies from
+  other machines live only in git-ignored folders (data/_incoming*/, data/_staged*/,
+  data/voice/, output/) and are never committed.
+
+WHAT LIVES WHERE
+  Translation library   <root>/<course_id>/<lang>.json   (segments: heading, text, kind)
+    iBuyPower           ~/.cache/aoep/course_translations   (the NLLB batches; ~7000 files)
+    Mac                 data/_incoming_kalel/   (rsync copy, local only)
+    Repo                data/course_translations/   (only the small reviewed seed)
+    Production          AOEP_COURSE_TRANSLATION_DIR inside the curriculum and identity images
+  Voice data            output/cosyvoice_<pool>_<channel>/04_cosyvoice/train/
+                        (wav.scp, text, utt2spk, spk2utt, utt2lang, meta.json)
+    DGX Spark           ~/code/getschoolled/output/   (the CosyVoice ingest queue writes here)
+    Mac                 data/voice/<name>/   (converted copies, local only)
+  Frozen LLM benchmark  training/data/eval_frozen.jsonl   (in git; never train on it)
+  Training outputs      output/spark/   (adapters, eval metrics, bake-off; Spark only)
+
+THE TOOLS (all read-only on their input)
+  python3 scripts/validate_translations.py DIR --out output/validation/NAME
+      Checks every file: JSON, segment counts, empty or unchanged-from-English text,
+      script (Khmer, Thai, Cyrillic, Arabic and so on), loops, markup, numbers, URLs,
+      truncated output, partial files. Verdict per file: ship, hold or reject, plus
+      shippable.json, the list of files that passed. ship still means machine
+      translation that a person has not reviewed.
+  python3 scripts/stage_translations.py DIR --languages km,vi,th,es,zh --courses audio \
+      --target data/_staged_audio [--tar out.tgz] [--dry-run] [--max-mb N]
+      Copies only validated files for the chosen courses and languages, writes a
+      manifest with sha256 and sizes, and prints the image impact. It never edits a
+      Dockerfile; baking a staged folder into an image is a separate reviewed change.
+  python3 scripts/voice_dataset_convert.py INPUT... --out data/voice/NAME [--audio copy]
+      Reads the CosyVoice ingest output and writes a Fish-Speech folder layout and a
+      generic JSONL manifest (train.jsonl, val.jsonl) with quality filters, dedupe, a
+      validation split that holds out whole speakers or channels, and a provenance
+      report. --only-licensed keeps only clips listed in urls/licensed_sources.txt.
+
+COPYING BETWEEN MACHINES SAFELY
+  Use rsync, never scp of a folder you care about. Resumable, no deletes, no clobber:
+    rsync -ah --partial --info=progress2 --exclude='*.partial' --exclude='*.tmp' \
+        --exclude='latest' USER@HOST:SRC/ DEST/
+  Rules:
+    - No --delete unless you have read the dry run first (add -n to any command).
+    - Trailing slashes matter: SRC/ copies the contents, SRC copies the folder itself.
+    - Run long copies inside tmux or screen so a closed laptop does not abort them.
+      --partial lets the same command resume where it stopped.
+    - Do not copy a folder another job is still writing: pause the queue or copy only
+      finished channels. Files named *.partial are unfinished and are excluded.
+    - Verify a copy with a checksum dry run; no output means identical:
+        rsync -anc --itemize-changes USER@HOST:SRC/ DEST/
+    - Never copy secrets: .env files, cookies, tokens and ~/.ssh stay where they are.
+    - Machine addresses come from DHCP and change. Reserve an address for each machine in
+      the router, or use hostnames. Log in with keys (ssh-copy-id); never put a password
+      in a command, a script or this repo.
+    - Check disk first: df -h on the destination. The translation library is ~334 MB;
+      voice audio is far larger.
+
+WHO RUNS WHAT (so no machine is starved)
+  DGX Spark    The only machine that trains big models. One GPU job at a time (the GPU
+               lock ~/.gs-gpu.lock). Long jobs run under systemd-run --user --scope with
+               MemoryMax and CPUQuota so a runaway cannot starve the rest.
+  iBuyPower    Translation batches, transcription and dataset preparation. 8 GB of GPU
+               memory: small models only.
+  Mac          Validation, staging, scoring, review and small experiments. It holds the
+               repo and decides what ships.
+  Before starting any long job: free -g, nvidia-smi, uptime; afterwards: look for
+  leftover or zombie processes (ps -eo pid,ppid,stat,cmd | awk '$3 ~ /Z/'); a zombie
+  is cleared by stopping its parent, not by killing the zombie.
