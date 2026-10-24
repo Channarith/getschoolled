@@ -2,7 +2,12 @@
 
 Written from the VoxCPM README usage; NOT run against the real weights here. Needs Python 3.10-3.12,
 torch >= 2.5 and CUDA >= 12 (or Apple MPS). Options: model_id (default openbmb/VoxCPM2),
-cfg_value (2.0), inference_timesteps (10), reference_wav + reference_text (optional cloning).
+cfg_value (2.0), inference_timesteps (10), reference_wav + reference_text (optional cloning), style (optional).
+
+style: a short description such as "cute, sweet, bright voice". Per the model card's "controllable cloning" it is put in
+parentheses before the text and the reference audio is given as reference_wav_path only (no prompt text: with the
+transcript the model continues the prompt, "ultimate cloning", and does not take style guidance). Not run against the
+real weights; compare against the post-processing tones by ear.
 """
 from __future__ import annotations
 
@@ -29,7 +34,10 @@ class VoxCPM2Adapter(Adapter):
             "cfg_value": float(self.options.get("cfg_value", 2.0)),
             "inference_timesteps": int(self.options.get("inference_timesteps", 10)),
         }
-        if self.options.get("reference_wav"):
+        if self.options.get("style") and self.options.get("reference_wav"):
+            kwargs["text"] = f"({self.options['style']}){text}"
+            kwargs["reference_wav_path"] = self.options["reference_wav"]
+        elif self.options.get("reference_wav"):
             kwargs["prompt_wav_path"] = self.options["reference_wav"]
             kwargs["prompt_text"] = self.options.get("reference_text", "")
         wav = model.generate(**kwargs)

@@ -77,6 +77,33 @@ Models (license read 2026-10-25 from the model cards/repos recorded in tts_bakeo
   cross-lingual (nine languages plus Chinese dialects; no km/vi/th/sw/hi in the base model, so it is bake-off'd on en,es,zh).
   Cloned voices carry the person's likeness: consent, not the model license, is the binding constraint.
 
+Tones for cloned voices (professional, warm, calm, energetic, cute, anime, tough, heavy, light and the 13 blends)
+  Same names as the edge-tts presets and blends (tts_bakeoff/voice_types.py). Two mechanisms, compared by ear:
+    model  ask the model for the style. VoxCPM2 "controllable cloning": a description in parentheses before the text and
+           the reference audio only, no transcript (with the transcript it continues the prompt and ignores style).
+           CosyVoice 2: inference_instruct2(text, instruction + <|endofprompt|>, prompt wav); the documented instructions
+           are Chinese, so English output may not keep the style. Neither was run against real weights when this was
+           written; the listening set below is how we find out.
+    dsp    post-process the neutral clone with ffmpeg: pitch (resample + atempo, so the formants move with the pitch;
+           independent formant control needs WORLD or rubberband, not installed), tempo, a small brightness tilt, gain.
+           Caps: +-3 semitones, +-15% speed, +-1.5 dB tilt, +-3 dB gain, so the voice stays recognisable. Works for any model.
+  CONSENT: a stylized voice is a different use from the natural voice, so it needs its own opt-in. The base form covers
+  commercial_use, model_training and course_narration only. tts_bakeoff/voice_clone/CONSENT_ADDENDUM_STYLIZED.txt is a
+  separate, optional addendum (counsel to review); once signed:
+      bakeoff grant-scope --speaker alice --signed-form alice-stylized-signed.pdf
+  Without it every tone except neutral is refused, for both mechanisms. Withdraw only the addendum with
+  `bakeoff withdraw-scope --speaker alice` (natural-voice consent stays); a full `revoke` stops everything. Speakers
+  enrolled before this existed (including the owner) are neutral-only until they sign. The addendum's form hash is
+  re-checked on every synthesis.
+  Listening set (loadable in the lab; Voice type filter shows presets and blends, clones keep the CLONE badge):
+      scripts/gs_run.sh --name clone-tones --gpu --timeout 7200 -- env PYTHONPATH=$PWD:$PWD/packages/shared/src \
+        TORCHDYNAMO_DISABLE=1 ~/venvs/voxcpm/bin/python -m tts_bakeoff.voice_clone.bakeoff tones \
+        --out runs/<date>-clone-tones --models voxcpm2 --langs en,es,zh --tones all --mechanisms dsp,model
+  One neutral clip per sentence is synthesized on the GPU and every dsp tone is derived from it on the CPU; the model
+  mechanism costs one GPU clip per preset (add --model-blends for the 13 blends too). Folders are
+  <model>~<speaker>~dsp-<tone> and <model>~<speaker>~model-<tone>. From code (Say anything):
+  tones.render_tone_clip(speaker, model, text, lang, tone, "dsp"|"model", out_wav) runs the consent gate first.
+
 Later: fine-tune on a speaker's consented recordings (NOT run yet; stub)
   Need 1-3 hours per person (not 60 s). VoxCPM2: LoRA fine-tune with the repo's training script (a Khmer LoRA paper exists:
   arXiv 2606.26618, title only seen). CosyVoice 2: the Spark fine-tune scripts (scripts/spark_cosyvoice_km_finetune.sh)

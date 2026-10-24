@@ -27,15 +27,46 @@ Render on the Spark (consent must be valid: commercial use, model training, cour
   python3 -m tts_bakeoff.demo_voice.render publish                                # voices.json + index.json
   python3 -m tts_bakeoff.demo_voice.verify
 
-Serving
-  Web:    NEXT_PUBLIC_VOICE_ASSETS_URL (default /voice-assets: copy the assets dir to apps/web/public/voice-assets at deploy,
-          or point it at the bucket URL; the bucket then needs CORS for GET and the site CSP media-src must allow it).
-  Mobile: https://salareen.com/voice-assets (constant in apps/mobile/src/cloneVoice.ts).
-  Vision Play: /voice-assets on its own origin, or window.CLONE_VOICE_ASSETS.
-  The selector stays hidden until voices.json lists an active voice, so nothing shows before assets are published.
+Serving: Vultr Object Storage (S3 compatible), same bucket as the Android releases
+  Where:  endpoint https://sjc1.vultrobjects.com, bucket salareen-prod (OBJ_ENDPOINT / OBJ_BUCKET, the names scripts/mobile_release.sh uses),
+          prefix voice-assets/. Public URL: https://salareen-prod.sjc1.vultrobjects.com/voice-assets/<voice>/<lang>/<hash>.mp3
+          plus voices.json and <voice>/index.json. Never in git, never in the web image.
+  Clients: web reads NEXT_PUBLIC_VOICE_ASSETS_URL, frozen at `next build` (apps/web/Dockerfile ARG, default = the URL above; local dev
+          leaves it unset and uses /voice-assets from apps/web/public). Mobile and Vision Play default to the same URL
+          (apps/mobile/src/cloneVoice.ts; window.CLONE_VOICE_ASSETS overrides in Vision Play). A clip that 404s or a missing
+          voices.json falls back to the default voice (never silent).
+  CSP:    the site's Content-Security-Policy is only `frame-ancestors 'self'`, which does not restrict media or fetch, so nothing to
+          allow. A pytest guard fails if someone adds media-src/connect-src/default-src without *.vultrobjects.com. Mobile fetches
+          are not subject to CSP.
+
+Upload (one-time setup, then per render). Needs the aws CLI (pip install awscli or brew install awscli) and credentials as env vars
+(names only here): VOICE_ASSETS_ACCESS_KEY + VOICE_ASSETS_SECRET_KEY, or AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY, or an AWS_PROFILE,
+or the cluster's OBJECT_STORE_ACCESS_KEY + OBJECT_STORE_SECRET_KEY, in the shell or config/local.env (only those keys are read). They
+reach aws through its environment; they are never put on a command line, printed or committed.
+  0. scripts/sync_voice_assets.sh status                     # shows endpoint, bucket, public URL, which credential NAME was found
+  1. one-time CORS (bucket-wide, MERGES with existing rules; put-bucket-cors would otherwise replace them):
+       scripts/sync_voice_assets.sh cors                      # prints the merged rules and the exact command
+       scripts/sync_voice_assets.sh cors --apply [--origin https://other.example]   # origins default to salareen.com + www
+  2. public read: nothing to do. `sync` gives every clip and the two json files an object ACL public-read (the APK upload does the
+     same), so the rest of the bucket stays private. Optional alternative, a prefix-scoped bucket policy:
+       scripts/sync_voice_assets.sh policy [--apply]          # Resource arn:aws:s3:::salareen-prod/voice-assets/*, merged with any existing policy
+     Vultr documents bucket policies and shows a whole-bucket example; confirm the prefix scope after applying: voices.json is 200, a
+     private key outside voice-assets/ is 403.
+  3. after rendering on the Spark, copy the assets to the machine that has the keys and publish:
+       rsync -a nvidia@192.168.1.107:~/voice-assets/ ~/voice-assets/
+       scripts/sync_voice_assets.sh sync --dry-run             # prints every aws command, no credentials, no network
+       scripts/sync_voice_assets.sh sync                       # clips, then each index.json, then voices.json last
+     Headers: clips Cache-Control public, max-age=31536000, immutable and audio/mpeg; voices.json and index.json public, max-age=300.
+     `sync` never deletes unless --delete-missing. Clip keys are a hash of the TEXT, not the audio: if you re-render the same sentence
+     (new takes, cleaning, a tone) the file is re-uploaded but browsers that already cached it keep the old audio for up to a year.
+     Rename the voice id for a re-render that must reach everyone at once.
 
 Revocation: python3 -m tts_bakeoff.voice_clone.bakeoff revoke --speaker <id>, then
-  python3 -m tts_bakeoff.demo_voice.render prune-revoked && scripts/sync_voice_assets.sh
-voices.json then lists the voice as inactive and its clips are gone; every client checks voices.json before looking a clip up.
-Clips already cached by a browser or phone keep playing until their cache expires; the files are immutable-cached for a year,
-so for an urgent withdrawal also invalidate the CDN or rename the voice id.
+  python3 -m tts_bakeoff.demo_voice.render prune-revoked && scripts/sync_voice_assets.sh      # local assets and voices.json
+  and for the bucket itself (works from any machine that has the keys, no local assets needed):
+  scripts/sync_voice_assets.sh withdraw --speaker <id>                                       # shows the plan; no --yes = changes nothing
+  scripts/sync_voice_assets.sh withdraw --speaker <id> --yes
+withdraw first rewrites the remote voices.json with the voice inactive (clients stop looking it up within 5 minutes, immediately for
+the web, which fetches voices.json with no-store), then deletes every object under voice-assets/<id>/. It refuses empty or odd ids.
+Clips already played stay in browser and phone caches for up to a year (immutable); the bucket has no CDN in front, so there is nothing
+to invalidate server-side. For a urgent case also rename the voice id.
