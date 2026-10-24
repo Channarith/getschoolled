@@ -91,3 +91,10 @@ def test_telemetry_record_compare_and_recommend():
     rec = client.get("/scoring/recommend").json()
     assert rec["status"] == "ok"
     assert rec["correlations"]["interactivity"] > 0
+
+
+def test_scoring_config_rejects_malformed_values_with_422():
+    bad = TestClient(app, raise_server_exceptions=False)
+    assert bad.put("/scoring/config", json={"quality_bands": ["x"]}).status_code == 422
+    assert bad.put("/scoring/config", json={"quality_bands": [["a", "b", "c"]]}).status_code == 422
+    assert bad.put("/scoring/config", json={"quality_weights": {"coverage": "lots"}}).status_code == 422
