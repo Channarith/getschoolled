@@ -34,6 +34,9 @@ THE RULES
   6. Data moves between machines with rsync -a (checksummed, resumable), and each dataset has one
      owner machine. The Mac holds the validated copy.
   7. Never use or store ssh passwords. Key login only (ssh-copy-id once per machine).
+  8. A busy process is not a dead process. Several sessions (people, Cursor, Claude) work on these
+     machines at once, in tmux sessions and git worktrees. Before stopping anything, read its owner
+     in the status report (see OWNER ATTRIBUTION). Never stop a process you did not start.
 
 COMMANDS
 
@@ -58,7 +61,14 @@ COMMANDS
     scripts/fleet_reap.sh --yes
     scripts/fleet_reap.sh --zombie-parents --yes     also TERM the parent of any zombie
     scripts/fleet_reap.sh --pid 1234 --yes           stop one named process
+    scripts/fleet_reap.sh --pid 1234 --i-know-owner --yes    ...even if it belongs to a tmux session
+                                                             or worktree you did not start (see below)
     ssh -t spark 'cd ~/code/getschoolled && scripts/fleet_reap.sh'
+  Owner protection: fleet_reap refuses any process that runs in a tmux session (it or a parent is a
+  tmux pane shell) or whose working directory is in a linked git worktree, unless it was started
+  through gs_run. This holds for every scope: --zombie-parents and runaway handling never override
+  it. The only override is the explicit PID plus --i-know-owner, and the refusal message names the
+  tmux session or worktree to ask first.
   A zombie cannot be killed: it is a finished process whose parent has not collected it. The fix is
   to make the parent exit or reap it, which is why fleet_status shows the parent next to each zombie.
 
@@ -93,20 +103,58 @@ HOW TO ADD A JOB
      sends keep-alive pings, and batch scripts do not; the --timeout and the health check cover it.
   5. Check: scripts/fleet_status.sh --host <machine>, and journalctl --user -u gs-fleet-check.
 
+OWNER ATTRIBUTION (who is this process, and is it working?)
+  For every busy process (top CPU, top memory, orphans, parents of zombies) the status report shows:
+    tmux session and window   found by walking the parent chain to a tmux pane shell
+                              (tmux list-panes -a: pane pid -> session, window)
+    working directory         and, inside a git repo, the worktree name, branch and last commit
+    systemd unit or scope     from /proc/PID/cgroup
+    parent chain              pid:command from the process up to init
+    listening ports           and how many ESTABLISHED clients are connected to them (ss -tanp)
+    last log write            age of the newest regular file on stdout or stderr
+    device environment        NLLB_DEVICE, CUDA_VISIBLE_DEVICES, NVIDIA_VISIBLE_DEVICES only
+                              (an allow-list; the full environment is never printed)
+  The probe can only see what the logged-in user can see. Other users' processes show no cwd,
+  environment or IO counters, and the report says "unreadable" instead of guessing.
+
+  Working or spinning: ps %CPU is an average over the whole life of the process, so it cannot tell
+  a busy server from a stuck loop. The probe reads CPU ticks and read+write bytes twice, 10 seconds
+  apart (/proc/PID/stat and /proc/PID/io; --sample N changes the gap, --sample 0 skips it). For a
+  process above 300% average CPU for 30+ minutes:
+    busy-serving      (info)  clients connected, OR a log write in the last 5 minutes, OR more than
+                              256 KB read or written during the sample. Never a kill suggestion.
+    possible runaway  (warn)  still above 100% CPU during the sample, with no clients, no log
+                              write and no IO growth. The suggested step is to ask the owner first.
+    high CPU, unverified (warn)  no sample, unreadable IO counters, or CPU has calmed down since.
+                              No kill suggestion either: the report cannot tell.
+  Real example (2026-10-24): a uvicorn speech_gw at 760% CPU for 37 hours looked like a runaway. It
+  was the NLLB translation gateway (NLLB_DEVICE=cpu) in tmux session nllb-speech, run from the
+  worktree gs-wt/spark-eval-gates, with the course-translate session as its client. It was doing
+  real work and was stopped before its owner was known. These rules exist so that cannot happen again.
+
 WHAT THE STATUS REPORT FLAGS
-  CRIT  unreachable host; memory under half the reserve; load over 3x cores; a process above 300%
-        CPU for 30+ minutes (runaway); disk 95% full.
-  WARN  memory under the reserve; load over 1.5x cores; zombies (with their parent); heavy long-running
-        jobs whose parent is init (unmanaged: start them through gs_run); more GPU processes than
-        the budget; a stale GPU lock owner; a job record that says running but whose process is gone;
-        CosyVoice ingest out-of-memory errors.
-  info  GPU idle while the CPU is saturated (jobs probably CPU-bound); unified GPU memory not reported
-        (GB10 shows N/A: watch system memory); finished batch logs; running gs_run jobs; timers.
+  CRIT  unreachable host; memory under half the reserve; load over 3x cores; disk 95% full.
+  WARN  memory under the reserve; load over 1.5x cores (3x is CRIT); possible runaway or unverified high CPU (above);
+        zombies (with their parent and the parent's owner); heavy long-running jobs whose parent is
+        init (unmanaged: start them through gs_run); more GPU processes than the budget; a stale GPU
+        lock owner; a job record that says running but whose process is gone; CosyVoice ingest
+        out-of-memory errors; GPU idle while 4 or more cores are busy (below).
+  info  busy-serving processes; the top 3 processes with owner, chain, port and environment; unified
+        GPU memory not reported (GB10 shows N/A: watch system memory); finished batch logs; running
+        gs_run jobs; timers.
+
+  GPU idle while CPU bound: "GPU 0% while N cores busy: check NLLB_DEVICE/CUDA device settings in the
+  process environment", followed by the values read from each heavy process. NLLB_DEVICE=cpu or an
+  empty CUDA_VISIBLE_DEVICES keeps a job off the GPU on purpose; if that was not intended, restart the
+  job through gs_run with the device unset or cuda. The report cannot read another user's
+  environment and says so.
 
 KNOWN SPARK CLEANUP ITEMS (as of 2026-10-24)
-  - A copy of the speech gateway (uvicorn speech_gw.main:app on 127.0.0.1:8002) ran for 37 hours at
-    about 760% CPU from an old terminal and starved the CosyVoice ingest. Stop it; restart only
-    through gs_run.
+  - The NLLB translation gateway (uvicorn speech_gw.main:app on 127.0.0.1:8002, NLLB_DEVICE=cpu, tmux
+    sessions nllb-speech, nllb-gateway and course-translate, worktree gs-wt/spark-eval-gates) used
+    about 7.6 cores for 37 hours. It was legitimate work, not a runaway, and it competes with the
+    CosyVoice ingest for CPU while the GPU stays idle. The fix is not to kill it: ask its owner to run
+    it on the GPU (NLLB_DEVICE unset or cuda) and start it through gs_run with a CPU quota.
   - A llama-server (Qwen 35B, snap qwen3-6) holds about 28 GB and was idle. If nothing needs it:
     sudo snap stop qwen3-6
   - The CosyVoice ingest (scripts/cosyvoice_batch_ingest.py, run by output/run_voice_queues.sh and a
@@ -115,6 +163,11 @@ KNOWN SPARK CLEANUP ITEMS (as of 2026-10-24)
 
 LIMITS THIS TOOLING CANNOT COVER
   - It reads and reports; it never stops anything on its own. Every fix is a suggested command.
+  - Owner detection covers tmux and git worktrees. A process started from a plain ssh shell, a
+    desktop terminal or a Cursor/Claude session without tmux shows only its parent chain and cwd,
+    so "unknown" there means ask before stopping, not "safe to stop".
+  - "Last request seen" is approximated by the last log write; ss does not carry request times.
+  - Socket and client counts use ss and need Linux; on macOS the report shows no listening ports.
   - Memory caps use systemd on Linux. They need cgroup v2 controller delegation to the user manager
     (default on Ubuntu 24.04 and DGX OS); gs_run falls back to a process group and the free-memory
     floor if systemd-run is not usable.

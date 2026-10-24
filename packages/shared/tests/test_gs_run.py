@@ -17,10 +17,23 @@ pytestmark = pytest.mark.skipif(os.name != "posix", reason="bash job control nee
 
 @pytest.fixture
 def env(tmp_path):
+    """A fake `tmux` first on PATH reports the panes listed in $FAKE_TMUX_PANES, so tests never depend on
+    (or touch) whatever tmux sessions the machine running them has."""
+    fake = tmp_path / "fakebin"
+    fake.mkdir()
+    shim = fake / "tmux"
+    shim.write_text('#!/bin/bash\n[ "$1" = "-S" ] && shift 2\n[ "$1" = "list-panes" ] && [ -f "$FAKE_TMUX_PANES" ] && cat "$FAKE_TMUX_PANES"\nexit 0\n')
+    shim.chmod(0o755)
     e = dict(os.environ)
-    e.update(GS_JOBS_DIR=str(tmp_path / "jobs"), GS_GPU_LOCK=str(tmp_path / "gpu.lock"), GS_MACHINE="default")
-    e["PATH"] = os.environ["PATH"]
+    e.update(GS_JOBS_DIR=str(tmp_path / "jobs"), GS_GPU_LOCK=str(tmp_path / "gpu.lock"), GS_MACHINE="default",
+             FAKE_TMUX_PANES=str(tmp_path / "panes"))
+    e["PATH"] = f"{fake}:{os.environ['PATH']}"
     return e
+
+
+def sleeper(cwd, seconds=120):
+    """A process that is not in a git repo and not in tmux: a plain stranger."""
+    return subprocess.Popen(["sleep", str(seconds)], cwd=str(cwd))
 
 
 def run(env, *args, timeout=60, **kw):
@@ -144,7 +157,7 @@ def test_job_children_do_not_inherit_the_lock(env, tmp_path):
 
 
 def test_reap_is_dry_run_by_default_and_ignores_strangers(env, tmp_path):
-    stranger = subprocess.Popen(["sleep", "120"])
+    stranger = sleeper(tmp_path)
     try:
         r = subprocess.run(["bash", str(REAP)], capture_output=True, text=True, env=env, timeout=60)
         assert r.returncode == 0 and "dry run" in r.stdout.lower()
@@ -159,6 +172,117 @@ def test_reap_is_dry_run_by_default_and_ignores_strangers(env, tmp_path):
         if stranger.poll() is None:
             stranger.kill()
             stranger.wait()
+
+
+def reap(env, *args):
+    return subprocess.run(["bash", str(REAP), *args], capture_output=True, text=True, env=env, timeout=60)
+
+
+def make_worktree(tmp_path):
+    """A real git repo plus a linked worktree, like the Spark's gs-wt/spark-eval-gates."""
+    main = tmp_path / "main"
+    main.mkdir()
+    git = ["git", "-C", str(main), "-c", "user.name=t", "-c", "user.email=t@t"]
+    subprocess.run([*git, "init", "-q", "-b", "main"], check=True)
+    subprocess.run([*git, "commit", "-q", "--allow-empty", "-m", "init"], check=True)
+    wt = tmp_path / "gs-wt" / "spark-eval-gates"
+    subprocess.run([*git, "worktree", "add", "-q", "-b", "feat/eval", str(wt)], check=True)
+    return main, wt
+
+
+def test_reap_refuses_a_process_running_in_a_git_worktree(env, tmp_path):
+    main, wt = make_worktree(tmp_path)
+    proc = sleeper(wt)
+    try:
+        dry = reap(env, "--pid", str(proc.pid))
+        assert "REFUSING" in dry.stdout and "worktree spark-eval-gates" in dry.stdout and "--i-know-owner" in dry.stdout
+        no_flag = reap(env, "--pid", str(proc.pid), "--yes")
+        assert "REFUSING" in no_flag.stdout and alive(proc.pid)
+        # the flag alone, with no explicit pid, never opens the door
+        assert "does nothing without an explicit --pid" in reap(env, "--i-know-owner", "--yes").stdout
+        assert alive(proc.pid)
+        # a plain checkout (not a linked worktree) is not treated as owned
+        plain = sleeper(main)
+        try:
+            assert "would stop pid" in reap(env, "--pid", str(plain.pid)).stdout
+        finally:
+            plain.kill()
+            plain.wait()
+        forced = reap(env, "--pid", str(proc.pid), "--i-know-owner", "--yes")
+        assert "stopping pid" in forced.stdout and "worktree spark-eval-gates" in forced.stdout
+        proc.wait(timeout=30)
+        assert proc.returncode is not None
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+            proc.wait()
+
+
+def test_reap_refuses_a_process_under_a_tmux_pane_shell(env, tmp_path):
+    shell = subprocess.Popen(["bash", "-c", "sleep 120; true"], cwd=str(tmp_path))  # bash stays the parent
+    try:
+        child = None
+        for _ in range(50):
+            out = subprocess.run(["pgrep", "-P", str(shell.pid)], capture_output=True, text=True).stdout.split()
+            if out:
+                child = int(out[0])
+                break
+            time.sleep(0.1)
+        assert child is not None
+        Path(env["FAKE_TMUX_PANES"]).write_text(f"{shell.pid} nllb-speech main\n999999 other main\n")
+        dry = reap(env, "--pid", str(child))
+        assert "REFUSING" in dry.stdout and "tmux session 'nllb-speech'" in dry.stdout
+        assert "REFUSING" in reap(env, "--pid", str(child), "--yes").stdout and alive(child)
+        # naming the shell itself (the pane) is just as protected
+        assert "REFUSING" in reap(env, "--pid", str(shell.pid), "--yes").stdout and alive(shell.pid)
+        done = reap(env, "--pid", str(child), "--i-know-owner", "--yes")
+        assert "stopping pid" in done.stdout
+        for _ in range(100):
+            if not alive(child):
+                break
+            time.sleep(0.1)
+        assert not alive(child)
+    finally:
+        shell.kill()
+        shell.wait()
+
+
+def test_reap_never_signals_the_parent_of_a_zombie_owned_by_a_tmux_session(env, tmp_path):
+    """--zombie-parents does not override the owner check: only --pid with --i-know-owner can."""
+    parent = subprocess.Popen(["bash", "-c", "sleep 0.2 & exec sleep 120"], cwd=str(tmp_path))
+    try:
+        time.sleep(1.0)  # the background sleep exits and stays a zombie: bash was replaced by sleep, which never waits
+        zombies = subprocess.run(["ps", "-axo", "pid=,ppid=,stat="], capture_output=True, text=True).stdout.splitlines()
+        mine = [ln.split()[0] for ln in zombies if ln.split()[1:2] == [str(parent.pid)] and ln.split()[2].startswith("Z")]
+        if not mine:
+            pytest.skip("no zombie produced on this platform")
+        Path(env["FAKE_TMUX_PANES"]).write_text(f"{parent.pid} course-translate main\n")
+        r = reap(env, "--zombie-parents", "--yes")
+        assert f"zombie {mine[0]}" in r.stdout and "REFUSING" in r.stdout
+        assert alive(parent.pid)
+    finally:
+        parent.kill()
+        parent.wait()
+
+
+def test_gs_run_jobs_inside_a_worktree_are_not_protected(env, tmp_path):
+    """A job started through gs_run is ours even if it runs in a worktree or tmux: the reaper may stop it."""
+    main, wt = make_worktree(tmp_path)
+    proc = subprocess.Popen(
+        ["bash", str(GS_RUN), "--min-free-gb", "0", "--no-systemd", "--name", "mine", "--", "sleep", "120"],
+        env=env, cwd=str(wt), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+    try:
+        for _ in range(80):
+            recs = records(env) if Path(env["GS_JOBS_DIR"]).exists() else []
+            if recs and recs[0].get("child_pid"):
+                break
+            time.sleep(0.1)
+        child = records(env)[0]["child_pid"]
+        out = reap(env, "--pid", str(child))
+        assert "REFUSING" not in out.stdout and "started via gs_run" in out.stdout
+    finally:
+        proc.send_signal(signal.SIGTERM)
+        proc.wait(timeout=40)
 
 
 def test_reap_marks_dead_job_records_finished(env, tmp_path):
