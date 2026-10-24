@@ -17,6 +17,13 @@ export type VisionSection = {
 
 export const VISION_ARCADE: VisionSection[] = [
   {
+    id: "featured",
+    title: "Featured",
+    games: [
+      { id: "pop-quiz-toss", label: "Pop Quiz Toss", emoji: "🎯" },
+    ],
+  },
+  {
     id: "learn",
     title: "Learn",
     games: [
@@ -26,7 +33,6 @@ export const VISION_ARCADE: VisionSection[] = [
       { id: "connect-dots", label: "Connect the dots", emoji: "🔢" },
       { id: "trace-outline", label: "Trace the outline", emoji: "✒️" },
       { id: "say-letter", label: "Say the letter", emoji: "🔤" },
-      { id: "pop-quiz-toss", label: "Pop Quiz Toss", emoji: "🎯" },
     ],
   },
   {

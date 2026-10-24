@@ -12,7 +12,10 @@ describe("vision arcade", () => {
     const ids = visionGameIds();
     expect(ids).toHaveLength(43);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(VISION_ARCADE.map((section) => section.id)).toEqual(["learn", "listen", "sing", "face", "move"]);
+    expect(VISION_ARCADE.map((section) => section.id)).toEqual(["featured", "learn", "listen", "sing", "face", "move"]);
+    // Pop Quiz Toss is the featured first game, in the same order as the lab menu.
+    expect(ids[0]).toBe("pop-quiz-toss");
+    expect(VISION_ARCADE[0].games.map((game) => game.id)).toEqual(["pop-quiz-toss"]);
     expect(ids).toContain("trace-letter");
     expect(ids).toContain("pop-quiz-toss");
     expect(ids).toContain("spell-aloud");

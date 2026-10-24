@@ -112,7 +112,7 @@ def _asset_tag() -> str:
     the code changes.
     """
     digest = hashlib.sha256(__version__.encode())
-    for name in ("app.js", "vision_math.js", "game_tutorial.js", "app.css"):
+    for name in ("app.js", "vision_math.js", "pop_quiz.js", "pop_quiz_game.js", "game_tutorial.js", "game_howto.js", "app.css"):
         path = STATIC_DIR / name
         if path.is_file():
             digest.update(path.read_bytes())

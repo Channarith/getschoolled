@@ -1,0 +1,37 @@
+PLAY LAB GAME ART (Pop Quiz Toss)
+
+What it is
+  23 pictures made with Gemini "Nano Banana" (model gemini-nano-banana-2.1 through the
+  generateContent image API): 3 Sala poses, 6 balls, 4 targets, 4 soft backgrounds,
+  5 tutorial scenes and 1 win card. They live in
+  subrepos/theodore_children_webcam_lab/src/theodore_children_webcam_lab/static/art/
+  as WebP files, with art/manifest.json listing what exists.
+
+How the game uses it
+  Progressive enhancement. At start the game loads /static/art/manifest.json. A picture
+  that is listed replaces the built-in SVG or emoji; anything missing, or any file that
+  fails to load, keeps the built-in drawing. Deleting the art folder is safe.
+
+Regenerating
+  python3 scripts/generate_game_art.py --estimate        list assets and expected cost
+  python3 scripts/generate_game_art.py                   make whatever is missing
+  python3 scripts/generate_game_art.py --force --only ball-fire,bg-teddy
+  The key comes from GEMINI_API_KEY (or GOOGLE_API_KEY) in the environment. Source
+  config/local.env in a subshell for the run. The key is never printed or written to a file.
+  With no key the script exits and the game keeps its built-in art.
+  Sala poses are generated from static/sala-gold.png as a reference so the character
+  stays the same. Sprites are generated on white (the pin on green) and cut out
+  automatically; backgrounds ask for an empty scene so no character sits behind the camera.
+
+Run record (2026-10-24)
+  31 images generated (23 first pass plus 8 regenerated after review). Review found
+  characters inside the first four backgrounds and cream halos on the fire, comet and
+  rainbow balls and a damaged-looking white pin; those 8 were regenerated and checked.
+  Planning cost about $1.24 (31 x $0.04 estimate; set GAME_ART_PRICE_PER_IMAGE for the
+  real rate). Final size 593 KB for all 23 files (largest 65 KB).
+  Every picture was viewed (contact sheets) before it was kept; a human art review is still welcome.
+
+Safety
+  Prompts ask for child-safe, text-free art with no weapons. If a regenerated set shows
+  readable text, a real person, or anything unsuitable for ages 4 and up, delete that file
+  and rerun with --only; the game falls back to its built-in drawing in the meantime.

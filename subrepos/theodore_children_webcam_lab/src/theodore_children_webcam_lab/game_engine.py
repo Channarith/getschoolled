@@ -63,6 +63,9 @@ PICTURE_EMOJI = {
 # name the same ids. Adding a row here without a matching branch in app.js is a
 # test failure, not a silent missing game.
 GAME_MENU: list[tuple[str, list[tuple[str, str]]]] = [
+    ("Featured", [
+        ("pop-quiz-toss", "Pop Quiz Toss"),
+    ]),
     ("Learn", [
         ("trace-letter", "Trace a letter"),
         ("trace-picture", "Trace a picture"),
@@ -70,7 +73,6 @@ GAME_MENU: list[tuple[str, list[tuple[str, str]]]] = [
         ("connect-dots", "Connect the dots"),
         ("trace-outline", "Trace the outline"),
         ("say-letter", "Say the letter"),
-        ("pop-quiz-toss", "Pop Quiz Toss"),
     ]),
     ("Listen", [
         ("repeat-after-me", "Repeat after me"),
