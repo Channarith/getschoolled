@@ -1,6 +1,6 @@
 import "./globals.css";
 import type { Metadata } from "next";
-import { Fraunces } from "next/font/google";
+import localFont from "next/font/local";
 import { APP_VERSION } from "./lib/version";
 import DisclaimerGate from "./components/DisclaimerGate";
 import OnboardingSurveyGate from "./components/OnboardingSurveyGate";
@@ -43,10 +43,12 @@ export const viewport = {
  * Italic is enabled so copy like "Human *Warmth.*" renders in true italic
  * serif, matching the DN mockup. Regular body text keeps the system sans.
  */
-const displaySerif = Fraunces({
-  subsets: ["latin"],
-  weight: ["400", "500", "700"],
-  style: ["normal", "italic"],
+// Self-hosted (latin subset, variable weight): a build must never depend on Google Fonts being reachable.
+const displaySerif = localFont({
+  src: [
+    { path: "./fonts/fraunces-normal.woff2", weight: "400 700", style: "normal" },
+    { path: "./fonts/fraunces-italic.woff2", weight: "400 700", style: "italic" },
+  ],
   display: "swap",
   variable: "--font-display",
 });
