@@ -62,6 +62,12 @@ def validate_dataset(rows: List[Dict]) -> List[str]:
         leaked = [p for p in PROTECTED if p in ctx]
         if leaked:
             problems.append(f"row {i}: protected attribute(s) {leaked} in context")
+        top = [p for p in PROTECTED if p in r]
+        if top:
+            problems.append(f"row {i}: protected attribute(s) {top} at the top level")
+        tag_leak = [t for t in (r.get("tags") or []) if str(t).lower() in PROTECTED]
+        if tag_leak:
+            problems.append(f"row {i}: protected attribute(s) {tag_leak} used as tags")
     return problems
 
 

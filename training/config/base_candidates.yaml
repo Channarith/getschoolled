@@ -1,0 +1,40 @@
+# Candidate base models for the Salareen tutor. Nothing here is downloaded automatically.
+#
+# `repo` is the Hugging Face id (check it before downloading: ids and licences change).
+# `params_b` is billions of parameters; `moe_active_b` is set for mixture-of-experts models.
+# `dir` is where the weights are expected, relative to the repo root: models/weights/<dir>.
+#
+# Memory estimate for QLoRA (4-bit weights + LoRA + activations at batch 1, seq 512) is
+# computed by compare_bases.py: weights_gb = params_b * 0.55, plus ~4 GB overhead.
+# bf16 evaluation needs params_b * 2 GB for weights alone.
+#   DGX Spark   121 GB unified: QLoRA to ~70B, bf16 eval to ~40B. Leave 16 GB free.
+#   iBuyPower   8 GB VRAM:      QLoRA up to ~7B (tight), bf16 eval up to ~3B. Leave the OS 6 GB.
+#
+# Licence notes (verify on the model card before any commercial use):
+#   Qwen3 / Qwen2.5 (most sizes): Apache 2.0.   Gemma 3: Gemma terms of use.
+#   Llama 3.x: Llama community licence (attribution, acceptable-use policy, size caps).
+# Multilingual strength matters here: we ship Khmer, Thai, Vietnamese, Swahili and Bengali.
+# Do not pick by reputation; run `python3 training/compare_bases.py` and read the leaderboard.
+
+candidates:
+  - {name: qwen2.5-7b-instruct,  repo: Qwen/Qwen2.5-7B-Instruct,   dir: qwen2.5-7b-instruct,  params_b: 7.6}
+  - {name: qwen2.5-14b-instruct, repo: Qwen/Qwen2.5-14B-Instruct,  dir: qwen2.5-14b-instruct, params_b: 14.8}
+  - {name: qwen3-4b,             repo: Qwen/Qwen3-4B,              dir: qwen3-4b,             params_b: 4.0}
+  - {name: qwen3-8b,             repo: Qwen/Qwen3-8B,              dir: qwen3-8b,             params_b: 8.2}
+  - {name: qwen3-14b,            repo: Qwen/Qwen3-14B,             dir: qwen3-14b,            params_b: 14.8}
+  - {name: gemma-3-4b-it,        repo: google/gemma-3-4b-it,       dir: gemma-3-4b-it,        params_b: 4.3}
+  - {name: gemma-3-12b-it,       repo: google/gemma-3-12b-it,      dir: gemma-3-12b-it,       params_b: 12.2}
+  - {name: gemma-3-27b-it,       repo: google/gemma-3-27b-it,      dir: gemma-3-27b-it,       params_b: 27.4}
+  - {name: llama-3.1-8b-instruct, repo: meta-llama/Llama-3.1-8B-Instruct, dir: llama-3.1-8b-instruct, params_b: 8.0}
+  - {name: llama-3.2-3b-instruct, repo: meta-llama/Llama-3.2-3B-Instruct, dir: llama-3.2-3b-instruct, params_b: 3.2}
+
+# Benchmarks scored for every candidate (all offline, none trained on).
+benchmarks:
+  - training/data/eval_frozen.jsonl
+  - training/data/eval_behavior_v1.jsonl
+  - training/data/eval_multilingual_v1.jsonl
+
+# A candidate must clear these floors to be considered for training at all.
+floors:
+  abstain: 0.5
+  refuse: 0.5

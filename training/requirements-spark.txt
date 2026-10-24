@@ -1,0 +1,23 @@
+# Spark (DGX, aarch64, GB10, CUDA 13) and iBuyPower (RTX 5060 Ti) training requirements.
+#
+# torch is NOT listed on purpose. The Spark's venv already has a working CUDA build
+# (torch 2.14.1+cu130, checked: torch.cuda.is_available() is True). requirements.txt pins
+# torch==2.3.1 and would DOWNGRADE it to a build with no aarch64/CUDA 13 kernels. Never run
+# `pip install -r training/requirements.txt` on the Spark; use this file:
+#
+#   .venv/bin/pip install -r training/requirements-spark.txt
+#   .venv/bin/python -c "import torch;print(torch.__version__, torch.cuda.is_available())"   # must stay True
+#
+# Version ranges, not pins: the transformers/peft/trl trio must match each other, so let pip pick
+# a compatible set for the installed torch. After the first good full run, freeze it:
+#   .venv/bin/pip freeze | grep -iE "^(transformers|peft|trl|datasets|accelerate|bitsandbytes)=" > training/requirements-spark.lock
+PyYAML>=6.0
+transformers>=4.51,<5
+peft>=0.14
+trl>=0.15
+datasets>=2.20
+accelerate>=1.0
+sentencepiece>=0.2
+# 4-bit QLoRA is optional (not installed by this file). If bitsandbytes has no wheel for aarch64 + CUDA 13, training falls back to bf16 LoRA
+# automatically (run_finetune._load_causal_lm); 7B-14B in bf16 fits the Spark's 121 GB comfortably.
+# bitsandbytes>=0.45   <- optional: try `pip install bitsandbytes` after the rest; skip it if it fails.
