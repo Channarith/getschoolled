@@ -14,6 +14,7 @@ import ErrorBoundary from "./src/components/ErrorBoundary";
 import SwipeTabContainer from "./src/components/SwipeTabContainer";
 import { LocaleProvider, useT } from "./src/i18n";
 import { IntroSplashProvider } from "./src/introSplash";
+import UpdatePrompt from "./src/components/UpdatePrompt";
 import LearningProfileSurvey from "./src/components/LearningProfileSurvey";
 import {
   ensurePermissions, fireDrivingDetectedAlert, installNotificationHandler,
@@ -103,6 +104,7 @@ export default function App() {
           <IntroSplashProvider>
             <AuthProvider>
               <AppInner />
+              <UpdatePrompt />
             </AuthProvider>
           </IntroSplashProvider>
         </LocaleProvider>
