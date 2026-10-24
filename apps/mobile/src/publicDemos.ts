@@ -140,7 +140,7 @@ export function childrenLabTouchScript(): string {
   return `(function(){
     if (window.__SALAREEN_TOUCH_TOGGLE__) return;
     window.__SALAREEN_TOUCH_TOGGLE__ = true;
-    var css = "#touch-mode{position:fixed !important;right:12px !important;left:auto !important;"
+    var css = "#touch-mode{position:fixed !important;right:88px !important;left:auto !important;"
       + "bottom:calc(136px + env(safe-area-inset-bottom)) !important;z-index:40 !important;"
       + "display:inline-flex !important;align-items:center;gap:4px;"
       + "min-height:44px !important;padding:3px !important;white-space:nowrap;"
