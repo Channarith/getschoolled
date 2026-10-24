@@ -2,7 +2,7 @@
 // exact spoken text; any miss falls back to the default voice. Hash must match clip_hash.py / apps/web/app/lib/cloneVoice.ts.
 export const DEFAULT_VOICE_ID = "default";
 const KEY = "aoep_demo_voice";
-const ASSETS = String((typeof window !== "undefined" && window.CLONE_VOICE_ASSETS) || "/voice-assets").replace(/\/$/, "");
+const ASSETS = String((typeof window !== "undefined" && window.CLONE_VOICE_ASSETS) || "https://salareen-prod.sjc1.vultrobjects.com/voice-assets").replace(/\/$/, "");
 const WS = /[ \t\n\r\f\v\u00a0\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+/g;
 
 export function clipHash(lang, text) {

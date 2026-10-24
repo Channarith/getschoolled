@@ -35,6 +35,9 @@ ENV COURSE_STUDIO_ORIGIN=$COURSE_STUDIO_ORIGIN
 ENV CHILDREN_LAB_ORIGIN=$CHILDREN_LAB_ORIGIN
 ENV AUDIO_LAB_ORIGIN=$AUDIO_LAB_ORIGIN
 ENV MUSIC_ORIGIN=$MUSIC_ORIGIN
+# Pre-rendered demo narration (consented company voices) lives in Vultr Object Storage; NEXT_PUBLIC_* is frozen in at build.
+ARG NEXT_PUBLIC_VOICE_ASSETS_URL=https://salareen-prod.sjc1.vultrobjects.com/voice-assets
+ENV NEXT_PUBLIC_VOICE_ASSETS_URL=$NEXT_PUBLIC_VOICE_ASSETS_URL
 RUN npm run build
 
 FROM node:22-slim AS run

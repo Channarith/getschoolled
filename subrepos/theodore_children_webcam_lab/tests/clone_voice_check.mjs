@@ -1,6 +1,13 @@
 import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
-import { clipHash, cloneClipUrl, resetForTests } from "../src/theodore_children_webcam_lab/static/clone_voice.js";
+const MOD = "../src/theodore_children_webcam_lab/static/clone_voice.js";
+globalThis.window = { CLONE_VOICE_ASSETS: "/voice-assets" };
+const { clipHash, cloneClipUrl, resetForTests } = await import(MOD);
+delete globalThis.window;
+const dflt = await import(MOD + "?default");   // no override: the Vultr Object Storage URL is the default
+let probed = ""; globalThis.fetch = async (u) => { probed = u; return { ok: false, json: async () => ({}) }; };
+await dflt.cloneClipUrl("en", "x", "channarith");
+assert.ok(probed.startsWith("https://salareen-prod.sjc1.vultrobjects.com/voice-assets/"), probed);
 
 const vectors = JSON.parse(readFileSync(new URL("./hash_vectors.json", import.meta.url), "utf8"));
 for (const c of vectors.cases) assert.equal(clipHash(c.lang, c.text), c.hash, `${c.lang} ${c.text}`);
