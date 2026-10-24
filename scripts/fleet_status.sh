@@ -20,7 +20,8 @@ HOSTS_FILE="${FLEET_HOSTS_FILE:-$ROOT/scripts/fleet/hosts.conf}"
 BUDGETS_FILE="${FLEET_BUDGETS_FILE:-$ROOT/scripts/fleet/budgets.conf}"
 PROBE="$ROOT/scripts/fleet/probe.sh"
 SSH_TIMEOUT="${FLEET_SSH_TIMEOUT:-6}"
-CTL_DIR="${TMPDIR:-/tmp}/gs-fleet-ssh-$(id -u)"
+# A unix socket path must stay under ~104 bytes on macOS; $TMPDIR (/var/folders/...) is far too long, so use /tmp.
+CTL_DIR="/tmp/gsf-$(id -u)"
 mkdir -p "$CTL_DIR" && chmod 700 "$CTL_DIR"
 
 only_host=""; local_only=0; as_json=0; raw=0; quiet=0
