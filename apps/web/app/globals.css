@@ -2615,6 +2615,11 @@ textarea {
   opacity: 0.9;
   pointer-events: none;
 }
+.dn-orbit-tile-disabled {
+  cursor: default;
+  opacity: 0.72;
+  filter: saturate(0.6);
+}
 .dn-orbit-tile-locked:hover,
 .dn-orbit-tile-locked:focus-visible {
   opacity: 1;

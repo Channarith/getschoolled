@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { AUTH_EVENT, getToken } from "../lib/api";
 import OrbitalMascotStage from "./OrbitalMascotStage";
 
 /**
@@ -44,7 +46,25 @@ const FEATURES = [
   },
 ];
 
+// null until the browser has been asked, so a signed-in visitor never sees the
+// Login / demo buttons flash before they disappear.
+function useSignedIn(): boolean | null {
+  const [signedIn, setSignedIn] = useState<boolean | null>(null);
+  useEffect(() => {
+    const sync = () => setSignedIn(Boolean(getToken()));
+    sync();
+    window.addEventListener(AUTH_EVENT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(AUTH_EVENT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  return signedIn;
+}
+
 export default function DNLandingHero() {
+  const signedIn = useSignedIn();
   return (
     <main className="dn-landing">
       {/* ── Hero ─────────────────────────────────────────────────────── */}
@@ -66,14 +86,16 @@ export default function DNLandingHero() {
               what the button actually does. "See how it works" used to
               point at /our-story, but Our Story is a brand page, not a
               product tour - the tour is /demo. */}
-          <div className="dn-landing-cta-row">
-            <Link href="/login" className="btn-primary">
-              Login
-            </Link>
-            <Link href="/demo" className="link-ghost">
-              See how it works
-            </Link>
-          </div>
+          {signedIn === false && (
+            <div className="dn-landing-cta-row" data-testid="landing-guest-cta">
+              <Link href="/login" className="btn-primary">
+                Login
+              </Link>
+              <Link href="/demo" className="link-ghost">
+                See how it works
+              </Link>
+            </div>
+          )}
         </div>
 
         <div className="dn-landing-hero-stage">
