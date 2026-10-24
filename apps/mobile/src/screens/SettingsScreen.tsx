@@ -16,6 +16,7 @@ import BiometricSetupModal from "../components/BiometricSetupModal";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
 import CameraTrackingCheck from "../components/CameraTrackingCheck";
+import NarratorVoicePicker from "../components/NarratorVoicePicker";
 import VoiceAgentToggle from "../components/VoiceAgentToggle";
 import { DEPLOY_MODE } from "../config";
 import { useIntroSplash } from "../introSplash";
@@ -352,6 +353,7 @@ export default function SettingsScreen({
       <Section title={t("settings.sectionVoice")}>
         <Text style={styles.desc}>{t("settings.voiceDesc")}</Text>
         <Text style={styles.desc}>{t("settings.voiceAgentDesc")}</Text>
+        <NarratorVoicePicker />
         <VoiceAgentToggle
           value={voiceAgent}
           onChange={(next) => {

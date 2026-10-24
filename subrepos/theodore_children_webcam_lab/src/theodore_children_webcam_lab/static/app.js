@@ -18,6 +18,7 @@ import {
 } from "./vision_math.js";
 import {createPopQuizGame} from "./pop_quiz_game.js";
 import {createGameTutorial} from "./game_tutorial.js";
+import {cloneClipUrl, mountVoiceSelect} from "./clone_voice.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -2443,6 +2444,15 @@ async function speak(text, cue=false) {
   cancelSpeech();
   const token=state.speechToken;
   try {
+    // A chosen company voice plays its pre-rendered clip; no clip (or no consent) falls through to the default voice below.
+    const cloneUrl=await cloneClipUrl("en",text);
+    if(token!==state.speechToken)return;
+    if(cloneUrl){
+      const clip=new Audio(cloneUrl);
+      state.audio=clip;
+      clip.onended=()=>{if(state.audio===clip)state.audio=null;};
+      try{await clip.play();return;}catch(_){if(state.audio===clip)state.audio=null;}
+    }
     if(state.serverTts===null) await probeSpeech();
     if(!state.serverTts)throw new Error("device-fallback");
     const response=await fetch(`/api/tts?text=${encodeURIComponent(text)}&language=en&style=cheerful`);
@@ -2880,6 +2890,7 @@ $("play-game").addEventListener("click",()=>chooseGame());
 $("game").addEventListener("change",()=>chooseGame());
 $("letter").addEventListener("change",()=>chooseGame());
 $("hear").addEventListener("click",()=>speak(state.spokenPrompt));
+mountVoiceSelect();
 $("mic").addEventListener("click",startListening);
 $("check").addEventListener("click",()=>checkSpeech($("typed").value));
 $("undo").addEventListener("click",()=>{
