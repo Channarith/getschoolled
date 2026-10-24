@@ -281,7 +281,7 @@ def render_briefing(snapshot: dict, history: list[dict]) -> str:
   <div class="row">
     <div>
       <p>As of this snapshot the STEM shell is still the systemd service, and it is not scoring. The last finished cycle wrote its result at 4:55 AM PT and refused promotion. The bake-off winner was <code>{e(str(snapshot.get("promote_champion") or "none"))}</code> at {_pct(snapshot.get("served_accuracy"))} on {snapshot.get("served_n") or "—"} frozen items, fairness gap {_pct(snapshot.get("served_gap"))}. That score was not kept. The adapter stayed {_pct(frozen)}. Gate: <code>{e(str(snapshot.get("promote_reason") or "not run yet"))}</code>. Promoted: {e(str(snapshot.get("promoted")))}. Khmer CosyVoice is off, and the hold file is still there.</p>
-      <p>Translation is stopped. The unit was disabled at 2:26 AM PT Saturday, and the NLLB server on port 8002 is down. {e(f"Last tally {done}/{total}: written {written}, skipped {skipped}, failed {failed}.") if total else "The batch log has no progress line yet."} Most of those failures are empty translations after the gateway refused connections. The batch does not resume on its own while the unit stays disabled.</p>
+      <p>Translation is running on CPU, off the GPU the exam is using. It writes Intro to Machine Learning first, in all 26 non-English languages plus Cantonese, then continues the 222-course batch. {e(f"Last tally before this resume was {done}/{total}: written {written}, skipped {skipped}, failed {failed}.") if total else "The batch log has no progress line yet."} A file is served only when its segment count matches the 10-segment lesson. The old 108-segment demo files are refused, so English plays until each language is rewritten.</p>
     </div>
     <div class="card">
       <h3>Why the loop is flat</h3>
@@ -363,7 +363,7 @@ def render_briefing(snapshot: dict, history: list[dict]) -> str:
   <h2>Translation and the demo lesson</h2>
   {_lang_bars(languages)}
   <p>Bars are playable files: the segment count matches the live lesson. The cache still holds older padded files, often 108 segments, and the app refuses those. The live catalog is {courses} courses. Cantonese is its own file, <code>yue.json</code>, and it is not one of the 27 platform languages. Playable Cantonese: {yue_playable}. Still partial: {yue_partial}.</p>
-  <p>Demo <code>{e(translation.get("demo_course") or "audio-intro-to-machine-learning")}</code>: {demo_bits}. Intro to Machine Learning is the course to show. Until Mandarin, Khmer, and Cantonese match its real length, the visitor hears English.</p>
+  <p>Demo <code>{e(translation.get("demo_course") or "audio-intro-to-machine-learning")}</code>: {demo_bits}. Intro to Machine Learning is the course to show. The batch writes that course first, in every non-English language plus Cantonese. Until a language file matches the lesson, the visitor hears English for that language.</p>
   <table>
     <tr><th>Language</th><th>Playable</th><th>Partial</th></tr>
     {"".join("<tr><td>" + e(row["code"]) + "</td><td>" + str(row["playable"]) + "/" + str(row["total"]) + "</td><td>" + str(row["partial"]) + "</td></tr>" for row in languages) or "<tr><td colspan=3>Translation cache was not scanned.</td></tr>"}
@@ -465,7 +465,7 @@ def render_briefing(snapshot: dict, history: list[dict]) -> str:
     <li>Run one cycle on the held-out lesson pool. It asks the exam’s passage question, and the frozen items are not in the file. Health &amp; Wellness and the later calculus, linear algebra, and Python slides are in that pool. If the fingerprint matches the last finished cycle, do not start QLoRA again. Keep an adapter only when the frozen score rises and every subject is at least {TRAINING_FLOOR:.0%}.</li>
     <li>The floor is still Health &amp; Wellness at {_pct(frozen_weak.get("score"))} on the frozen exam, calculus 1 at {_pct(stem_weak.get("score"))} on the STEM exam, and Python files at {_pct(weak.get("score"))} on the old split. Linear algebra is {_pct(algebra)} on its 4-item STEM exam. Those subjects are in the new pool as different passages. Add more only if this cycle leaves them under {TRAINING_FLOOR:.0%}.</li>
     <li>Have a person mark truth-log rows. Groundedness is {_pct(truth.get("groundedness"))} and abstention is {_pct(truth.get("abstain_accuracy"))}. Human agreement is blank, so the teal diagonal is still a target.</li>
-    <li>Resume the 222-course batch. It is stopped at {done} of {total}, with {failed} failures after the gateway went down. Bring the CPU translator back, then let the run finish. Cantonese is playable for {yue_playable} courses. Rewrite Intro to Machine Learning so Mandarin, Khmer, and Cantonese match the lesson. Until then the demo speaks English.</li>
+    <li>Leave the CPU translation batch running. Intro to Machine Learning is first, in all 26 non-English languages plus Cantonese. The catalog resume continues after that pass. Cantonese is playable for {yue_playable} courses so far. A demo language speaks only after its file matches the lesson.</li>
     <li>Keep Khmer CosyVoice off this GPU. The next voice run, when the exam is finished, starts from the last real checkpoint after a listening check. It does not start from the base weights.</li>
     <li>Leave outside cards off until a person of record signs a program whose weakest subject clears {ACCREDITATION_FLOOR:.0%}.</li>
   </ol>

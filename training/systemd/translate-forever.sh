@@ -11,8 +11,19 @@ export AOEP_COURSE_TRANSLATION_DIR="${AOEP_COURSE_TRANSLATION_DIR:-$HOME/.cache/
 export TRANSLATION_TIMEOUT_S="${TRANSLATION_TIMEOUT_S:-180}"
 export RATE_LIMIT_DISABLED=1
 export NLLB_DEVICE=cpu
+# Keep the translator off the GPU. The STEM cycle holds it.
+export CUDA_VISIBLE_DEVICES=""
 export NLLB_MODEL="${NLLB_MODEL:-facebook/nllb-200-distilled-600M}"
 export PYTHONPATH="$ROOT/packages/shared/src${PYTHONPATH:+:$PYTHONPATH}"
+
+# English is the source. These are the other 26 platform languages, plus
+# Cantonese (yue) as its own file. Mandarin, Cantonese, and Khmer are first
+# so the demo can speak them before the long tail.
+DEMO_COURSE="audio-intro-to-machine-learning"
+DEMO_LANGS=(zh yue km es fr de it pt nl pl ru uk tr ar he hi bn ur fa ja ko vi th id sw el cs)
+# Catalog resume: the Spark share. The other machine's six languages are in
+# DEMO_LANGS so Intro to Machine Learning is not left in English.
+BATCH_LANGS=(es fr de it pt nl pl ru uk tr ar he hi bn ur fa zh ja ko vi yue)
 
 nllb_pid=""
 cleanup() {
@@ -33,12 +44,12 @@ start_nllb() {
     --host 127.0.0.1 --port 8002 &
   nllb_pid=$!
   local i
-  for i in 1 2 3 4 5 6 7 8 9 10 11 12 15 20 25 30; do
+  for i in $(seq 1 90); do
     if curl -sf -m 3 "$SPEECH_BASE_URL/languages" >/dev/null 2>&1; then
       echo "=== nllb up pid=$nllb_pid $(date -Is) ==="
       return 0
     fi
-    sleep 1
+    sleep 2
   done
   echo "=== nllb did not answer $(date -Is) ==="
   return 1
@@ -64,13 +75,21 @@ while true; do
     sleep 60
     continue
   fi
-  echo "=== translate batch start $(date -Is) ==="
+  echo "=== demo course first ${DEMO_COURSE} $(date -Is) ==="
+  demo_args=()
+  for lang in "${DEMO_LANGS[@]}"; do
+    demo_args+=(--language "$lang")
+  done
   "$PY" scripts/translate_courses_batch.py --audio-only --concurrency 1 --verbose \
-    --language es --language fr --language de --language it --language pt \
-    --language nl --language pl --language ru --language uk --language tr \
-    --language ar --language he --language hi --language bn --language ur \
-    --language fa --language zh --language ja --language ko --language vi \
-    --language yue
+    --course "$DEMO_COURSE" "${demo_args[@]}"
+  echo "=== demo course exit=$? $(date -Is) ==="
+  echo "=== translate batch start $(date -Is) ==="
+  batch_args=()
+  for lang in "${BATCH_LANGS[@]}"; do
+    batch_args+=(--language "$lang")
+  done
+  "$PY" scripts/translate_courses_batch.py --audio-only --concurrency 1 --verbose \
+    "${batch_args[@]}"
   echo "=== translate batch exit=$? $(date -Is) ==="
   sleep 60
 done
