@@ -17,6 +17,19 @@ def env_seed_password(key: str, default: str) -> str:
     return val or default
 
 
+_PUBLIC_WEAK_VALUES = {"88888888", "dev-admin-secret", "QaTest123", "password", "admin", "changeme"}
+
+
+def weak_operator_secrets() -> list:
+    """Names of operator credentials that are unset, short, or a value published in the repo."""
+    weak = []
+    for name in ("ADMIN_SECRET", "DEFAULT_ADMIN_PASSWORD"):
+        value = (os.environ.get(name) or "").strip()
+        if not value or value in _PUBLIC_WEAK_VALUES or len(value) < 12 or len(set(value)) == 1:
+            weak.append(name)
+    return weak
+
+
 def _truthy(name: str, default: str = "1") -> bool:
     return os.environ.get(name, default).lower() in ("1", "true", "yes")
 

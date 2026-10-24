@@ -24,12 +24,22 @@ function serviceOrigin(name) {
   return process.env[`${name.toUpperCase()}_ORIGIN`] || `http://${name}:8000`;
 }
 
+const SECURITY_HEADERS = [
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  { key: "Content-Security-Policy", value: "frame-ancestors 'self'" },
+];
+
 const nextConfig = {
   reactStrictMode: true,
   // A real HTTP redirect with a Location header. A redirect() inside a prerendered
   // page was cached as a 307 with no Location, which clients cannot follow.
   async redirects() {
     return [{ source: "/demo/course-studio", destination: "/demo/drivers-ed", permanent: false }];
+  },
+  poweredByHeader: false,
+  async headers() {
+    return [{ source: "/:path*", headers: SECURITY_HEADERS }];
   },
   async rewrites() {
     // Production sets these at image build (see apps/web/Dockerfile). `next build`

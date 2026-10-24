@@ -255,8 +255,8 @@ export function isAdminUnlocked(): boolean {
 }
 
 export function unlockAdmin(password: string): boolean {
-  const expected = process.env.NEXT_PUBLIC_ADMIN_UNLOCK || "88888888";
-  if (password === expected) {
+  const expected = process.env.NEXT_PUBLIC_ADMIN_UNLOCK || "";
+  if (expected && password === expected) {
     try { localStorage.setItem(ADMIN_KEY, "1"); } catch { /* ignore */ }
     notifyAuthChange();
     return true;

@@ -34,8 +34,11 @@ async function proxy(request: NextRequest, path: string[], method: "GET" | "POST
       { status: 403 },
     );
   }
+  if (path.some((part) => !part || part === "." || part === ".." || /[\\/]/.test(part))) {
+    return NextResponse.json({ detail: "invalid path" }, { status: 400 });
+  }
   const search = request.nextUrl.search || "";
-  const target = `${CURRICULUM_ORIGIN}/homework/${path.join("/")}${search}`;
+  const target = `${CURRICULUM_ORIGIN}/homework/${path.map(encodeURIComponent).join("/")}${search}`;
   const headers: Record<string, string> = { "X-Internal-Token": INTERNAL_TOKEN };
   const ct = request.headers.get("content-type");
   if (ct) headers["content-type"] = ct;   // preserve JSON / multipart boundary
