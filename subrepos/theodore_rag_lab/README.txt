@@ -98,6 +98,7 @@ Step 4 — peek at tuning, then try a short bakeoff
   curl -s -X POST http://127.0.0.1:8095/api/rag/train/run-blocking \
     -H 'content-type: application/json' \
     -d '{"hours":0.01}' | python3 -m json.tool
+  # Answers 202 with a status_url; poll it (GET /api/rag/jobs/{job_id}) until state is done.
 
   Or without the API (CI-style smoke):
 
@@ -135,7 +136,7 @@ APIs
   POST /api/rag/eval
   GET  /api/rag/sweep
   POST /api/rag/train/start   # continuous auto-tune
-  POST /api/rag/train/run-blocking
+  POST /api/rag/train/run-blocking   (202 + job; poll GET /api/rag/jobs/{job_id})
   GET  /api/rag/train/status
   POST /api/rag/train/stop
   GET  /api/rag/champion

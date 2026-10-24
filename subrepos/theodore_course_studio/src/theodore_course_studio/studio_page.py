@@ -3829,6 +3829,21 @@ STUDIO_JS = """
       return data;
     }
 
+    // Slow routes answer 202 with a job; poll it with a gentle backoff until it finishes.
+    async function apiJob(path, opts, onProgress) {
+      const started = await api(path, opts);
+      if (!started.job_id) return started;
+      let wait = 1000;
+      for (;;) {
+        const job = await api(started.status_url || ('/api/studio/jobs/' + started.job_id));
+        if (job.state === 'done') return job.result;
+        if (job.state === 'failed') throw new Error((job.error && job.error.message) || job.message || 'The job did not finish');
+        if (onProgress) onProgress(job);
+        await new Promise((resolve) => setTimeout(resolve, wait));
+        wait = Math.min(5000, Math.round(wait * 1.4));
+      }
+    }
+
     async function refreshCorpus() {
       const data = await api('/api/studio/corpus');
       const box = $('corpus-list');
@@ -3916,10 +3931,10 @@ STUDIO_JS = """
 
     async function runTraining() {
       $('train-status').textContent = 'Scanning corpus…';
-      const data = await api('/api/studio/training/run', {
+      const data = await apiJob('/api/studio/training/run', {
         method:'POST', headers:{'content-type':'application/json'},
         body: JSON.stringify({ extract_text: true, seed_page_hints: true })
-      });
+      }, (job) => { $('train-status').textContent = (job.message || 'Scanning corpus') + '…'; });
       $('train-status').textContent =
         `Run ${data.run_id}: scanned ${data.documents_scanned}, incorporate ${data.incorporate_ids.length}, reject ${data.reject_ids.length}, review queue ${data.review_queue_ids.length}`;
       await refreshCorpus();
@@ -3929,10 +3944,10 @@ STUDIO_JS = """
 
     async function runOfflineTrainer() {
       $('train-status').textContent = 'Offline trainer running (no network)…';
-      const data = await api('/api/studio/training/offline', {
+      const data = await apiJob('/api/studio/training/offline', {
         method:'POST', headers:{'content-type':'application/json'},
         body: JSON.stringify({ epochs: 25, run_scan: true, fit_passes: 2 })
-      });
+      }, (job) => { $('train-status').textContent = 'Offline trainer running… ' + Math.round((job.elapsed_seconds || 0)) + 's'; });
       $('train-status').textContent =
         `Offline ${data.run_id}: epochs ${data.epoch}, best ${Number(data.best_course_score || 0).toFixed(3)}, ${data.status}`;
       await refreshCourses();
@@ -3943,13 +3958,13 @@ STUDIO_JS = """
       const category = $('build-category').value;
       const title = $('build-title').value.trim() || null;
       teachLanguage = $('teach-lang').value || 'en';
-      const data = await api('/api/studio/courses/build', {
+      const data = await apiJob('/api/studio/courses/build', {
         method:'POST', headers:{'content-type':'application/json'},
         body: JSON.stringify({
           category: category || null, title, max_slides: 12,
           only_incorporate: true, language: teachLanguage
         })
-      });
+      }, (job) => { toast((job.message || 'Building your course') + '…'); });
       selectedCourse = data.course_id;
       await refreshCourses();
       toast('Course built: ' + data.course_id + ' · lang ' + (data.language || teachLanguage));

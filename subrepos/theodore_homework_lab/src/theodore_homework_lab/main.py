@@ -19,6 +19,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
+from aoep_shared.background_jobs import JobRunner, accepted_response, install_job_status_route
 from aoep_shared.live_audio_agents import inject_client, install_live_audio_routes
 
 from .generate import generate_assignment, generate_full_battery, wrap_shared_classic
@@ -228,9 +229,21 @@ def eval_gold() -> dict[str, Any]:
     return get_runner().evaluate_once()
 
 
-@app.post("/api/homework/bakeoff")
-def bakeoff(rounds: int = 2) -> dict[str, Any]:
-    return get_runner().run_blocking(rounds=max(1, min(rounds, 20)))
+_JOBS_PATH = "/api/homework/jobs"
+_jobs = JobRunner(max_workers=1)
+install_job_status_route(app, _jobs, _JOBS_PATH)
+
+
+@app.post("/api/homework/bakeoff", status_code=202)
+def bakeoff(rounds: int = 2):
+    """Up to 20 rounds can take minutes, so this is a job; poll the status_url."""
+    count = max(1, min(rounds, 20))
+
+    def work(report):
+        report(0.1, "Running the bakeoff")
+        return get_runner().run_blocking(rounds=count)
+
+    return accepted_response(_jobs.submit("homework-bakeoff", work, exclusive=True), _JOBS_PATH)
 
 
 @app.get("/api/homework/telemetry")
