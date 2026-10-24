@@ -128,6 +128,8 @@ def sessions_from_curriculum(curriculum: Path) -> list[dict]:
                     ],
                     "rewards": [1.0],
                     "tags": [course, "stem"],
+                    "source": "authored:sample-curriculum",
+                    "consent": "authored",
                 }
             )
     return sessions
@@ -139,7 +141,8 @@ def load_sample_sessions(path: Path) -> list[dict]:
     data = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(data, list):
         raise ValueError(f"sample sessions must be a list: {path}")
-    return data
+    # The checked-in samples are authored examples; stamp provenance so the quality gate admits them.
+    return [{"source": "authored:sample_sessions.json", "consent": "authored", **row} for row in data]
 
 
 def build_sessions(curriculum: Path, sample: Path, *, seed: int = 17) -> list[dict]:
