@@ -101,6 +101,7 @@ export function createPopQuizGame(d) {
     targets: [],
     ball: null,
     trackers: freshTrackers(),
+    screenSide: null,
     activeSide: null,
     handPoint: null,
     assistRate: Q.clampAssistRate(new URLSearchParams(location.search).get("assist")),
@@ -388,6 +389,7 @@ export function createPopQuizGame(d) {
     return pq.phase !== "play"
       || pq.flying
       || now < pq.hearingUntil
+      || Boolean(d.state?.voiceAway)
       || Boolean(window.speechSynthesis?.speaking)
       || Boolean(stage.querySelector(".pq-tutorial"));
   }
@@ -775,6 +777,14 @@ export function createPopQuizGame(d) {
     const hands = (handOverride ? [handOverride] : [...state.handData])
       .filter((hand) => hand?.wrist && (hand.screen || hand.points?.length));
     const sided = Q.assignHandSides(hands, b.w);
+    // A touch pointer keeps one tracker for the whole press, even when the swipe crosses the middle.
+    const touchEntry = sided.find((entry) => entry.hand.screen);
+    if (touchEntry) {
+      if (!pq.screenSide) pq.screenSide = touchEntry.side || "left";
+      touchEntry.side = pq.screenSide;
+    } else {
+      pq.screenSide = null;
+    }
     const biggest = [...hands].sort((a, c) => (Number(c.scale) || 0) - (Number(a.scale) || 0))[0] || null;
     if (biggest) pq.lastSeen = now;
     coach(Q.coachHint({

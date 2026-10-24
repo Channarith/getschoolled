@@ -6,7 +6,6 @@
 // Khmer text was written for this release and needs a native-speaker review before it is final.
 
 export const HOWTO_LANGS = ["en", "es", "km"];
-export const KHMER_NEEDS_REVIEW = true;
 
 export const UI = {
   en: {letsPlay: "Let's play", skip: "Skip", help: "How to play", next: "Next ▶", prev: "◀", back: "Back", close: "Close"},

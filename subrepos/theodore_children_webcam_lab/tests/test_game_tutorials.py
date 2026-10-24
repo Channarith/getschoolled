@@ -60,3 +60,12 @@ def test_art_pack_is_listed_in_the_manifest_and_packaged():
         assert file.is_file(), name
         assert file.stat().st_size == meta["bytes"] <= 200_000, name
     assert "static/art/*" in (ROOT / "pyproject.toml").read_text()
+
+
+def test_question_timer_pauses_when_the_learner_is_away_and_touch_side_is_sticky():
+    game = (ROOT / "src/theodore_children_webcam_lab/static/pop_quiz_game.js").read_text()
+    paused = game[game.index("function timerPaused") : game.index("function stopQuestionTimer")]
+    # The lab says "the lesson is paused" when the learner leaves the camera (state.voiceAway).
+    assert "voiceAway" in paused and "flying" in paused and "hearingUntil" in paused
+    # One touch press stays on one tracker even when the swipe crosses the middle of the screen.
+    assert "pq.screenSide" in game
