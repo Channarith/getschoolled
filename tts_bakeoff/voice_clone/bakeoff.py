@@ -3,7 +3,10 @@
   python3 -m tts_bakeoff.voice_clone.bakeoff consent  --speaker alice --name "Alice Tran" --role employee --signed-form ~/Downloads/alice-signed.pdf
   python3 -m tts_bakeoff.voice_clone.bakeoff enroll   --speaker alice --audio ~/alice.m4a --transcript-file ~/alice.txt --lang en
   python3 -m tts_bakeoff.voice_clone.bakeoff run      --out runs/2026-10-25-clones [--speakers alice,bob] [--models voxcpm2,cosyvoice2] [--langs en,es,zh] [--limit 3] [--takes 3] [--no-clean]
+  python3 -m tts_bakeoff.voice_clone.bakeoff say      --speaker alice --model voxcpm2 --lang en --text-file words.txt --out say/alice/one.wav
   python3 -m tts_bakeoff.voice_clone.bakeoff revoke   --speaker alice
+  python3 -m tts_bakeoff.voice_clone.bakeoff grant-scope --speaker alice --signed-form alice-stylized-addendum.pdf   (CONSENT_ADDENDUM_STYLIZED.txt)
+  python3 -m tts_bakeoff.voice_clone.bakeoff tones    --out runs/2026-10-25-clone-tones [--tones neutral,cute,anime,...] [--mechanisms dsp,model]
   python3 -m tts_bakeoff.voice_clone.bakeoff list
 
 Output: OUT/<model>~<speaker>/<lang>/<id>.wav + manifest.jsonl + meta.json (clone=true, consented=true) + empty scores.jsonl,
@@ -21,7 +24,7 @@ from pathlib import Path
 from tts_bakeoff.build_sentences import load
 
 from . import clean as audio_clean
-from . import enroll, registry, synth
+from . import enroll, registry, synth, tones
 
 
 def cmd_consent(a) -> int:
@@ -86,6 +89,38 @@ def synthesize_all(out: Path, speakers: list[str], models: list[str], langs: lis
     return counts
 
 
+def say_once(speaker: str, model: str, lang: str, text: str, out: Path, base: Path | None = None, gpu: bool = True,
+             tone: str = "neutral", mechanism: str = "dsp") -> dict:
+    """Speak ``text`` in an enrolled voice. Same gate as every synthesis; writes OUT plus OUT.json labelling it AI-generated.
+    ``tone`` other than neutral also needs the speaker's signed stylized_versions addendum (tones.py).
+
+    OUT.running exists while the model works, so a caller can tell "waiting for the GPU lock" from "running".
+    """
+    rec = registry.require_consent(speaker, "course_narration", base)
+    text = " ".join(text.split())
+    if not text:
+        raise ValueError("nothing to say")
+    tones.require_tone_consent(speaker, tone, base)
+    adapter = synth.build_adapter(model, speaker, base, gpu=gpu)
+    if not adapter.supports(lang):
+        raise ValueError(f"{model} does not speak {lang!r}")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    marker = out.with_suffix(".running")
+    marker.touch()
+    try:
+        if tone == tones.NEUTRAL:
+            info = adapter.synthesize(text, lang, out)
+        else:
+            info = tones.render_tone_clip(speaker, model, text, lang, tone, mechanism, out, base, gpu)
+    finally:
+        marker.unlink(missing_ok=True)
+    meta = {"ai_generated": True, "label": f"AI-generated voice of {rec['name']}" + ("" if tone == tones.NEUTRAL else f" ({tone} tone)"), "speaker": speaker, "name": rec["name"], "model": model,
+            "lang": lang, "text": text, "consent_date": rec["date"], "host": socket.gethostname(),
+            "created": time.strftime("%Y-%m-%dT%H:%M:%S%z"), **info}
+    out.with_suffix(".json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+    return meta
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -97,7 +132,23 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--models", default="voxcpm2,cosyvoice2"); r.add_argument("--langs", default="en,es,zh")
     r.add_argument("--limit", type=int, default=3); r.add_argument("--takes", type=int, default=None, help="takes per sentence, cleanest kept (default 3; 1 = single take)")
     r.add_argument("--no-clean", action="store_true", help="skip post-processing (best-of-N still applies unless --takes 1)"); r.add_argument("--no-gpu", action="store_true", help="tests only (mock model)")
+    y = sub.add_parser("say"); y.add_argument("--speaker", required=True); y.add_argument("--model", required=True, choices=synth.CLONE_MODELS)
+    y.add_argument("--lang", required=True); y.add_argument("--text-file", required=True); y.add_argument("--out", required=True)
+    y.add_argument("--no-gpu", action="store_true", help="tests only (mock model)")
+    y.add_argument("--tone", default="neutral", help="neutral, a preset or a blend; needs the signed stylized_versions addendum")
+    y.add_argument("--mechanism", default="dsp", choices=("dsp", "model"))
     v = sub.add_parser("revoke"); v.add_argument("--speaker", required=True)
+    g = sub.add_parser("grant-scope"); g.add_argument("--speaker", required=True); g.add_argument("--signed-form", required=True)
+    g.add_argument("--scope", default="stylized_versions", choices=registry.OPTIONAL_SCOPES)
+    w = sub.add_parser("withdraw-scope"); w.add_argument("--speaker", required=True)
+    w.add_argument("--scope", default="stylized_versions", choices=registry.OPTIONAL_SCOPES)
+    t = sub.add_parser("tones"); t.add_argument("--out", required=True); t.add_argument("--speakers", default="")
+    t.add_argument("--models", default="voxcpm2"); t.add_argument("--langs", default="en,es,zh")
+    t.add_argument("--tones", default="all", help="comma list of neutral, presets, blends; 'all' = neutral + presets + blends; 'presets' = neutral + presets")
+    t.add_argument("--mechanisms", default="dsp,model", help="dsp = post-process the neutral clone (CPU); model = ask the model for the style (one GPU synthesis per tone)")
+    t.add_argument("--model-blends", action="store_true", help="also run blends through the model mechanism (22 extra GPU clips per sentence)")
+    t.add_argument("--limit", type=int, default=1); t.add_argument("--no-gpu", action="store_true", help="tests only (mock model)")
+    t.add_argument("--takes", type=int, default=None, help="takes per clip, cleanest kept (default 3)"); t.add_argument("--no-clean", action="store_true")
     sub.add_parser("list")
     a = ap.parse_args(argv)
     try:
@@ -111,12 +162,34 @@ def main(argv: list[str] | None = None) -> int:
             for s in registry.list_speakers():
                 rec = registry.load_consent(s); print(s, rec["role"], "REVOKED" if rec["revoked"] else "ok", f"{len(rec['samples'])} sample(s)")
             return 0
+        if a.cmd == "grant-scope":
+            rec = registry.grant_scope(a.speaker, a.scope, a.signed_form)
+            print(f"{a.scope} granted to {a.speaker} (addendum sha256 {rec['scope_grants'][a.scope]['form_sha256'][:12]}...)"); return 0
+        if a.cmd == "withdraw-scope":
+            registry.revoke_scope(a.speaker, a.scope); print(f"{a.scope} withdrawn for {a.speaker}; natural-voice consent is unchanged"); return 0
+        if a.cmd == "say":
+            meta = say_once(a.speaker, a.model, a.lang, Path(a.text_file).read_text(encoding="utf-8"), Path(a.out), gpu=not a.no_gpu,
+                            tone=a.tone, mechanism=a.mechanism)
+            print(f"said {len(meta['text'])} characters as {meta['label']}: {a.out}")
+            return 0
         speakers = [s for s in a.speakers.split(",") if s] or registry.list_speakers()
+        if a.cmd == "tones":
+            if a.tones == "all":
+                names = [tones.NEUTRAL, *tones.PRESET_NAMES, *tones.BLEND_NAMES]
+            elif a.tones == "presets":
+                names = [tones.NEUTRAL, *tones.PRESET_NAMES]
+            else:
+                names = [x for x in a.tones.split(",") if x]
+            counts = tones.run_tones(Path(a.out), speakers, a.models.split(","), a.langs.split(","), names, a.mechanisms.split(","),
+                                     a.limit, gpu=not a.no_gpu, model_blends=a.model_blends, takes=a.takes,
+                                     clean=False if a.no_clean else None)
+            print(counts)
+            return 0 if counts["failed"] == 0 else 1
         counts = synthesize_all(Path(a.out), speakers, a.models.split(","), a.langs.split(","), a.limit, gpu=not a.no_gpu,
                                 takes=a.takes, clean=False if a.no_clean else None)
         print(counts)
         return 0 if counts["failed"] == 0 and counts["refused"] == 0 else 1
-    except (registry.ConsentError, enroll.SampleError) as exc:
+    except (registry.ConsentError, enroll.SampleError, ValueError) as exc:
         print(f"refused: {exc}", file=sys.stderr)
         return 2
 
