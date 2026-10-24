@@ -61,6 +61,7 @@ function candidateFor(id) {
 }
 function badgeOf(voice) {
   const c = voice.cand;
+  if (voice.meta && voice.meta.clone) return {cls: voice.meta.consented ? 'b-ok' : 'b-no', text: voice.meta.consented ? 'CLONE: consented' : 'CLONE: NO CONSENT', title: 'Voice clone of ' + (voice.meta.speaker || 'a person') + ' (' + (voice.meta.base_model || 'model') + '). Consented clones are company-owned; model license applies.'};
   if (!c && /Neural(~|$)/.test(voice.id)) return {cls: 'b-chk', text: 'edge-tts', title: 'edge-tts voice: counted as not shippable until the service terms are confirmed (licensed route: Azure Speech, same voice names).'};
   if (!c) return {cls: 'b-unk', text: 'UNKNOWN LICENSE', title: 'Not in the license matrix: do not assume it can ship.'};
   if (c.label === 'SHIPPABLE') return {cls: 'b-ok', text: 'SHIPPABLE', title: 'Code and weights allow commercial use (license matrix).'};
