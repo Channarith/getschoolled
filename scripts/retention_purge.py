@@ -24,9 +24,14 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
 
     body = json.dumps({"default_retention_days": args.default_days}).encode()
+    headers = {"Content-Type": "application/json"}
+    # The purge endpoint is internal-only (require_internal): send the shared token.
+    token = (os.environ.get("INTERNAL_TOKEN") or os.environ.get("INTERNAL_SERVICE_TOKEN") or "").strip()
+    if token:
+        headers["X-Internal-Token"] = token
     req = urllib.request.Request(
         args.memory_url.rstrip("/") + "/retention/purge", data=body,
-        headers={"Content-Type": "application/json"}, method="POST",
+        headers=headers, method="POST",
     )
     with urllib.request.urlopen(req, timeout=30) as resp:
         report = json.loads(resp.read())

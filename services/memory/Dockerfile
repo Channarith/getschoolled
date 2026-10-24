@@ -8,6 +8,7 @@ COPY services/memory/requirements.txt /app/services/memory/requirements.txt
 RUN pip install --no-cache-dir -e /app/packages/shared \
     && pip install --no-cache-dir -r /app/services/memory/requirements.txt
 COPY services/memory /app/services/memory
+COPY scripts/retention_purge.py /app/scripts/retention_purge.py
 ENV PYTHONPATH=/app/services/memory/src
 WORKDIR /app/services/memory
 EXPOSE 8000
