@@ -1,0 +1,147 @@
+EDGE-TTS VOICE COVERAGE: PLATFORM LANGUAGES AND EXTRAS
+
+Voice snapshot: tts_bakeoff/edge_voices.json, taken 2026-10-24 from edge_tts.list_voices(): 322 voices.
+Platform languages (packages/shared languages.py): 27; with an edge voice: 27; without: 0.
+Extra languages with an edge voice: 48 (includes Cantonese 'yue' = zh-HK).
+
+INTERNAL REFERENCE ONLY. edge-tts is an unofficial client of Microsoft's Edge Read Aloud service. The licensed way to get the same
+neural voices commercially is Azure AI Speech (same voice names). Nothing here is counted as shippable.
+
+HOW THE SET IS BUILT
+  Default voice rule: pinned voice if we already used one; else the first voice of that gender, alphabetical by short name, in the primary locale (Multilingual voices only if nothing else exists).
+  Voices we already used keep their place: en Ava/Andrew, es Dalia/Jorge, zh Xiaoxiao/Yunxi, yue HiuMaan/WanLung, km Sreymom/Piseth, th Premwadee/Niwat, vi HoaiMy/NamMinh, sw Zuri/Rafiki, hi Swara/Madhur.
+  10 sentences per language (S01, M01, L01, N01, D01, P01, V01, Q01, S02, M02): the 8 languages with the full 40-sentence set (en es zh vi th km sw hi) reuse their rows exactly;
+  all others are machine translations (source 'grok-translation-v1', review_status 'unreviewed'), checked for script, numbers, loops and copied English.
+  Translation: xAI Grok (grok-4.20-0309-non-reasoning), one call per language plus one regeneration pass for failed sentences: 72 calls, about 33.5k input and 18.5k output tokens, roughly $0.09 at the model's list price.
+  Clips: default female and male voice on all 10 sentences (1500); the 9 character presets on the default female for S01 and Q01 (1350);
+  every other voice of the language, one sentence each, id A01 = S01 text (168). Character presets are prosody only (rate, pitch, volume).
+  Total planned: 3018 clips in 993 voice folders.
+
+RUN: 2026-10-25-all: 3008 ok, 10 failed, 0 not rendered yet, of 3018 planned.
+
+PLATFORM LANGUAGES
+LANG  NAME                   DEFAULT F                DEFAULT M                VOICES REGIONS  CLIPS    OK  FAIL  TODO
+----------------------------------------------------------------------------------------------------------------------
+en    English                Ava en-US                Andrew en-US                 47      14     83    83     0     0
+es    Spanish                Dalia es-MX              Jorge es-MX                  45      22     81    81     0     0
+fr    French                 Denise fr-FR             Henri fr-FR                  13       4     49    49     0     0
+de    German                 Amala de-DE              Conrad de-DE                 10       3     46    46     0     0
+it    Italian                Elsa it-IT               Diego it-IT                   4       1     40    40     0     0
+pt    Portuguese             Francisca pt-BR          Antonio pt-BR                 5       2     41    41     0     0
+nl    Dutch                  Colette nl-NL            Maarten nl-NL                 5       2     41    41     0     0
+pl    Polish                 Zofia pl-PL              Marek pl-PL                   2       1     38    38     0     0
+ru    Russian                Svetlana ru-RU           Dmitry ru-RU                  2       1     38    38     0     0
+uk    Ukrainian              Polina uk-UA             Ostap uk-UA                   2       1     38    38     0     0
+tr    Turkish                Emel tr-TR               Ahmet tr-TR                   2       1     38    35     3     0
+ar    Arabic                 Zariyah ar-SA            Hamed ar-SA                  32      16     68    68     0     0
+he    Hebrew                 Hila he-IL               Avri he-IL                    2       1     38    38     0     0
+hi    Hindi                  Swara hi-IN              Madhur hi-IN                  2       1     38    38     0     0
+bn    Bengali                Nabanita bn-BD           Pradeep bn-BD                 4       2     40    40     0     0
+ur    Urdu                   Uzma ur-PK               Asad ur-PK                    4       2     40    40     0     0
+fa    Persian                Dilara fa-IR             Farid fa-IR                   2       1     38    38     0     0
+zh    Chinese (Mandarin)     Xiaoxiao zh-CN           Yunxi zh-CN                  11       4     47    47     0     0
+ja    Japanese               Nanami ja-JP             Keita ja-JP                   2       1     38    38     0     0
+ko    Korean                 SunHi ko-KR              InJoon ko-KR                  3       1     39    39     0     0
+vi    Vietnamese             HoaiMy vi-VN             NamMinh vi-VN                 2       1     38    38     0     0
+th    Thai                   Premwadee th-TH          Niwat th-TH                   2       1     38    38     0     0
+id    Indonesian             Gadis id-ID              Ardi id-ID                    2       1     38    38     0     0
+sw    Swahili                Zuri sw-KE               Rafiki sw-KE                  4       2     40    40     0     0
+el    Greek                  Athina el-GR             Nestoras el-GR                2       1     38    38     0     0
+cs    Czech                  Vlasta cs-CZ             Antonin cs-CZ                 2       1     38    33     5     0
+km    Khmer                  Sreymom km-KH            Piseth km-KH                  2       1     38    38     0     0
+
+EXTRA LANGUAGES
+LANG  NAME                   DEFAULT F                DEFAULT M                VOICES REGIONS  CLIPS    OK  FAIL  TODO
+----------------------------------------------------------------------------------------------------------------------
+af    Afrikaans              Adri af-ZA               Willem af-ZA                  2       1     38    38     0     0
+am    Amharic                Mekdes am-ET             Ameha am-ET                   2       1     38    38     0     0
+az    Azerbaijani            Banu az-AZ               Babek az-AZ                   2       1     38    38     0     0
+bg    Bulgarian              Kalina bg-BG             Borislav bg-BG                2       1     38    38     0     0
+bs    Bosnian                Vesna bs-BA              Goran bs-BA                   2       1     38    38     0     0
+ca    Catalan                Joana ca-ES              Enric ca-ES                   2       1     38    38     0     0
+cy    Welsh                  Nia cy-GB                Aled cy-GB                    2       1     38    38     0     0
+da    Danish                 Christel da-DK           Jeppe da-DK                   2       1     38    38     0     0
+et    Estonian               Anu et-EE                Kert et-EE                    2       1     38    38     0     0
+fi    Finnish                Noora fi-FI              Harri fi-FI                   2       1     38    38     0     0
+fil   Filipino               Blessica fil-PH          Angelo fil-PH                 2       1     38    38     0     0
+ga    Irish                  Orla ga-IE               Colm ga-IE                    2       1     38    38     0     0
+gl    Galician               Sabela gl-ES             Roi gl-ES                     2       1     38    38     0     0
+gu    Gujarati               Dhwani gu-IN             Niranjan gu-IN                2       1     38    38     0     0
+hr    Croatian               Gabrijela hr-HR          Srecko hr-HR                  2       1     38    38     0     0
+hu    Hungarian              Noemi hu-HU              Tamas hu-HU                   2       1     38    38     0     0
+is    Icelandic              Gudrun is-IS             Gunnar is-IS                  2       1     38    38     0     0
+jv    Javanese               Siti jv-ID               Dimas jv-ID                   2       1     38    38     0     0
+ka    Georgian               Eka ka-GE                Giorgi ka-GE                  2       1     38    38     0     0
+kk    Kazakh                 Aigul kk-KZ              Daulet kk-KZ                  2       1     38    38     0     0
+kn    Kannada                Sapna kn-IN              Gagan kn-IN                   2       1     38    38     0     0
+lo    Lao                    Keomany lo-LA            Chanthavong lo-LA             2       1     38    38     0     0
+lt    Lithuanian             Ona lt-LT                Leonas lt-LT                  2       1     38    38     0     0
+lv    Latvian                Everita lv-LV            Nils lv-LV                    2       1     38    38     0     0
+mk    Macedonian             Marija mk-MK             Aleksandar mk-MK              2       1     38    38     0     0
+ml    Malayalam              Sobhana ml-IN            Midhun ml-IN                  2       1     38    38     0     0
+mn    Mongolian              Yesui mn-MN              Bataa mn-MN                   2       1     38    38     0     0
+mr    Marathi                Aarohi mr-IN             Manohar mr-IN                 2       1     38    38     0     0
+ms    Malay                  Yasmin ms-MY             Osman ms-MY                   2       1     38    38     0     0
+mt    Maltese                Grace mt-MT              Joseph mt-MT                  2       1     38    38     0     0
+my    Burmese                Nilar my-MM              Thiha my-MM                   2       1     38    38     0     0
+nb    Norwegian (Bokmål)     Pernille nb-NO           Finn nb-NO                    2       1     38    38     0     0
+ne    Nepali                 Hemkala ne-NP            Sagar ne-NP                   2       1     38    38     0     0
+ps    Pashto                 Latifa ps-AF             GulNawaz ps-AF                2       1     38    38     0     0
+ro    Romanian               Alina ro-RO              Emil ro-RO                    2       1     38    38     0     0
+si    Sinhala                Thilini si-LK            Sameera si-LK                 2       1     38    38     0     0
+sk    Slovak                 Viktoria sk-SK           Lukas sk-SK                   2       1     38    36     2     0
+sl    Slovenian              Petra sl-SI              Rok sl-SI                     2       1     38    38     0     0
+so    Somali                 Ubax so-SO               Muuse so-SO                   2       1     38    38     0     0
+sq    Albanian               Anila sq-AL              Ilir sq-AL                    2       1     38    38     0     0
+sr    Serbian                Sophie sr-RS             Nicholas sr-RS                2       1     38    38     0     0
+su    Sundanese              Tuti su-ID               Jajang su-ID                  2       1     38    38     0     0
+sv    Swedish                Sofie sv-SE              Mattias sv-SE                 2       1     38    38     0     0
+ta    Tamil                  Pallavi ta-IN            Valluvar ta-IN                8       4     44    44     0     0
+te    Telugu                 Shruti te-IN             Mohan te-IN                   2       1     38    38     0     0
+uz    Uzbek                  Madina uz-UZ             Sardor uz-UZ                  2       1     38    38     0     0
+yue   Cantonese              HiuMaan zh-HK            WanLung zh-HK                 3       1     39    39     0     0
+zu    Zulu                   Thando zu-ZA             Themba zu-ZA                  2       1     38    38     0     0
+
+REGIONAL VARIANTS (locales per language with more than one)
+  en   English: en-AU (2), en-CA (2), en-GB (5), en-HK (2), en-IE (2), en-IN (3), en-KE (2), en-NG (2), en-NZ (2), en-PH (2), en-SG (2), en-TZ (2), en-US (17), en-ZA (2)
+  es   Spanish: es-AR (2), es-BO (2), es-CL (2), es-CO (2), es-CR (2), es-CU (2), es-DO (2), es-EC (2), es-ES (3), es-GQ (2), es-GT (2), es-HN (2), es-MX (2), es-NI (2), es-PA (2), es-PE (2), es-PR (2), es-PY (2), es-SV (2), es-US (2), es-UY (2), es-VE (2)
+  fr   French: fr-BE (2), fr-CA (4), fr-CH (2), fr-FR (5)
+  de   German: de-AT (2), de-CH (2), de-DE (6)
+  pt   Portuguese: pt-BR (3), pt-PT (2)
+  nl   Dutch: nl-BE (2), nl-NL (3)
+  ar   Arabic: ar-AE (2), ar-BH (2), ar-DZ (2), ar-EG (2), ar-IQ (2), ar-JO (2), ar-KW (2), ar-LB (2), ar-LY (2), ar-MA (2), ar-OM (2), ar-QA (2), ar-SA (2), ar-SY (2), ar-TN (2), ar-YE (2)
+  bn   Bengali: bn-BD (2), bn-IN (2)
+  ur   Urdu: ur-IN (2), ur-PK (2)
+  zh   Chinese (Mandarin): zh-CN (6), zh-CN-liaoning (1), zh-CN-shaanxi (1), zh-TW (3)
+  sw   Swahili: sw-KE (2), sw-TZ (2)
+  ta   Tamil: ta-IN (2), ta-LK (2), ta-MY (2), ta-SG (2)
+
+LANGUAGES WITH NO EDGE VOICE (listed, never faked)
+  be   Belarusian: the service lists no be voice.
+       Nearest alternative: none in edge-tts; Russian (ru-RU) and Ukrainian (uk-UA) are related, not substitutes.
+  eu   Basque: the service lists no eu voice.
+       Nearest alternative: none in edge-tts; a cloud TTS that covers Basque would be the route (not checked here). The Spanish voice must not read Basque text.
+  ha   Hausa: the service lists no ha voice.
+       Nearest alternative: none in edge-tts; no other edge voice reads Hausa.
+  hy   Armenian: the service lists no hy voice.
+       Nearest alternative: none in edge-tts; a cloud TTS that covers Armenian would be the route (not checked here).
+  ky   Kyrgyz: the service lists no ky voice.
+       Nearest alternative: none in edge-tts; Kazakh (kk-KZ) is related, a separate language, not a substitute.
+  pa   Punjabi: the service lists no pa voice.
+       Nearest alternative: none in edge-tts; closest sibling voices are Hindi (hi-IN) and Urdu (ur-PK) but they cannot read Gurmukhi/Shahmukhi text of the same language; use a cloud TTS.
+  tg   Tajik: the service lists no tg voice.
+       Nearest alternative: none in edge-tts; Persian (fa-IR) is a related language but a different script and not a substitute.
+  yo   Yoruba: the service lists no yo voice.
+       Nearest alternative: none in edge-tts; no other edge voice reads Yoruba.
+  iu   Inuktitut: Inuktitut has edge voices (iu-Cans-CA, iu-Latn-CA) but no machine translator we trust for it: not generated, nothing faked.
+
+FAILED CLIPS
+  tr: 3 failed
+      tr-TR-AhmetNeural: S01, Q01, S02
+  cs: 5 failed
+      cs-CZ-AntoninNeural: M01, N01, V01, S02, M02
+  sk: 2 failed
+      sk-SK-LukasNeural: P01, Q01
+  The service lists these voices but answered 'No audio was received' for these clips, on every retry (4 attempts with backoff,
+  then two more passes of the whole set). The same voices rendered other sentences fine, so the gaps are intermittent and per voice.
+  The other default voice of the language is complete. Nothing was substituted: rerun edge_all to retry them.

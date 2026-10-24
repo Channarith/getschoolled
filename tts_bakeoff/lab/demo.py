@@ -29,6 +29,9 @@ VOICES = {
 class DemoVoice(MockAdapter):
     name = "demo"
 
+    def supports(self, lang: str) -> bool:
+        return True
+
     def __init__(self, shift: float, spc: float, vibrato: float, **options):
         super().__init__(**options)
         self.shift, self.spc, self.vibrato = shift, spc, vibrato
@@ -47,6 +50,35 @@ class DemoVoice(MockAdapter):
         fade = np.minimum(1.0, np.minimum(t, t[-1] - t) * 40)
         write_wav(out_wav, 0.22 * tone * syllables * fade, rate)
         return rate
+
+
+EDGE_DEMO_LANGS = {"en", "km", "th", "ar", "he", "fr"}
+
+
+def make_edge_demo(dest: Path) -> Path:
+    """A synthetic run in the edge_all layout (voice folders, style variants, regional voices, catalog.json) for a few languages.
+
+    Tones, not speech: it exists so the language picker, RTL text and voice filters can be tested without the network.
+    """
+    from ..edge_all import build_plan, write_catalog
+    from ..edge_catalog import SNAPSHOT, load_voices
+
+    dest.mkdir(parents=True, exist_ok=True)
+    catalog = json.loads(SNAPSHOT.read_text(encoding="utf-8"))["catalog"]
+    plan, models = build_plan(catalog, load_voices(), EDGE_DEMO_LANGS)
+    write_catalog(dest, catalog, models)
+    rows: dict[str, list] = {m: [] for m in models}
+    for job in plan:
+        shift = float(sum(ord(c) for c in job["model"]) % 90 - 30)
+        wav = dest / job["model"] / job["lang"] / f"{job['id']}.wav"
+        r = DemoVoice(shift, 0.05, 0.2).synthesize(job["text"][:60], job["lang"], wav)
+        rows[job["model"]].append({"model": job["model"], "lang": job["lang"], "id": job["id"], "text": job["text"], "wav": wav.relative_to(dest).as_posix(),
+                                   "label": job["label"], "status": "ok", **r})
+    for model, meta in models.items():
+        (dest / model).mkdir(parents=True, exist_ok=True)
+        (dest / model / "meta.json").write_text(json.dumps({"model": model, "demo": True, **meta}, ensure_ascii=False), encoding="utf-8")
+        (dest / model / "manifest.jsonl").write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows[model]), encoding="utf-8")
+    return dest
 
 
 def make_demo(dest: Path) -> Path:

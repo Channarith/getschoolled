@@ -30,9 +30,24 @@
 </nav>
 
 <section class="toolbar" aria-label="Filters and playback">
-  <label>Language <select id="f-lang"></select></label>
+  <div id="lang-wrap" class="lang-wrap">
+    <span class="lbl-k" id="lang-label">Language</span>
+    <button type="button" id="lang-btn" class="btn lang-btn" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="lang-label lang-btn-text"><span id="lang-btn-text">Language</span> <span aria-hidden="true">▾</span></button>
+    <div id="lang-pop" class="lang-pop" hidden>
+      <input id="lang-q" type="search" placeholder="Search by name, native name or code" aria-label="Search languages" role="combobox" aria-expanded="true" aria-controls="lang-list" autocomplete="off">
+      <ul id="lang-list" class="lang-list" role="listbox" aria-label="Languages"></ul>
+    </div>
+  </div>
+  <div class="lang-progress" title="Clips you rated in this language (naturalness, clarity or best)"><progress id="lang-progress" value="0" max="1"></progress> <span id="lang-progress-text"></span></div>
   <label>Category <select id="f-cat"><option value="">all</option></select></label>
-  <fieldset class="models" aria-label="Voices to show"><legend>Voices</legend><span id="f-models"></span></fieldset>
+  <label>Gender <select id="f-gender"><option value="">all</option><option value="Female">female</option><option value="Male">male</option></select></label>
+  <label>Accent <select id="f-region"><option value="">all accents / regions</option></select></label>
+  <label>Voice type <select id="f-type">
+    <option value="">all (voices and styles)</option><option value="plain">voices only (no style variants)</option><option value="default">default voices</option><option value="regional">other regional voices</option><option value="styled">style variants only</option>
+    <option value="professional">style: professional</option><option value="warm">style: warm</option><option value="calm">style: calm</option><option value="energetic">style: energetic</option><option value="cute">style: cute</option><option value="anime">style: anime</option><option value="tough">style: tough</option><option value="heavy">style: heavy</option><option value="light">style: light</option>
+  </select></label>
+  <details class="models" id="voice-pick"><summary><span id="cmp-count">Compare these voices</span></summary><div id="f-models" class="pick-list"></div></details>
+  <button type="button" class="btn small" id="cmp-clear" hidden>Show all voices</button>
   <label class="chk"><input type="checkbox" id="t-blind"> Blind (b)</label>
   <label>Seed <input id="t-seed" type="number" value="7" min="0" step="1" aria-label="Blind shuffle seed"></label>
   <label class="chk"><input type="checkbox" id="t-norm" checked> Match loudness</label>
