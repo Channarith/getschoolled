@@ -81,6 +81,7 @@ _PAGE = """<!doctype html>
         <p id="stage-label" class="sr-only">Play Lab camera stage</p>
         <p id="stage-desc" class="sr-only">Camera games run here. Video stays in your browser; use the game selector below to choose an activity.</p>
         <video id="camera" autoplay playsinline muted aria-label="Play Lab camera preview"></video>
+        <button id="sala-ask" type="button" aria-label="Tap Sala to ask">Sala</button>
         <div id="guide-layer" class="guide-layer" aria-hidden="true">
           <span id="guide-glyph" class="guide-glyph">A</span>
           <i id="guide-start" class="guide-start"></i>

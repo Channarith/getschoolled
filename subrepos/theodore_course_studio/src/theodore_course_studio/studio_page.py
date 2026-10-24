@@ -422,9 +422,11 @@ STUDIO_CSS = """
     body.demo-clean .avatar-drag-handle,
     body.demo-clean .avatar-resize-handle { display:none !important; }
     body.demo-clean .theodore-avatar-wrap { cursor:pointer; }
-    body.demo-clean #theodore-avatar { background:url(/api/studio/voice-overlay/salareen-logo.webp) center/contain no-repeat; }
+    body.demo-clean #theodore-avatar { background:url(/api/studio/voice-overlay/sala-gold.png) center/contain no-repeat; filter:drop-shadow(0 8px 16px rgba(201,167,122,.35)); }
     body.demo-clean #theodore-avatar > * { display:none !important; }
-    body.demo-clean .theodore-avatar-wrap.sala-listening { box-shadow:0 0 0 3px #22c55e, 0 0 28px rgba(34,197,94,.55); border-radius:18px; }
+    body.demo-clean .theodore-avatar-wrap.sala-giggle #theodore-avatar { background-image:url(/api/studio/voice-overlay/sala-giggle.png); animation:salaGiggle .72s ease; }
+    @keyframes salaGiggle { 30% { transform:scale(1.06,.92); } 62% { transform:scale(.98,1.05); } }
+    body.demo-clean .theodore-avatar-wrap.sala-listening { box-shadow:0 0 0 2px rgba(212,184,138,.85); border-radius:18px; }
     /* Demo: the slide fills the whole screen (like full screen), the logo avatar is a small corner picture. */
     html body.demo-clean { margin:0; padding:0; }
     html body.demo-clean .teach-stage { position:relative; height:100vh; height:100dvh; min-height:100dvh; padding:0; border:0;
@@ -457,14 +459,17 @@ STUDIO_CSS = """
     }
     html body.demo-clean .lesson-photo { position:absolute; inset:0; margin:0; min-height:0; z-index:0; }
     html body.demo-clean.demo-clean.demo-clean .theodore-avatar-wrap { position:absolute !important; right:12px !important;
-      bottom:12px !important; top:auto !important; left:auto !important; width:clamp(64px,min(22vw,22vh),120px) !important;
-      height:clamp(80px,min(28vw,28vh),150px) !important; min-height:0 !important; z-index:6; border-radius:18px;
-      background:rgba(15,23,42,.55); border:1px solid rgba(255,255,255,.35); box-shadow:0 8px 24px rgba(0,0,0,.4); }
+      bottom:12px !important; top:auto !important; left:auto !important; width:clamp(64px,min(18vw,18vh),108px) !important;
+      height:clamp(84px,min(24vw,24vh),140px) !important; min-height:0 !important; z-index:6; border-radius:0;
+      background:transparent; border:0; box-shadow:none; opacity:.78; }
     html body.demo-clean .lesson-stage-content { position:absolute; left:0; right:0; bottom:0; z-index:3; max-height:42%;
       overflow:auto; padding:12px 130px 14px 16px; background:linear-gradient(transparent,rgba(15,23,42,.82) 25%,rgba(15,23,42,.94));
       color:#f6efe4; border:0; }
     html body.demo-clean #student-cam { left:10px; right:auto; top:10px; bottom:auto; width:92px; z-index:7; }
-    html body.demo-clean #sample-clock { top:8px; right:8px; }
+    html body.demo-clean #sample-clock { top:10px; left:12px; right:auto; min-width:0; padding:0; border-radius:0;
+      background:transparent; box-shadow:none; text-align:left; }
+    html body.demo-clean #sample-clock span { font:600 14px/1 system-ui,sans-serif; color:rgba(255,255,255,.55); letter-spacing:0; }
+    html body.demo-clean #sample-clock small { display:none; }
     /* Demo tutorial and help button. */
     .sala-help { position:fixed; right:14px; top:92px; z-index:2147483000; width:40px; height:40px; border-radius:50%; border:0;
       background:#fde047; color:#1e1b4b; font:900 20px/1 system-ui,sans-serif; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,.35); }

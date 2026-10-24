@@ -2814,6 +2814,11 @@ function setChromeHidden(hidden){
   btn.setAttribute("aria-pressed",String(!!hidden));
 }
 $("chrome-toggle")?.addEventListener("click",()=>setChromeHidden(!document.body.classList.contains("chrome-hidden")));
+$("sala-ask")?.addEventListener("click",()=>{
+  const btn=$("sala-ask");
+  if(btn){btn.classList.remove("sala-giggle");void btn.offsetWidth;btn.classList.add("sala-giggle");}
+  ($("mic")||$("hear"))?.click();
+});
 document.addEventListener("fullscreenchange",()=>{
   if(document.fullscreenElement!==$("play")) {
     document.body.classList.remove("stage-fill");
@@ -2864,7 +2869,7 @@ if (embedMobile) {
   const share=$("share");
   if (share) share.checked=true;
   $("vision-tools")?.removeAttribute("open");
-  setChromeHidden(false);
+  setChromeHidden(true);
   syncTouchToggle();
 }
 function pickLaunchGame() {

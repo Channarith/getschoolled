@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator, Animated, Easing, Modal, ScrollView, StyleSheet, Text, TextInput, View,
+  ActivityIndicator, Animated, Easing, Image, Modal, ScrollView, StyleSheet, Text, TextInput, View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -522,7 +522,6 @@ export default function DriveModeScreen({
       </View>
     );
   }
-  const pct = Math.round(((seg + 1) / course.segments.length) * 100);
   const [c1, c2] = categoryGradient(course.category);
 
   return (
@@ -554,7 +553,9 @@ export default function DriveModeScreen({
             <Text style={styles.drivingBadgeText}>{t("drive.drivingBadge")}</Text>
           </View>
         ) : null}
-        <Ionicons name="headset" size={48} color="rgba(255,255,255,0.9)" />
+        <View style={[styles.salaRing, playing && styles.salaRingLive]}>
+          <Image source={require("../../assets/sala-gold.png")} style={styles.salaGold} accessibilityIgnoresInvertColors />
+        </View>
         <Text style={styles.heroTitle} numberOfLines={2}>{course.title}</Text>
       </LinearGradient>
 
@@ -563,10 +564,7 @@ export default function DriveModeScreen({
           {course.category} · {course.duration_min} {t("meta.min")} · {t("meta.audio")}
         </Text>
         <Text testID="drive-segment-heading" style={styles.seg}>{course.segments[seg]?.heading}</Text>
-        <Text style={styles.prog}>{seg + 1} / {course.segments.length} ({pct}%)</Text>
-        <View style={styles.progressTrack}>
-          <View style={[styles.progressBar, { width: `${pct}%` }]} />
-        </View>
+        <Text style={styles.prog}>{seg + 1} / {course.segments.length}</Text>
         <View style={styles.speedRow}>
           {[0.5, 1, 2, 3].map((r) => (
             <AnimatedPressable
@@ -842,6 +840,12 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.pill,
   },
   drivingBadgeText: { color: "#fff", fontSize: 12, fontWeight: "800" },
+  salaRing: {
+    width: 92, height: 92, borderRadius: 46, borderWidth: 2, borderColor: "rgba(212,184,138,.9)",
+    alignItems: "center", justifyContent: "center", marginBottom: 8,
+  },
+  salaRingLive: { borderColor: "#e8d5b0", transform: [{ scale: 1.06 }] },
+  salaGold: { width: 54, height: 72, resizeMode: "contain" },
   heroTitle: {
     position: "absolute", bottom: 14, left: 14, right: 14,
     color: "#fff", fontSize: 20, fontWeight: "800", lineHeight: 26,

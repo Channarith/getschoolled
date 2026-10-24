@@ -767,7 +767,8 @@ export function initCourseVoiceOverlay(opts = {}) {
     {
       icon: "✨", title: "Meet Sala",
       lines: [
-        "Tap the Sala picture to start the lesson. Tap it again to turn listening on or off.",
+        "Tap Sala to start. Sala giggles. Tap again to turn listening on or off.",
+        "Tap the lesson to move ahead. Double-tap the lesson for full screen.",
         "Sala teaches out loud. Allow the microphone when your device asks.",
       ],
     },
@@ -853,6 +854,10 @@ export function initCourseVoiceOverlay(opts = {}) {
       const wrap = event.target.closest && event.target.closest("#theodore-avatar-wrap");
       if (!wrap) return;
       event.stopPropagation();
+      wrap.classList.remove("sala-giggle");
+      void wrap.offsetWidth;
+      wrap.classList.add("sala-giggle");
+      window.setTimeout(() => wrap.classList.remove("sala-giggle"), 720);
       goFullScreenOnPhone();
       const welcome = document.getElementById("page-welcome");
       if (welcome && !welcome.hidden) clickById("btn-start-voice");
