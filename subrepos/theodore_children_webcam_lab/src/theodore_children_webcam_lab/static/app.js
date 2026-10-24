@@ -61,7 +61,8 @@ function isAudioGame(game = state.game) {
 // Keep in lockstep with game_engine.GAME_MENU / /api/child/content. A game in
 // the menu without a matching chooseGame + update* branch is a missing game.
 const GAMES = [
-  "trace-letter","trace-picture","color-picture","connect-dots","trace-outline","say-letter","pop-quiz-toss",
+  "pop-quiz-toss",
+  "trace-letter","trace-picture","color-picture","connect-dots","trace-outline","say-letter",
   "repeat-after-me","pronounce-word","rhyme-time","listen-answer","missing-word",
   "opposites","explain-it","sum-it-up","prove-it","story-order","how-many",
   "same-or-different","finish-the-line","spell-aloud",
@@ -74,13 +75,13 @@ const GAMES = [
 // Missing ids get Play only. A new game cannot inherit the letter, mic, and undo row.
 const NO_CONTROLS = {letter:false, undo:false, mic:false, typed:false, check:false, hear:false, words:false, play:true};
 const GAME_CONTROLS = {
+  "pop-quiz-toss": {letter:false, undo:false, mic:true, typed:true, check:true, hear:true, words:false, play:true},
   "trace-letter": {letter:true, undo:true, mic:false, typed:false, check:false, hear:true, words:false, play:true},
   "trace-picture": {letter:true, undo:true, mic:false, typed:false, check:false, hear:true, words:false, play:true},
   "color-picture": {letter:true, undo:true, mic:false, typed:false, check:false, hear:true, words:false, play:true},
   "connect-dots": {letter:true, undo:true, mic:false, typed:false, check:false, hear:true, words:false, play:true},
   "trace-outline": {letter:true, undo:true, mic:false, typed:false, check:false, hear:true, words:false, play:true},
   "say-letter": {letter:true, undo:false, mic:true, typed:true, check:true, hear:true, words:false, play:true},
-  "pop-quiz-toss": {letter:false, undo:false, mic:true, typed:true, check:true, hear:true, words:false, play:true},
   "repeat-after-me": {letter:false, undo:false, mic:true, typed:true, check:true, hear:true, words:true, play:true},
   "pronounce-word": {letter:false, undo:false, mic:true, typed:true, check:true, hear:true, words:true, play:true},
   "rhyme-time": {letter:false, undo:false, mic:true, typed:true, check:true, hear:true, words:true, play:true},
@@ -3020,7 +3021,8 @@ function pickLaunchGame() {
     return;
   }
   if (!options.length) return;
-  select.value = options[Math.floor(Math.random() * options.length)];
+  // No game asked for (demo, /arcade, /children-lab): Pop Quiz Toss is the featured first game.
+  select.value = options.includes("pop-quiz-toss") ? "pop-quiz-toss" : options[0];
 }
 pickLaunchGame();
 if (new URLSearchParams(location.search).get("demo")==="1"

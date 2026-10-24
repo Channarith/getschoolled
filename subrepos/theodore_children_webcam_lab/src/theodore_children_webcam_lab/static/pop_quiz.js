@@ -215,6 +215,141 @@ export function resolveThrow(release, targets, tolerance = 2.4) {
   };
 }
 
+// ---- Which hand throws picks the answer ----------------------------------------------------
+//
+// The LEFT hand throws at the LEFT answer and the RIGHT hand at the RIGHT answer. MediaPipe reports
+// handedness as if the picture were already a mirror, but the lab feeds it the raw camera frame and
+// only mirrors it for display, so its label is swapped: "Left" is the player's RIGHT hand.
+export const HANDEDNESS_FLIPPED = true;
+
+function labelSide(label) {
+  const raw = String(label || "").trim().toLowerCase();
+  if (raw !== "left" && raw !== "right") return null;
+  return HANDEDNESS_FLIPPED ? (raw === "left" ? "right" : "left") : raw;
+}
+
+/**
+ * Which hand is this, from the player's point of view? `hand.wrist.x` is in the mirrored stage
+ * (what the player sees), so a hand far in the left third of the screen is the left hand. In the
+ * middle band the handedness label decides, and without a label the half of the screen does.
+ */
+export function playerHandSide(hand, width) {
+  const w = Number(width) || 0;
+  const x = Number(hand?.wrist?.x);
+  const frac = w > 0 && Number.isFinite(x) ? x / w : null;
+  if (frac !== null && (hand?.screen || frac < 0.38)) return frac < 0.5 ? "left" : "right";
+  if (frac !== null && frac > 0.62) return "right";
+  return labelSide(hand?.label) || (frac !== null ? (frac < 0.5 ? "left" : "right") : null);
+}
+
+/**
+ * Give every visible hand a side. With two hands the one further left on screen is the left hand
+ * (they cannot both be the same hand); with one hand `playerHandSide` decides.
+ */
+export function assignHandSides(hands, width) {
+  const list = (Array.isArray(hands) ? hands : []).filter((h) => h?.wrist);
+  if (list.length >= 2) {
+    const sorted = [...list].sort((a, b) => a.wrist.x - b.wrist.x);
+    const left = sorted[0];
+    const right = sorted[sorted.length - 1];
+    if (Math.abs(right.wrist.x - left.wrist.x) >= 0.08 * (Number(width) || 1)) {
+      return [{hand: left, side: "left"}, {hand: right, side: "right"}];
+    }
+  }
+  return list.map((hand) => ({hand, side: playerHandSide(hand, width)}));
+}
+
+/** The leftmost target is the left answer, the rightmost is the right answer. */
+export function targetForSide(side, targets) {
+  const list = (Array.isArray(targets) ? targets : []).filter((t) => Number.isFinite(t?.x));
+  if (!list.length || (side !== "left" && side !== "right")) return null;
+  return [...list].sort((a, b) => a.x - b.x)[side === "left" ? 0 : list.length - 1];
+}
+
+/**
+ * Touch, mouse and screen-touch throws have no hand: the swipe direction (or, for a still tap,
+ * the half of the screen it started in) picks the side.
+ */
+export function sideFromRelease(release, width) {
+  if (release?.side === "left" || release?.side === "right") return release.side;
+  const vx = Number(release?.velocity?.x) || 0;
+  const vy = Number(release?.velocity?.y) || 0;
+  if (vx !== 0 && Math.abs(vx) > 0.2 * Math.abs(vy)) return vx < 0 ? "left" : "right";
+  const x = Number(release?.origin?.x);
+  return Number.isFinite(x) && Number(width) > 0 ? (x < Number(width) / 2 ? "left" : "right") : null;
+}
+
+// ---- Assisted throws ---------------------------------------------------------------------------
+
+export const ASSIST_RATE = 0.9;
+
+export function clampAssistRate(value, fallback = ASSIST_RATE) {
+  if (value === null || value === undefined || value === "") return fallback;
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : fallback;
+}
+
+/**
+ * Decide where a released ball lands. About 90% of throws are steered onto the answer the PLAYER
+ * CHOSE with their hand (or swipe); the rest use the real motion (resolveThrow), which can hit
+ * either answer or miss.
+ *
+ * Integrity: this function never sees the correct answer. It can only pick between the two
+ * targets by side, so the assist can never steer a throw to the right answer on the player's
+ * behalf. Scoring still compares the chosen answer with the correct one.
+ */
+export function resolveAssistedThrow(release, targets, {width = 0, rate = ASSIST_RATE, rng = Math.random, tolerance} = {}) {
+  const side = sideFromRelease(release, width);
+  const chosen = targetForSide(side, targets);
+  if (chosen && rng() < clampAssistRate(rate)) {
+    return {
+      target: chosen, miss: false, accuracy: 1, perfect: false, assisted: true, side,
+      end: {x: chosen.x, y: chosen.y},
+    };
+  }
+  const natural = resolveThrow(release, targets, tolerance);
+  return {...natural, assisted: false, side};
+}
+
+// ---- Time to answer -----------------------------------------------------------------------------
+
+export const MIN_QUESTION_SECONDS = 10;
+export const QUESTION_SECONDS = 12;
+export const YOUNG_QUESTION_SECONDS = 15;
+
+/** Seconds to answer: never under 10; the youngest band gets more room. */
+export function questionSeconds(age, override) {
+  const base = quizBand(age) === "4-6" ? YOUNG_QUESTION_SECONDS : QUESTION_SECONDS;
+  const n = override === undefined || override === null || override === "" ? NaN : Number(override);
+  const value = Number.isFinite(n) ? n : base;
+  return Math.max(MIN_QUESTION_SECONDS, Math.min(60, value));
+}
+
+/**
+ * A pausable countdown. The caller says when it is paused (tutorial open, ball in the air, the
+ * player is speaking); a long gap between ticks (hidden tab) never burns more than 250 ms.
+ */
+export function createQuestionTimer(seconds) {
+  const totalMs = Math.max(MIN_QUESTION_SECONDS, Number(seconds) || QUESTION_SECONDS) * 1000;
+  let remaining = totalMs;
+  let last = null;
+  const snap = () => ({remainingMs: remaining, fraction: remaining / totalMs, seconds: Math.ceil(remaining / 1000), expired: remaining <= 0});
+  return {
+    totalMs,
+    start(now) { remaining = totalMs; last = now; return snap(); },
+    tick(now, paused = false) {
+      if (last === null) { last = now; return snap(); }
+      const dt = Math.max(0, Math.min(250, now - last));
+      last = now;
+      if (!paused) remaining = Math.max(0, remaining - dt);
+      return snap();
+    },
+    /** Make sure at least `ms` are left (a window to say the answer after a throw). */
+    ensureRemaining(ms) { remaining = Math.min(totalMs, Math.max(remaining, ms)); return snap(); },
+    state: snap,
+  };
+}
+
 // ---- Coaching: stay in the picture, right distance ---------------------------------------
 
 /**

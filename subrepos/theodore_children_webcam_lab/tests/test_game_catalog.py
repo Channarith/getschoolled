@@ -221,7 +221,7 @@ def test_pop_quiz_toss_has_private_camera_and_touch_fallback_paths():
     # The offline fallback is a shared pure function, not redefined in the page.
     assert "quizRound" in game and "function quizRound" not in game
     assert "export function quizRound" in logic
-    assert "Never throw a real object" in game
+    assert "Never throw a real object" in (ROOT / "src/theodore_children_webcam_lab/static/game_howto.js").read_text()
     # A canceled gesture (pointercancel/touchcancel) and a touch-mode switch
     # must reset the tracker + ball, or the next frame replays a stale throw.
     assert "function cancelQuizThrow" in script
@@ -317,8 +317,13 @@ def test_each_game_has_its_own_controls_and_launch_is_not_trace_letter():
     assert "function traceDeadlineMs" in script
 
     launch = script.split("function pickLaunchGame()")[1].split("\nfunction ")[0]
-    assert 'get("game")' in launch and "Math.random" in launch and "if (requested)" in launch
+    # An explicit ?game= wins; with none, Pop Quiz Toss is the featured first game (never random).
+    assert 'get("game")' in launch and "if (requested)" in launch
+    assert "Math.random" not in launch
+    assert 'select.value = options.includes("pop-quiz-toss") ? "pop-quiz-toss" : options[0]' in launch
     assert "trace-letter" not in launch
+    assert [group for group, _games in GAME_MENU][0] == "Featured"
+    assert GAME_MENU[0][1] == [("pop-quiz-toss", "Pop Quiz Toss")]
 
     css = (ROOT / "src/theodore_children_webcam_lab/static/app.css").read_text()
     assert "body.phone-play #countdown:not(.hidden)" in css

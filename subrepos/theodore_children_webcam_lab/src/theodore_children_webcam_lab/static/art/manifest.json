@@ -1,0 +1,167 @@
+{
+  "assets": {
+    "ball-beach": {
+      "bytes": 11298,
+      "h": 256,
+      "kind": "sprite",
+      "sha256": "f6ae95d2dd0e09cb",
+      "w": 256
+    },
+    "ball-comet": {
+      "bytes": 13452,
+      "h": 256,
+      "kind": "sprite",
+      "sha256": "18b819c1227091d9",
+      "w": 256
+    },
+    "ball-fire": {
+      "bytes": 17790,
+      "h": 256,
+      "kind": "sprite",
+      "sha256": "6940207771f110ae",
+      "w": 256
+    },
+    "ball-rainbow": {
+      "bytes": 17058,
+      "h": 256,
+      "kind": "sprite",
+      "sha256": "e0353f310c493e60",
+      "w": 256
+    },
+    "ball-soccer": {
+      "bytes": 19362,
+      "h": 256,
+      "kind": "sprite",
+      "sha256": "0bd94a47545745a5",
+      "w": 256
+    },
+    "ball-tennis": {
+      "bytes": 14174,
+      "h": 256,
+      "kind": "sprite",
+      "sha256": "43800e887cf69948",
+      "w": 256
+    },
+    "bg-bouquet": {
+      "bytes": 67416,
+      "h": 540,
+      "kind": "bg",
+      "sha256": "1ea2165c06ea1099",
+      "w": 960
+    },
+    "bg-dartboard": {
+      "bytes": 64576,
+      "h": 540,
+      "kind": "bg",
+      "sha256": "9296aede8e05f0b7",
+      "w": 960
+    },
+    "bg-pins": {
+      "bytes": 41382,
+      "h": 540,
+      "kind": "bg",
+      "sha256": "5736a999eedb0212",
+      "w": 960
+    },
+    "bg-teddy": {
+      "bytes": 33526,
+      "h": 540,
+      "kind": "bg",
+      "sha256": "32fe7adbbfec54f3",
+      "w": 960
+    },
+    "sala-cheer": {
+      "bytes": 28250,
+      "h": 512,
+      "kind": "sala",
+      "sha256": "87c0720c11f402a3",
+      "w": 384
+    },
+    "sala-oops": {
+      "bytes": 23610,
+      "h": 512,
+      "kind": "sala",
+      "sha256": "0cb040151f8ca7bc",
+      "w": 384
+    },
+    "sala-thinking": {
+      "bytes": 21888,
+      "h": 512,
+      "kind": "sala",
+      "sha256": "be3677c80cd9701a",
+      "w": 384
+    },
+    "target-bouquet": {
+      "bytes": 26362,
+      "h": 320,
+      "kind": "sprite",
+      "sha256": "d9b385ebd4632c9a",
+      "w": 320
+    },
+    "target-dartboard": {
+      "bytes": 22172,
+      "h": 320,
+      "kind": "sprite",
+      "sha256": "370e56006ca7f2dc",
+      "w": 320
+    },
+    "target-pins": {
+      "bytes": 9214,
+      "h": 320,
+      "kind": "sprite",
+      "sha256": "af973c2443518f37",
+      "w": 320
+    },
+    "target-teddy": {
+      "bytes": 16940,
+      "h": 320,
+      "kind": "sprite",
+      "sha256": "e7af07dcecd917e8",
+      "w": 320
+    },
+    "tut-hands": {
+      "bytes": 18030,
+      "h": 384,
+      "kind": "scene",
+      "sha256": "ccc14ea6850c7f01",
+      "w": 512
+    },
+    "tut-speak": {
+      "bytes": 24456,
+      "h": 384,
+      "kind": "scene",
+      "sha256": "9ac11f4fdc63d66e",
+      "w": 512
+    },
+    "tut-stand": {
+      "bytes": 19246,
+      "h": 384,
+      "kind": "scene",
+      "sha256": "4759684b951b72cf",
+      "w": 512
+    },
+    "tut-throw": {
+      "bytes": 23794,
+      "h": 384,
+      "kind": "scene",
+      "sha256": "54ea173afa7deb89",
+      "w": 512
+    },
+    "tut-win": {
+      "bytes": 30158,
+      "h": 384,
+      "kind": "scene",
+      "sha256": "45e1cea2a76c2847",
+      "w": 512
+    },
+    "win-card": {
+      "bytes": 44062,
+      "h": 360,
+      "kind": "scene",
+      "sha256": "64c0899bc751961b",
+      "w": 640
+    }
+  },
+  "generator": "scripts/generate_game_art.py",
+  "version": 1
+}
