@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   getAdPlan,
@@ -9,14 +9,18 @@ import {
   getToken,
   listAudioCourses,
   listStudents,
+  searchAudioCourses,
   SPEECH_URL,
   type AdBreak,
   type AudioCourse,
   type AudioCourseRow,
 } from "../lib/api";
 import DriveStageLook from "./DriveStageLook";
-import OnTheGoCoursePicker from "./OnTheGoCoursePicker";
 import OnTheGoPresence from "./OnTheGoPresence";
+import OnTheGoCourseSearch from "./OnTheGoCourseSearch";
+import OnTheGoAvatar, { type AvatarState } from "./OnTheGoAvatar";
+import OnTheGoConsent, { type ConsentChoice } from "./OnTheGoConsent";
+import { CAMERA_PREF_KEY } from "../lib/facePresence";
 import SignInToUse from "./SignInToUse";
 import VideoAdBreak from "./VideoAdBreak";
 import { effectiveAdTier } from "../lib/useCourseAds";
@@ -47,12 +51,16 @@ import {
   type OnTheGoMode,
 } from "../lib/onTheGoMode";
 import {
-  DEMO_PICKER_FLAG, QuestionLimiter, cleanTitle, curatedRows, neighbourCourse, parseCourseCommand,
-  readProgress, resumeSegment, saveProgress, type CourseCommand, type Progress,
+  DEMO_COURSE_IDS, DEMO_FULL_SEARCH_FLAG, DEMO_PICKER_FLAG, INCLUDE_ENGLISH_KEY, QuestionLimiter, cleanTitle, curatedRows, neighbourCourse,
+  parseCourseCommand, readProgress, resumeSegment, saveProgress, type CourseCommand, type Progress,
 } from "../lib/onTheGoCatalog";
+import { parseSearchCommand, rankCourses, type SearchCommand, type SearchRow } from "../lib/onTheGoSearch";
+import { languageFamily } from "../lib/voiceLanguage";
 
 // Hands-free "Drive Mode": big controls, no required visuals, on-device TTS
 // narration with an autoplay queue so learners keep their eyes on the road.
+const CONSENT_KEY = "salareen.onTheGo.consent.v1";
+
 export default function OnTheGo({ mode = "full" }: { mode?: OnTheGoMode }) {
   const { t } = useT();
   return (
@@ -76,6 +84,19 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
   const deepLinkCourse = searchParams.get("course");
   const cat = "";
   const [q, setQ] = useState("");
+  const [searchRows, setSearchRows] = useState<SearchRow[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [includeEnglish, setIncludeEnglish] = useState(true);
+  const demoFullSearch = useFlag<boolean>(DEMO_FULL_SEARCH_FLAG, false);
+  // The picked voice decides the language; courses ready in it come first.
+  const searchLanguage = languageFamily(locale) || "en";
+  const searchEnabled = experience.showCoursePicker || experience.curatedPicker;
+  const allowedIds = experience.showTimer && !demoFullSearch ? DEMO_COURSE_IDS : undefined;
+  // One-time consent before the first microphone prompt (what is heard, where it goes; the camera is optional and stays on the device).
+  const [consent, setConsent] = useState<ConsentChoice | "">("");
+  const [consentOpen, setConsentOpen] = useState(false);
+  const consentRef = useRef<ConsentChoice | "">("");
   const [rows, setRows] = useState<AudioCourseRow[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(false);
   const [course, setCourse] = useState<AudioCourse | null>(null);
@@ -93,7 +114,7 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
   const [listening, setListening] = useState(false);
   // Hands-free Drive Mode: mic stays always-on and wake-word-gated (no button).
   const [autoListen, setAutoListen] = useState(true);
-  const [, setMicDenied] = useState(false);
+  const [micDenied, setMicDenied] = useState(false);
   const [, setMicGranted] = useState(false);
   const [voiceLive, setVoiceLive] = useState(false);
   const [instructor, setInstructorState] = useState("");
@@ -236,6 +257,10 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
   useEffect(() => {
     const signedIn = Boolean(getToken());
     setLoggedIn(signedIn);
+    // The lesson language follows the picked voice for everyone, including the anonymous demo.
+    const stored = trainingLocaleFromUi(locale);
+    setTrainingLang(stored);
+    setTrainingLocale(stored);
     if (!signedIn) {
       setAccountReady(true);
       return;
@@ -245,10 +270,6 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
       .then((a) => setTier((a.tier || "basic").toLowerCase()))
       .catch(() => setTier("basic"))
       .finally(() => setAccountReady(true));
-    // Lesson language follows the profile Language picker (no duplicate Drive UI).
-    const stored = trainingLocaleFromUi(locale);
-    setTrainingLang(stored);
-    setTrainingLocale(stored);
     ensureVoices();
     configureServerTts(SPEECH_URL);   // use ElevenLabs/edge-tts neural audio when available
     const prefs = getVoicePrefs();
@@ -337,6 +358,64 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cat, q, locale, trainingLang, demoOnlyAnon, experience.showTimer, experience.fullCatalog, experience.mode, experience.curatedPicker]);
   useEffect(() => { refresh(); }, [refresh]);
+
+  // `fresh` = the learner just chose. Restoring a saved choice on load must not overwrite a camera on/off they set later in the widget.
+  function applyConsent(choice: ConsentChoice, fresh = false) {
+    consentRef.current = choice;
+    setConsent(choice);
+    if (fresh) {
+      try { localStorage.setItem(CAMERA_PREF_KEY, choice === "mic-camera" ? "on" : "off"); } catch { /* private mode */ }
+    }
+    if (choice === "none") {
+      autoListenRef.current = false;
+      setAutoListen(false);
+    }
+  }
+  function chooseConsent(choice: ConsentChoice) {
+    try { localStorage.setItem(CONSENT_KEY, choice); } catch { /* private mode: the choice lasts for this visit */ }
+    applyConsent(choice, true);
+    setConsentOpen(false);
+    window.setTimeout(() => { void onTransport(); }, 0);   // carry on with the Start tap that asked
+  }
+  function reopenConsent() {
+    try { localStorage.removeItem(CONSENT_KEY); } catch { /* private mode */ }
+    consentRef.current = "";
+    setConsent("");
+    setConsentOpen(true);
+  }
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem(CONSENT_KEY);
+      if (v === "mic" || v === "mic-camera" || v === "none") applyConsent(v);
+    } catch { /* private mode */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Search index: every course with the languages it is READY in. Courses without a shippable translation stay listed as English only.
+  useEffect(() => {
+    try { if (localStorage.getItem(INCLUDE_ENGLISH_KEY) === "0") setIncludeEnglish(false); } catch { /* private mode */ }
+  }, []);
+  useEffect(() => {
+    if (!searchEnabled) return;
+    if (!experience.showTimer && !getToken() && !demoOnlyAnon) return;
+    let cancelled = false;
+    setSearchLoading(true);
+    searchAudioCourses({ language: searchLanguage, limit: 500 })
+      .then((r) => { if (!cancelled) setSearchRows(r.courses); })
+      .catch(() => { if (!cancelled) setSearchRows([]); })   // the catalog rows still list the English courses
+      .finally(() => { if (!cancelled) setSearchLoading(false); });
+    return () => { cancelled = true; };
+  }, [searchEnabled, searchLanguage, experience.showTimer, demoOnlyAnon]);
+  const searchSource: SearchRow[] = useMemo(
+    () => (searchRows.length ? searchRows : rows.map((r) => ({ id: r.id, title: r.title, category: r.category, duration_min: r.duration_min, level: r.level }))),
+    [searchRows, rows],
+  );
+  // "next course", "play the Roman Empire course" and the list walk the same order the learner sees (ready in their language first).
+  useEffect(() => {
+    if (!searchEnabled || !searchRows.length) return;
+    const ranked = rankCourses(searchRows, "", { language: searchLanguage, includeEnglish: true, allowedIds });
+    if (ranked.length) queue.current = ranked as unknown as AudioCourseRow[];
+  }, [searchEnabled, searchRows, searchLanguage, allowedIds]);
 
   const speak = useCallback((text: string, onEnd?: () => void) => {
     try {
@@ -982,7 +1061,22 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
     resumeAfterAssistant(0);
   }
 
+  // "search for the Roman Empire": filter the list the learner sees, say so, and carry on with the lesson.
+  function handleSearchCommand(cmd: SearchCommand) {
+    clearResumeTimer();
+    if (cmd.kind === "clear") {
+      setSearchQuery("");
+      announceThen(t("drive.search.cleared"), () => resumeAfterAssistant(0));
+      return;
+    }
+    setSearchQuery(cmd.query);
+    const found = rankCourses(searchSource, cmd.query, { language: searchLanguage, includeEnglish, allowedIds });
+    announceThen(t(found.length ? "drive.search.spoken" : "drive.search.spokenNone", { q: cmd.query }), () => resumeAfterAssistant(0));
+  }
+
   function handleAssistantQuestion(input: string) {
+    const spokenSearch = parseSearchCommand(input.trim());
+    if (spokenSearch) { setAssistantTranscript(input.trim()); handleSearchCommand(spokenSearch); return; }
     if (!course) return;
     clearResumeTimer();
     const command = input.trim();
@@ -1117,6 +1211,16 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [Boolean(course)]);
 
+  const paid = accountReady && loggedIn && tier !== "free";
+  const canDrive = experience.showTimer || paid;
+  // Sala is always on screen; her state says what the microphone is doing.
+  const avatarState: AvatarState = !canDrive ? "signin" : demoEnded ? "ended" : !speechOk ? "unsupported" : micDenied ? "blocked"
+    : !autoListen ? "muted" : listening || playing ? "listening" : "idle";
+  const avatarLabel = ({
+    listening: t("drive.listening.on"), idle: t("drive.listening.idle"), muted: t("drive.listening.muted"),
+    blocked: t("drive.listening.blocked"), unsupported: t("drive.listening.unavailable"), signin: t("drive.listening.signIn"), ended: "",
+  } as Record<AvatarState, string>)[avatarState];
+
   useEffect(() => {
     let cancelled = false;
     let handle: { dispose: () => void; dance: (why?: string) => boolean } | null = null;
@@ -1126,7 +1230,7 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
         const mod: any = await import(/* webpackIgnore: true */ url);
         if (cancelled) return;
         salaModRef.current = mod;
-        const node = document.querySelector<HTMLElement>("[data-testid='on-the-go-mascot']");
+        const node = document.querySelector<HTMLElement>("[data-sala-avatar]");
         if (!node) return;
         handle = mod.attachSalaInteractions(node, {
           ignoreSelector: "a, input, select, textarea",   // the mascot itself is a button
@@ -1138,7 +1242,7 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
       } catch { /* the shared module is optional */ }
     })();
     return () => { cancelled = true; salaDanceRef.current = null; handle?.dispose(); };
-  }, [Boolean(course)]);
+  }, [Boolean(course), canDrive]);
 
   // After the mascot is tapped, tapping anywhere else on the page resumes the lesson.
   useEffect(() => {
@@ -1155,8 +1259,6 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
   }, [assistantOpen]);
 
   const langLabel = TRAINING_LOCALE_LABELS[trainingLang] || trainingLang;
-  const paid = accountReady && loggedIn && tier !== "free";
-  const canDrive = experience.showTimer || paid;
 
   useEffect(() => {
     if (!experience.showTimer || !playing || demoEnded) return;
@@ -1173,6 +1275,7 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
   async function onTransport() {
     awayPausedRef.current = false;
     if (demoEndedRef.current) return;
+    if (!playingRef.current && !consentRef.current) { setConsentOpen(true); return; }
     if (experience.salaAgent && (!getToken() || tierRef.current === "free")) return;
     if (playingRef.current) {
       pause();
@@ -1191,8 +1294,11 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
     <main
       className={fill ? "container otg-stage otg-fill" : "container otg-stage"}
       style={{ maxWidth: fill ? undefined : 720 }}
+      data-presence={cameraActive && canDrive ? "on" : "off"}
       onDoubleClick={onStageDoubleClick}
     >
+      {/* On a phone the camera widget would sit on top of the search box: leave room for it while it is showing. */}
+      <style>{`@media (max-width: 640px) { .otg-stage[data-presence=on] { padding-top: 220px !important; } }`}</style>
       <div className="otg-bar">
         {canFullscreen || !fill ? (
           <button type="button" data-testid="on-the-go-fullscreen" aria-label={t("drive.fullscreen")} title={t("drive.fullscreen")} onClick={() => (canFullscreen ? toggleFullscreen() : setFill(true))}>⛶</button>
@@ -1202,14 +1308,8 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
         ) : null}
       </div>
       <h1>{t("drive.pageTitle")}</h1>
-      <p className="muted">{t("drive.pageIntro")}</p>
-      <p className="muted" style={{ fontSize: 14 }}>
-        {t("drive.courseLanguage", { lang: langLabel })}
-        {" — "}
-        <a href="/account#course-language">{t("drive.changeSettings")}</a>
-        {". "}
-        {t("drive.listensAny")}
-      </p>
+      <p className="muted">{t("drive.pageIntro", { total: Math.max(searchRows.length, rows.length) || 200 })}</p>
+      <p className="muted" style={{ fontSize: 14 }}>{t("drive.languageFollowsVoice", { lang: langLabel })}</p>
       {error && <div className="card" style={{ borderColor: "#ff6b6b" }}><div className="muted">{friendlyError(error, t("error.offline"))}</div></div>}
 
       {experience.showTimer && (
@@ -1257,40 +1357,28 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
 
       {canDrive && (
         <div className="card" style={{ borderColor: "#0ea5e9", background: "#0b1020", color: "#e8ecf6" }}>
-          {experience.showCoursePicker ? (
-            <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 14, color: "#d7e7ea" }}>
-              {t("drive.courseLabel")}
-              <input
-                placeholder={t("drive.searchPlaceholder")}
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                aria-label={t("drive.searchPlaceholder")}
-                style={{ minHeight: 48, borderRadius: 12, border: "1px solid #24515c", background: "#101820", color: "#f4fbff", fontSize: 16, padding: "0 12px" }}
-              />
-              <select
-                aria-label="Course"
-                value={pickedId || course?.id || ""}
-                onChange={(e) => setPickedId(e.target.value)}
-                style={{ minHeight: 52, borderRadius: 12, border: "1px solid #24515c", background: "#101820", color: "#f4fbff", fontSize: 18 }}
-              >
-                <option value="">{t("drive.chooseCourse")}</option>
-                {course && !rows.some((row) => row.id === course.id) ? (
-                  <option value={course.id}>{course.title}</option>
-                ) : null}
-                {rows.map((row) => (
-                  <option key={row.id} value={row.id}>{row.title}</option>
-                ))}
-              </select>
-            </label>
-          ) : experience.curatedPicker ? (
-            <OnTheGoCoursePicker
-              rows={rows}
+          {searchEnabled ? (
+            <OnTheGoCourseSearch
+              rows={searchSource}
+              language={searchLanguage}
+              languageNames={TRAINING_LOCALE_LABELS as Record<string, string>}
+              query={searchQuery}
+              onQuery={setSearchQuery}
+              includeEnglish={includeEnglish}
+              onIncludeEnglish={(v) => {
+                setIncludeEnglish(v);
+                try { localStorage.setItem(INCLUDE_ENGLISH_KEY, v ? "1" : "0"); } catch { /* private mode */ }
+              }}
+              allowedIds={allowedIds}
               selectedId={pickedId || course?.id || ""}
-              loading={coursesLoading}
+              loading={coursesLoading || searchLoading}
               progress={progress}
               labels={{
-                search: t("drive.pickerSearch"), choose: t("drive.chooseCourse"), none: t("drive.noMatch"),
-                loading: t("drive.loadingCourses"), resume: t("drive.pickerResume"), all: t("drive.pickerAll"),
+                placeholder: t("drive.search.placeholder"), includeEnglish: t("drive.search.includeEnglish"),
+                readyIn: (lang) => t("drive.search.readyIn", { lang }), otherLangs: (langs) => t("drive.search.otherLangs", { langs }),
+                englishOnly: t("drive.search.englishOnly"), emptyLang: (lang) => t("drive.search.emptyLang", { lang }),
+                noMatch: (q) => t("drive.search.noMatch", { q }), count: (n) => t("drive.search.count", { n }),
+                voiceHint: t("drive.search.voiceHint"), loading: t("drive.loadingCourses"), resume: t("drive.pickerResume"), choose: t("drive.chooseCourse"),
               }}
               onSelect={chooseCourse}
             />
@@ -1311,9 +1399,6 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
             </div>
           )}
           {coursesLoading && <p className="muted">{t("drive.loadingCourses")}</p>}
-          {!coursesLoading && experience.showCoursePicker && rows.length === 0 && (
-            <p className="muted">{t("drive.noMatch")}</p>
-          )}
           {course?.attribution && (
             <p data-testid="course-attribution" style={{ margin: "6px 2px 0", fontSize: 12, lineHeight: 1.4, color: "#9fbac2" }}>
               {course.attribution}
@@ -1401,14 +1486,13 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
         </div>
       )}
 
-      {canDrive && (
-        <div style={{ position: "fixed", left: 18, bottom: 72, zIndex: 50, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8 }}>
-          {assistantOpen && assistantStatus && (
-            <div role="status" aria-live="polite" style={{ maxWidth: 240, padding: "8px 12px", borderRadius: 12, background: "#0b1020", color: "#e8ecf6", fontSize: 14, boxShadow: "0 6px 20px rgba(0,0,0,.35)" }}>
-              {assistantStatus}
-            </div>
-          )}
-          {experience.mode !== "demo" && (
+      <div style={{ position: "fixed", left: 18, bottom: 72, zIndex: 50, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8 }}>
+        {canDrive && assistantOpen && assistantStatus && (
+          <div role="status" aria-live="polite" style={{ maxWidth: 240, padding: "8px 12px", borderRadius: 12, background: "#0b1020", color: "#e8ecf6", fontSize: 14, boxShadow: "0 6px 18px rgba(0,0,0,.35)" }}>
+            {assistantStatus}
+          </div>
+        )}
+        {canDrive && experience.mode !== "demo" && (
           <button
             type="button"
             data-testid="on-the-go-help"
@@ -1417,35 +1501,36 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
             onClick={() => setHelpOpen(true)}
             style={{ width: 36, height: 36, borderRadius: "50%", border: "2px solid #d4af37", background: "#0b1020", color: "#fde047", fontWeight: 800, cursor: "pointer" }}
           >?</button>
-          )}
-          <button
-            type="button"
-            data-testid="on-the-go-mascot"
-            aria-label={t("drive.askSala")}
-            title={t("drive.askSala")}
-            disabled={demoEnded}
-            onClick={() => { if (!oneShotActiveRef.current) void startVoiceRecognition(false); }}
-            style={{
-              position: "relative", width: 88, height: 88, padding: 0, borderRadius: "50%", cursor: "pointer",
-              display: "grid", placeItems: "center", overflow: "visible",
-              border: `3px solid ${listening ? "#22c55e" : "#d4af37"}`,
-              background: "#0b1020",
-              boxShadow: listening ? "0 0 0 6px rgba(34,197,94,.3), 0 8px 24px rgba(0,0,0,.4)" : "0 8px 24px rgba(0,0,0,.4)",
-            }}
-          >
-            <img
-              src="/mascots/sala-gold-cutout.png" alt="" width={74} height={74}
-              style={{ width: 74, height: 74, objectFit: "cover", objectPosition: "50% 4%", borderRadius: "50%", pointerEvents: "none" }}
-            />
-            <span
-              aria-hidden data-testid="on-the-go-mic-dot"
-              style={{ position: "absolute", right: 2, bottom: 4, width: 14, height: 14, borderRadius: "50%", border: "2px solid #0b1020", background: listening && autoListen ? "#22c55e" : "#6b7280" }}
-            />
-          </button>
-        </div>
+        )}
+        <OnTheGoAvatar
+          state={avatarState}
+          label={avatarLabel}
+          ariaLabel={t("drive.askSala")}
+          signInHref="/login"
+          onActivate={() => {
+            if (avatarState === "muted") { toggleMic(); return; }
+            if (!oneShotActiveRef.current) void startVoiceRecognition(false);
+          }}
+        />
+      </div>
+      {canDrive && consentOpen && (
+        <OnTheGoConsent
+          labels={{
+            title: t("drive.consent.title"), body: t("drive.consent.body"), headphones: t("drive.useHeadphones"),
+            mic: t("drive.consent.mic"), micCamera: t("drive.consent.micCamera"), notNow: t("drive.consent.notNow"),
+          }}
+          onChoose={chooseConsent}
+        />
+      )}
+      {canDrive && consent && !consentOpen && (
+        <button
+          type="button" data-testid="otg-privacy-choices" onClick={reopenConsent}
+          style={{ position: "fixed", right: 14, bottom: 14, zIndex: 40, background: "transparent", border: 0, color: "#9fbac2", fontSize: 12, textDecoration: "underline", cursor: "pointer" }}
+        >{t("drive.consent.reset")}</button>
       )}
       {canDrive && (
         <OnTheGoPresence
+          key={consent || "pending"}   // re-reads the camera preference after the learner chooses
           active={cameraActive}
           micOn={autoListen}
           micAvailable={speechOk}

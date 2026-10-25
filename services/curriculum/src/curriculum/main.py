@@ -758,6 +758,20 @@ def audio_courses(category: str | None = None, q: str | None = None,
                         locale=locale, training_locale=training_locale)
 
 
+@app.get("/audio/search")
+def audio_search(language: str = "en", q: str = "", include_english: bool = True,
+                 offset: int = 0, limit: int = 500) -> dict:
+    """Search the audio courses with the languages each one is READY in (a shippable, current, validated translation).
+
+    ``language`` is the voice's language ("en-GB", "zh-HK", "fil" are reduced to their family); courses ready in it come first.
+    Held, stale or partial translations are never listed. Narration is live text-to-speech (``audio_mode``).
+    """
+    from aoep_shared import audio_search as search
+
+    return search.search(language=language, q=q[:120], include_english=include_english,
+                         offset=max(0, offset), limit=max(1, min(limit, 500)))
+
+
 @app.get("/audio/courses/{course_id}")
 def audio_course(course_id: str, locale: str = "en",
                  training_locale: str | None = None) -> dict:
