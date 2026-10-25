@@ -242,7 +242,11 @@ def main(argv: Optional[list] = None) -> int:
         path = Path(p)
         return path if path.is_absolute() else ROOT / path
 
-    authored = load_sessions(resolve(p) for p in args.sessions)
+    # Fleet jobs pass a single comma-separated --sessions token; expand it.
+    session_paths: list[str] = []
+    for entry in args.sessions:
+        session_paths.extend(part.strip() for part in str(entry).split(",") if part.strip())
+    authored = load_sessions(resolve(p) for p in session_paths)
     gold = load_sessions(resolve(p) for p in args.gold_pairs)
     classes = load_sessions(resolve(p) for p in args.class_sessions)
     scores = load_subject_scores(resolve(p) for p in args.eval_metrics)

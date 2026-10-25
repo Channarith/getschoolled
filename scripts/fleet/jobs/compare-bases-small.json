@@ -1,0 +1,17 @@
+{
+  "name": "compare-bases-small",
+  "description": "Score every candidate that fits Kal-el's 8 GB VRAM (QLoRA <=4B, 4-bit eval up to ~7B). Writes output/kalel/eval/bases/leaderboard.txt. Weekly; does not download weights.",
+  "resource": "gpu",
+  "roles": ["kalel"],
+  "priority": 70,
+  "window": ["08:00", "21:00"],
+  "tz": "America/Los_Angeles",
+  "every_s": 604800,
+  "needs_cuda": true,
+  "preemptible": true,
+  "timeout_s": 14400,
+  "max_attempts": 2,
+  "env": {"HF_HUB_OFFLINE": "1", "TRANSFORMERS_OFFLINE": "1"},
+  "cmd": ["{python}", "training/compare_bases.py", "--machine", "kalel",
+          "--out", "output/kalel/eval/bases", "--timeout-min", "60"]
+}

@@ -1,0 +1,19 @@
+{
+  "name": "grow-train-set",
+  "description": "Grow the tutor training set (authored + gold pairs + consented class sessions) and write needs_data.json for subjects under the 40% floor. CPU only; the frontier bottleneck is data, not GPU. Kal-el or Mac. Output: output/kalel/data/sessions.grown.json (rsync to Spark via sync_kalel_to_spark.sh).",
+  "resource": "cpu",
+  "roles": ["kalel", "mac"],
+  "priority": 55,
+  "every_s": 43200,
+  "needs_cuda": false,
+  "preemptible": true,
+  "timeout_s": 3600,
+  "max_attempts": 3,
+  "defaults": {
+    "out": "output/kalel/data/sessions.grown.json",
+    "sessions": "output/kalel/data/sessions.json,output/kalel/data/tutor_sessions.json,output/spark/data/sessions.json,output/spark/data/tutor_sessions.json"
+  },
+  "cmd": ["{python}", "training/build_train_set.py",
+          "--sessions", "{sessions}",
+          "--out", "{out}"]
+}

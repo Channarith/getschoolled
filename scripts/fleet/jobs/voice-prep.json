@@ -1,0 +1,21 @@
+{
+  "name": "voice-prep",
+  "description": "Kal-el CosyVoice handoff: download + denoise only (yt-dlp + ffmpeg). No ASR, no CosyVoice service. Network/CPU so it can run beside a GPU QLoRA job. Sync to Spark with scripts/sync_kalel_to_spark.sh; Spark continues with segment,transcribe,export.",
+  "resource": "net",
+  "roles": ["kalel"],
+  "priority": 35,
+  "fill": true,
+  "needs_cuda": false,
+  "preemptible": true,
+  "timeout_s": 86400,
+  "max_attempts": 5,
+  "defaults": {"pools": "km,th,vi,sw", "workers": "1"},
+  "env": {
+    "COSYVOICE_INGEST_STAGES": "download,denoise",
+    "YT_DLP_SLEEP_REQUESTS": "2",
+    "AOEP_INGEST_MIN_FREE_MB": "4096",
+    "AOEP_INGEST_WORKER_MB": "3072"
+  },
+  "cmd": ["{python}", "scripts/cosyvoice_batch_ingest.py", "--pool", "{pools}",
+          "--workers", "{workers}", "--output-root", "output/kalel"]
+}

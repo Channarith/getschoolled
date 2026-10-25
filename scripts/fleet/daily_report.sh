@@ -16,7 +16,7 @@ day="$(date +%F)"
 file="$out_dir/fleet-$day.txt"
 {
   echo "Salareen fleet health - $day $(date +%H:%M) ($(hostname -s))"
-  echo "Roles: spark = LLM training + GPU translation + voice ingest; kalel = harvesting + GPU overflow; mac = coordination."
+  echo "Roles: spark = 7B+ LLM train + CosyVoice ASR; kalel = <=4B QLoRA + translation + harvest + voice prep + data growth; mac = coordination."
   echo "Plan and calendar: docs/ops-schedule.txt"
   echo
   "$ROOT/scripts/fleet_status.sh" 2>&1

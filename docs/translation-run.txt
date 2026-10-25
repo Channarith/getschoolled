@@ -7,9 +7,10 @@ have a stored translation and production has no translator. Translating with a
 paid API is costly (about 96 million words for 948 audio courses x 26 languages),
 so we run the free NLLB-200 model on our own machines.
 
-Split (no overlap, so the two folders merge cleanly):
-  DGX Spark   : es fr de it pt nl pl ru uk tr ar he hi bn ur fa zh ja ko vi
-  iBuyPower   : th id sw el cs km
+Split (no overlap, so the two folders merge cleanly). Kal-el takes the bulk so
+the Spark GPU stays free for frontier LLM / CosyVoice ASR:
+  DGX Spark   : ar he hi bn ur fa zh ja ko vi yue
+  iBuyPower   : es fr de it pt nl pl ru uk tr th id sw el cs km
 If the iBuyPower has no NVIDIA GPU, give it fewer languages or only the demo
 course (edit IBUY_LANGS in scripts/translate_on_machine.sh).
 

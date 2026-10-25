@@ -50,8 +50,8 @@ def test_host_key_ignores_www_port_case_and_path():
 
 
 def test_shard_map_is_deterministic_and_order_independent():
-    a = ShardMap.build({"spark": 3, "kalel": 2, "mac": 1})
-    b = ShardMap.build({"mac": 1, "kalel": 2, "spark": 3})
+    a = ShardMap.build({"spark": 1, "kalel": 3, "mac": 1})
+    b = ShardMap.build({"mac": 1, "kalel": 3, "spark": 1})
     assert a == b
     urls = [f"https://site{i}.example.org/page" for i in range(500)]
     assert [a.owner(u) for u in urls] == [b.owner(u) for u in urls]

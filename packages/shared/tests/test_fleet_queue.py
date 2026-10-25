@@ -62,11 +62,19 @@ def q(clock: Clock) -> Queue:
 # ---- manifests -------------------------------------------------------------------------------
 def test_real_manifests_load_and_are_consistent():
     types, caps, _ = load_manifest(REPO / "scripts" / "fleet" / "jobs")
-    assert set(types) == {"harvest-crawl", "translate-stage", "voice-ingest", "finetune-nightly", "frozen-eval",
-                          "tts-bakeoff", "validate-translations"}
+    assert set(types) == {
+        "harvest-crawl", "translate-stage", "voice-ingest", "voice-prep",
+        "finetune-nightly", "finetune-kalel-nightly", "frozen-eval", "frozen-eval-small",
+        "compare-bases-small", "grow-train-set", "tts-bakeoff", "validate-translations",
+    }
     assert all(c["gpu"] <= 1 for c in caps.values()), "never more than one GPU job per machine"
     assert caps["mac"]["gpu"] == 0, "the Mac never runs GPU jobs"
     assert types["finetune-nightly"].priority > types["frozen-eval"].priority > types["translate-stage"].priority > types["voice-ingest"].priority
+    assert types["finetune-kalel-nightly"].roles == ("kalel",)
+    assert types["finetune-kalel-nightly"].priority == types["finetune-nightly"].priority
+    assert not types["finetune-kalel-nightly"].preemptible
+    assert types["voice-prep"].roles == ("kalel",) and types["voice-prep"].resource == "net"
+    assert types["grow-train-set"].resource == "cpu" and "kalel" in types["grow-train-set"].roles
     assert not types["finetune-nightly"].preemptible, "a half-trained adapter must not be stopped mid-run"
     assert types["voice-ingest"].preemptible and types["translate-stage"].preemptible
     for t in types.values():
