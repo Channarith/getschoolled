@@ -747,6 +747,57 @@ export async function purchaseCourse(courseId: string, title: string): Promise<E
   );
 }
 
+// --- paid public courses (course studio billing: the server owns the price, the account and the entitlement) --- //
+export type CourseEntitlementState = "login_required" | "free" | "paid" | "must_pay";
+export interface CourseOffer { course_id: string; title: string; amount_cents: number; currency: string; label: string }
+export interface CourseEntitlement {
+  course_id: string;
+  entitlement: CourseEntitlementState;
+  purchasable: boolean;
+  offer?: CourseOffer;
+}
+
+/** The text of a failed API call without the "<status> " prefix jsonOrThrow adds. */
+export function friendlyApiError(err: unknown, fallback = "Something went wrong. Please try again."): string {
+  const raw = err instanceof Error ? err.message : String(err || "");
+  const text = raw.replace(/^\d{3}\s+/, "").trim();
+  return text && text.length < 200 ? text : fallback;
+}
+
+export async function getCourseEntitlement(courseId: string): Promise<CourseEntitlement> {
+  return jsonOrThrow(
+    await fetch(`/api/studio/entitlement?course_id=${encodeURIComponent(courseId)}`, { headers: authHeaders() })
+  );
+}
+
+/** Ask the server for a hosted checkout (Stripe card or PayPal). Only the course and the method are sent. */
+export async function startCourseCheckout(
+  courseId: string,
+  method: "card" | "paypal",
+): Promise<{ url?: string; already_entitled?: boolean; entitlement?: CourseEntitlementState }> {
+  return jsonOrThrow(
+    await fetch("/api/studio/pay/checkout", {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ course_id: courseId, method, return_url: window.location.href.split("#")[0] }),
+    })
+  );
+}
+
+/** After the processor sends the buyer back: the server asks the processor and records the order once. */
+export async function confirmCoursePayment(
+  sessionId: string,
+  method: "card" | "paypal",
+): Promise<{ status: string; order_id: string; course_id: string; created: boolean }> {
+  return jsonOrThrow(
+    await fetch("/api/studio/pay/confirm", {
+      method: "POST",
+      headers: { "content-type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ session_id: sessionId, method }),
+    })
+  );
+}
+
 /** Bookmark a course to My List (status="saved"). Idempotent. */
 export async function saveForLater(courseId: string, title: string): Promise<Enrollment> {
   return enrollCourse(courseId, title, "saved");
