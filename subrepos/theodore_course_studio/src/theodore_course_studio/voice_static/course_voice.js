@@ -410,6 +410,8 @@ export function initCourseVoiceOverlay(opts = {}) {
     demo: Boolean(opts.demo),
     clean: Boolean(opts.clean),
   };
+  // The one movable widget (camera + Sala's voice + timer): the full course and the public demo.
+  options.widget = Boolean(opts.widget || options.clean || options.demo);
 
   if (!document.body) {
     document.addEventListener("DOMContentLoaded", () => initCourseVoiceOverlay(opts), { once: true });
@@ -422,6 +424,7 @@ export function initCourseVoiceOverlay(opts = {}) {
   document.body.classList.add("aoep-voice-first", "chrome-hidden");
   if (options.demo || options.clean) document.body.classList.add("demo-clean");
   if (options.clean) document.body.classList.add("course-clean");
+  if (options.demo) document.body.classList.add("demo-widget");
 
   const root = el("div", {
     "aria-live": "polite",
@@ -771,7 +774,10 @@ export function initCourseVoiceOverlay(opts = {}) {
     }, 400);
   }
 
-  const TUTORIAL_KEY = options.demo ? "sala_demo_tutorial_seen_v3" : "sala_course_tutorial_seen_v2";
+  const TUTORIAL_KEY = options.demo ? "sala_demo_tutorial_seen_v4" : "sala_course_tutorial_seen_v2";
+  // The demo tutorial shows first in every new browser session (the opening video is per session too); the full course
+  // keeps it once per device.
+  const tutorialStore = () => (options.demo ? window.sessionStorage : window.localStorage);
 
   // Driver's Ed demo opening: the page around us shows a video. Order: this tutorial first
   // (video waiting, paused, behind it), then the video, then the lesson. Until the video is
@@ -904,7 +910,7 @@ export function initCourseVoiceOverlay(opts = {}) {
     };
     const onKey = (event) => { if (event.key === "Escape") close(); };
     const close = () => {
-      try { window.localStorage.setItem(TUTORIAL_KEY, "1"); } catch { /* not kept: shows again next time */ }
+      try { tutorialStore().setItem(TUTORIAL_KEY, "1"); } catch { /* not kept: shows again next time */ }
       document.removeEventListener("keydown", onKey);
       overlay.remove();
       (document.querySelector(".sala-help") || document.querySelector("#course-widget .cw-menu-btn"))?.focus?.({ preventScroll: true });
@@ -922,18 +928,19 @@ export function initCourseVoiceOverlay(opts = {}) {
 
   function wireDemoHelp() {
     if (document.querySelector(".sala-help")) return;
-    if (!options.clean) {
+    if (!options.widget) {
       const help = el("button", { type: "button", class: "sala-help", "aria-label": "How to use this lesson", title: "How to use this lesson" }, ["?"]);
       help.addEventListener("click", () => showDemoTutorial(false));
       mountOnTop(help);
     }
     let seen = false;
-    try { seen = window.localStorage.getItem(TUTORIAL_KEY) === "1"; } catch { seen = false; }
+    try { seen = tutorialStore().getItem(TUTORIAL_KEY) === "1"; } catch { seen = false; }
     if (!seen) showDemoTutorial(Boolean(options.demo));
     else reportTutorial("closed");
   }
 
   function wireAvatarGesture() {
+    buildCourseWidget();
     wireDemoHelp();
     document.addEventListener("click", (event) => {
       const wrap = event.target.closest && event.target.closest("#theodore-avatar-wrap");
@@ -960,7 +967,7 @@ export function initCourseVoiceOverlay(opts = {}) {
   // The lesson fills the screen. A single small panel holds the webcam preview, Sala's voice (the shared
   // Salane Voice widget, mounted in embedded mode) and a one-line status plus a menu with Help, Progress,
   // Captions, Language, Mute and Exit. Dragging works from the grip or the bar; the spot is remembered.
-  const CW_POS_KEY = "aoep.courseWidget.pos.v1";
+  const CW_POS_KEY = options.demo ? "aoep.courseWidget.pos.demo.v1" : "aoep.courseWidget.pos.v1";
   const CW_COLLAPSE_KEY = "aoep.courseWidget.collapsed.v1";
   const CW_HINT_KEY = "aoep.courseWidget.hint.v1";
   let cw = null;
@@ -1029,7 +1036,7 @@ export function initCourseVoiceOverlay(opts = {}) {
   }
 
   function buildCourseWidget() {
-    if (!options.clean || cw) return;
+    if (!options.widget || cw) return;
     const root = el("aside", { id: "course-widget", role: "region", "aria-label": "Lesson panel: camera, Sala's voice and menu" });
     const bar = el("div", { class: "cw-bar" });
     const grip = el("button", { type: "button", class: "cw-grip", "aria-label": "Move this panel. Drag, or use the arrow keys.", title: "Drag to move" }, ["⋮⋮"]);
@@ -1038,18 +1045,25 @@ export function initCourseVoiceOverlay(opts = {}) {
     const menuBtn = el("button", { type: "button", class: "cw-btn cw-menu-btn", "aria-haspopup": "menu", "aria-expanded": "false", "aria-label": "Lesson menu", title: "Menu" }, ["⋯"]);
     bar.append(grip, status, collapse, menuBtn);
     const body = el("div", { class: "cw-body" });
+    const clockMount = el("div", { class: "cw-clock" });
     const camMount = el("div", { class: "cw-cam" });
     const voiceMount = el("div", { class: "cw-voice" });
-    body.append(camMount, voiceMount);
+    body.append(clockMount, camMount, voiceMount);
     const menu = el("div", { class: "cw-menu", role: "menu", hidden: "" });
     root.append(bar, body, menu);
     document.body.prepend(root);
     cw = { root, status, menu, menuBtn, collapse, camMount, voiceMount };
 
-    // Position: remembered, else the top-left corner (clear of the lesson text, which sits along the bottom).
+    // Position: remembered, else a corner clear of the lesson text (which sits along the bottom): top-right in the demo, top-left in the full course.
     const saved = readJson(CW_POS_KEY);
-    placeCourseWidget(saved && Number.isFinite(saved.left) ? saved.left : 8, saved && Number.isFinite(saved.top) ? saved.top : 8, false);
-    window.addEventListener("resize", () => placeCourseWidget(parseFloat(root.style.left) || 8, parseFloat(root.style.top) || 8, true));
+    const hasSaved = Boolean(saved && Number.isFinite(saved.left) && Number.isFinite(saved.top));
+    const cornerLeft = () => (options.demo ? window.innerWidth - (root.offsetWidth || 236) - 8 : 8);
+    placeCourseWidget(hasSaved ? saved.left : cornerLeft(), hasSaved ? saved.top : 8, false);
+    cw.pinnedCorner = !hasSaved;
+    window.addEventListener("resize", () => {
+      if (cw.pinnedCorner) placeCourseWidget(cornerLeft(), 8, false);
+      else placeCourseWidget(parseFloat(root.style.left) || 8, parseFloat(root.style.top) || 8, true);
+    });
 
     // Tuck away / bring back the camera and voice (they keep running; only the view is folded).
     const setCollapsed = (value) => {
@@ -1081,6 +1095,7 @@ export function initCourseVoiceOverlay(opts = {}) {
     const endDrag = (event) => {
       if (!drag || event.pointerId !== drag.id) return;
       drag = null;
+      cw.pinnedCorner = false;
       placeCourseWidget(parseFloat(root.style.left) || 8, parseFloat(root.style.top) || 8, true);
     };
     bar.addEventListener("pointerup", endDrag);
@@ -1156,6 +1171,8 @@ export function initCourseVoiceOverlay(opts = {}) {
         live.setAttribute("data-embedded", "");
         if (live.parentElement !== voiceMount) voiceMount.appendChild(live);
       }
+      const clock = document.getElementById("sample-clock");
+      if (clock && clock.parentElement !== clockMount) clockMount.appendChild(clock);   // the demo's 10-minute timer lives in the widget too
       return Boolean(cam && live);
     };
     adopt();

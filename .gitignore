@@ -1,5 +1,6 @@
 # ---- Node / Next.js ----
 node_modules/
+node_modules
 .pnpm-store/
 .pnpm-home/
 .pnpm-tmp/

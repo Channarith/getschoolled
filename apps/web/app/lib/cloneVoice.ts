@@ -8,6 +8,8 @@ export const VOICE_CHOICE_EVENT = "aoep-demo-voice";
 export type CloneVoice = { id: string; label: string; ai_label: string; active: boolean };
 
 const ASSETS = (process.env.NEXT_PUBLIC_VOICE_ASSETS_URL || "/voice-assets").replace(/\/$/, "");
+/** Where the published clips live; the course-studio frame gets it as a URL parameter so its narration finds the same clips. */
+export const VOICE_ASSETS_BASE = ASSETS;
 const WS = /[ \t\n\r\f\v\u00a0\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+/g;
 
 // cyrb53 over UTF-16 code units; must stay identical to tts_bakeoff/demo_voice/clip_hash.py (shared test vectors).

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef } from "react";
 
+import { VOICE_ASSETS_BASE } from "../lib/cloneVoice";
 import { useFlag } from "../lib/flags";
 import { useT } from "../lib/i18n";
 
@@ -10,6 +11,8 @@ function withLang(src: string, locale: string, typeToAsk: boolean): string {
   try {
     const url = new URL(src, "http://studio.local");
     url.searchParams.set("lang", locale);
+    // Where the published company-voice clips live: the lesson's narration looks up the voice picked in the account menu there.
+    url.searchParams.set("voiceassets", VOICE_ASSETS_BASE);
     if (typeToAsk) url.searchParams.set("typemode", "1");
     else url.searchParams.delete("typemode");
     if (/^https?:\/\//i.test(src)) return url.toString();

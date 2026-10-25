@@ -219,6 +219,7 @@ class CourseTtsRequest(BaseModel):
     text: str = Field(min_length=1)
     language: str = "en"
     gender: str = "female"
+    voice: str = ""
 
 
 class TeachCheckpointLookup(BaseModel):
@@ -1189,13 +1190,19 @@ def studio_tts_locked(req: CourseTtsRequest) -> Response:
     a gateway quota runs out or a page is too long for a query-string URL.
     """
     try:
-        audio = synthesize_course(req.text, req.language, gender=req.gender)
+        try:
+            audio = synthesize_course(req.text, req.language, gender=req.gender, voice=req.voice)
+        except TTSUnavailable:
+            if not req.voice:
+                raise
+            # The visitor's pick could not render: keep narrating in the course voice rather than going silent.
+            audio = synthesize_course(req.text, req.language, gender=req.gender)
     except TTSUnavailable as exc:
         return _no_voice_response(exc)
     return Response(
         content=audio,
         media_type="audio/mpeg",
-        headers={"cache-control": "public, max-age=86400", "x-tts-voice": "locked"},
+        headers={"cache-control": "public, max-age=86400", "x-tts-voice": "chosen" if req.voice else "locked"},
     )
 
 

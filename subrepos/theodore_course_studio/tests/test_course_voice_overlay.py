@@ -129,7 +129,9 @@ def test_demo_mode_is_clean_and_uses_the_logo_avatar():
 
 def test_demo_has_a_tutorial_help_button_and_goes_full_screen_on_phones():
     js = _VOICE_JS.read_text(encoding="utf-8")
-    assert "showDemoTutorial" in js and "sala_demo_tutorial_seen_v3" in js
+    assert "showDemoTutorial" in js and "sala_demo_tutorial_seen_v4" in js
+    # The demo tutorial shows first in every new browser session; the full course keeps it once per device.
+    assert "options.demo ? window.sessionStorage : window.localStorage" in js
     # The full course gets its own tutorial and help button, not only the demo.
     assert "FULL_TUTORIAL" in js and "sala_course_tutorial_seen_v2" in js
     for name in ("tutorial-tap.webp", "tutorial-double.webp", "tutorial-dance.webp"):
@@ -157,3 +159,26 @@ def test_full_course_has_one_movable_widget_switch() -> None:
     assert "#course-widget" in page
     # Demo behaviour is untouched: the clean switch never turns on for demo=1.
     assert 'params.get("demo") !== "1"' in js
+
+
+def test_demo_uses_the_one_movable_widget_with_the_timer_top_right() -> None:
+    js = _VOICE_JS.read_text(encoding="utf-8")
+    assert "options.widget = Boolean(opts.widget || options.clean || options.demo)" in js
+    assert 'classList.add("demo-widget")' in js
+    # The demo's widget starts top-right, has its own remembered spot, and takes the 10-minute clock with it.
+    assert "aoep.courseWidget.pos.demo.v1" in js and "window.innerWidth - (root.offsetWidth || 236) - 8" in js
+    assert 'document.getElementById("sample-clock")' in js and "clockMount" in js
+    assert "buildCourseWidget();\n    wireDemoHelp();" in js   # wireAvatarGesture builds the widget before the help wiring
+    html = render_studio_page()
+    assert "body.demo-widget #course-widget #sample-clock" in html
+    assert "body.demo-widget .sala-help" in html
+
+
+def test_narration_uses_the_voice_picked_in_the_account_menu() -> None:
+    html = render_studio_page()
+    assert "/api/studio/voice-overlay/voice_choice.js" in html
+    # A company voice plays its pre-rendered clip; an edge voice is rendered in that voice; the baked course clip is skipped for both.
+    assert "SalaVoiceChoice.cloneClipUrl(choiceLang, spoken)" in html
+    assert "SalaVoiceChoice.edgeVoiceFor" in html and "voice: voice" in html
+    js = (_PKG_ROOT / "voice_static" / "voice_choice.js").read_text(encoding="utf-8")
+    assert "aoep_demo_voice" in js and "aoep_drive_voice" in js and "\\u241f" in js

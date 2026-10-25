@@ -141,3 +141,22 @@ def test_landing_lines_are_in_the_manifest_and_shipped_as_default_clips():
         assert (r["lang"], h) in in_manifest
         assert h in index["clips"][r["lang"]]
         assert (web / r["lang"] / f"{h}.mp3").stat().st_size > 2000
+
+
+def test_drivers_ed_presentation_lines_are_in_the_manifest() -> None:
+    from tts_bakeoff.demo_voice import manifest as mf
+    lines = mf.drivers_ed()
+    assert len(lines) >= 40 and all(r["demo"] == "drivers_ed" and r["lang"] == "en" for r in lines)
+    committed = json.loads(mf.MANIFEST.read_text(encoding="utf-8"))
+    clips = [c for c in committed["clips"] if c["demo"] == "drivers_ed"]
+    assert len(clips) == len({mf.normalize(r["text"]) for r in lines})
+    # The slide the owner saw in the demo ("California learner's permit") is spoken, so it must be a clip.
+    assert any("provisional instruction permit in California" in c["text"] for c in clips)
+
+
+def test_drivers_ed_capture_collapses_duplicates(monkeypatch) -> None:
+    from tts_bakeoff.demo_voice import manifest as mf
+    slide = {"narration": "Slow down in fog.", "activity_prompt": "Name one rule.", "quiz_spec": {"prompt": "Why slow down?", "choices": ["Less sight", "No reason"]}}
+    course = {"category": "driver_education", "language": "en", "slides": [slide]}
+    monkeypatch.setattr(mf, "_get_json", lambda url: {"courses": [course, course, {"category": "food", "language": "en", "slides": [slide]}]})
+    assert mf.drivers_ed_capture("https://example.test") == ["Slow down in fog.", "Name one rule.", "Why slow down?", "Less sight", "No reason"]
