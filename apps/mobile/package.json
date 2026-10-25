@@ -1,10 +1,6 @@
 {
   "name": "aiclassroom-mobile",
-<<<<<<< HEAD
-  "version": "0.97.61",
-=======
-  "version": "0.97.59",
->>>>>>> origin/main
+  "version": "0.97.60",
   "private": true,
   "packageManager": "pnpm@12.14.0",
   "description": "AI Classroom mobile app (Android + iOS) - teach & learn on the go, incl. audio-only Drive Mode.",
