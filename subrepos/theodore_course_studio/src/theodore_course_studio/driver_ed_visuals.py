@@ -240,7 +240,7 @@ def _scene_body(scene_id: str) -> str:
             + '<g transform="translate(250 175)"><rect x="-90" y="-36" width="180" height="72" rx="10" fill="#facc15" stroke="#0f172a" stroke-width="3"/>'
             '<rect x="-70" y="-24" width="120" height="22" fill="#1e293b"/>'
             '<circle cx="80" cy="-26" r="8" fill="#ef4444"/><circle cx="80" cy="26" r="8" fill="#ef4444"/>'
-            '<polygon points="96,-4 122,-18 136,-4 136,12 122,24 96,12" fill="#b91c1c" stroke="#fff" stroke-width="2"/></g>'
+            '<polygon points="137.0,11.7 124.7,24.0 107.3,24.0 95.0,11.7 95.0,-5.7 107.3,-18.0 124.7,-18.0 137.0,-5.7" fill="#dc2626" stroke="#fff" stroke-width="2"/><text x="116" y="6" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-weight="800" font-size="9" fill="#fff" textLength="26" lengthAdjust="spacingAndGlyphs">STOP</text></g>'
             + _car(60, 175, "#2563eb")
             + _car(520, 270, "#ef4444", 180)
             + '<line x1="110" y1="140" x2="110" y2="215" stroke="#f8fafc" stroke-width="8"/>'
