@@ -1,0 +1,224 @@
+{
+ "version": 1,
+ "model": "openbmb/VoxCPM2",
+ "license": "VoxCPM2 (OpenBMB), Apache-2.0, free for commercial use. Forbidden: impersonation, fraud, disinformation. AI-generated audio must be clearly labeled. A designed voice is synthetic: no person's recording or consent is involved.",
+ "note": "Definitions only. The designed reference clip of each voice is frozen on the render machine (<assets>/_stock/<id>/ref.wav). 'langs' lists the languages the owner has listened to and cleared for the picker; 'quality' holds per-language notes. Voices here are enum-built (tts_bakeoff/voice_design/prompt.py), never named after or described as a person.",
+ "voices": [
+  {
+   "id": "stock-f-young-warm",
+   "label": "Sage",
+   "gender": "female",
+   "g": "f",
+   "age": "young",
+   "timbre": "warm",
+   "accent": null,
+   "seed": 11000,
+   "tones": [
+    "professional",
+    "warm",
+    "calm",
+    "energetic",
+    "cute",
+    "anime",
+    "tough",
+    "heavy",
+    "light"
+   ],
+   "design_lang": "en",
+   "langs": [
+    "en"
+   ],
+   "quality": {},
+   "description": "A young adult woman, warm, rounded voice"
+  },
+  {
+   "id": "stock-f-young-bright",
+   "label": "Lark",
+   "gender": "female",
+   "g": "f",
+   "age": "young",
+   "timbre": "bright",
+   "accent": null,
+   "seed": 12000,
+   "tones": [
+    "professional",
+    "warm",
+    "calm",
+    "energetic",
+    "cute",
+    "anime",
+    "tough",
+    "heavy",
+    "light"
+   ],
+   "design_lang": "en",
+   "langs": [
+    "en"
+   ],
+   "quality": {},
+   "description": "A young adult woman, bright, clear voice"
+  },
+  {
+   "id": "stock-f-adult-crisp",
+   "label": "Wren",
+   "gender": "female",
+   "g": "f",
+   "age": "adult",
+   "timbre": "crisp",
+   "accent": null,
+   "seed": 13000,
+   "tones": [
+    "professional",
+    "warm",
+    "calm",
+    "energetic",
+    "cute",
+    "anime",
+    "tough",
+    "heavy",
+    "light"
+   ],
+   "design_lang": "en",
+   "langs": [
+    "en"
+   ],
+   "quality": {},
+   "description": "A adult woman, crisp, articulate voice"
+  },
+  {
+   "id": "stock-f-older-soft",
+   "label": "Willow",
+   "gender": "female",
+   "g": "f",
+   "age": "older",
+   "timbre": "soft",
+   "accent": null,
+   "seed": 14000,
+   "tones": [
+    "professional",
+    "warm",
+    "calm",
+    "energetic",
+    "cute",
+    "anime",
+    "tough",
+    "heavy",
+    "light"
+   ],
+   "design_lang": "en",
+   "langs": [
+    "en"
+   ],
+   "quality": {},
+   "description": "A older, mature woman, soft, airy voice"
+  },
+  {
+   "id": "stock-m-young-bright",
+   "label": "Reed",
+   "gender": "male",
+   "g": "m",
+   "age": "young",
+   "timbre": "bright",
+   "accent": null,
+   "seed": 21000,
+   "tones": [
+    "professional",
+    "warm",
+    "calm",
+    "energetic",
+    "cute",
+    "anime",
+    "tough",
+    "heavy",
+    "light"
+   ],
+   "design_lang": "en",
+   "langs": [
+    "en"
+   ],
+   "quality": {},
+   "description": "A young adult man, bright, clear voice"
+  },
+  {
+   "id": "stock-m-adult-deep",
+   "label": "Cedar",
+   "gender": "male",
+   "g": "m",
+   "age": "adult",
+   "timbre": "deep",
+   "accent": null,
+   "seed": 22000,
+   "tones": [
+    "professional",
+    "warm",
+    "calm",
+    "energetic",
+    "cute",
+    "anime",
+    "tough",
+    "heavy",
+    "light"
+   ],
+   "design_lang": "en",
+   "langs": [
+    "en"
+   ],
+   "quality": {},
+   "description": "A adult man, deep, resonant voice"
+  },
+  {
+   "id": "stock-m-adult-warm",
+   "label": "Slate",
+   "gender": "male",
+   "g": "m",
+   "age": "adult",
+   "timbre": "warm",
+   "accent": null,
+   "seed": 23000,
+   "tones": [
+    "professional",
+    "warm",
+    "calm",
+    "energetic",
+    "cute",
+    "anime",
+    "tough",
+    "heavy",
+    "light"
+   ],
+   "design_lang": "en",
+   "langs": [
+    "en"
+   ],
+   "quality": {},
+   "description": "A adult man, warm, rounded voice"
+  },
+  {
+   "id": "stock-m-older-deep",
+   "label": "Ridge",
+   "gender": "male",
+   "g": "m",
+   "age": "older",
+   "timbre": "deep",
+   "accent": null,
+   "seed": 24000,
+   "tones": [
+    "professional",
+    "warm",
+    "calm",
+    "energetic",
+    "cute",
+    "anime",
+    "tough",
+    "heavy",
+    "light"
+   ],
+   "design_lang": "en",
+   "langs": [
+    "en"
+   ],
+   "quality": {},
+   "description": "A older, mature man, deep, resonant voice"
+  }
+ ]
+}

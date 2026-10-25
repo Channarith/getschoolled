@@ -9,6 +9,12 @@ parentheses before the text and the reference audio is given as reference_wav_pa
 transcript the model continues the prompt, "ultimate cloning", and does not take style guidance). Not run against the
 real weights; compare against the post-processing tones by ear.
 
+design (option): VOICE DESIGN, no reference audio at all. Per the model card ("(A young woman, gentle and sweet voice)Hello, ...") the
+description goes in parentheses at the start of the text and the model invents a voice that fits it. The card warns that "Voice Design and
+Controllable Voice Cloning results can vary between runs", so a designed voice is only reproducible if it is frozen: design it once with a
+fixed seed, keep the generated clip as a reference wav, and clone from that (tts_bakeoff/voice_design). seed (option): passed to generate()
+when the installed voxcpm accepts a seed argument (the project README shows seed=42); otherwise it is dropped and logged, not an error.
+
 ref_mode (option): "continue" gives the model the reference audio AND its exact transcript, which it continues ("ultimate cloning"): best
 when the target language is the reference's language and the transcript is exactly what was said. "reference" gives the audio only
 (reference_wav_path, no prompt text): use it across languages, or when the transcript is not trustworthy; the voice carries over, the
@@ -18,6 +24,7 @@ reference when a style is set. The mode used is logged and returned as ref_mode.
 """
 from __future__ import annotations
 
+import inspect
 from pathlib import Path
 
 from .base import Adapter, write_wav
@@ -46,10 +53,14 @@ class VoxCPM2Adapter(Adapter):
             "inference_timesteps": int(self.options.get("inference_timesteps", 10)),
         }
         ref = self.options.get("reference_wav")
+        design = (self.options.get("design") or "").strip()
         mode = self.options.get("ref_mode") or ("reference" if self.options.get("style") else "continue")
         if mode not in ("continue", "reference"):
             raise ValueError(f"ref_mode must be 'continue' or 'reference', not {mode!r}")
-        if self.options.get("style") and ref:
+        if design and not ref:
+            kwargs["text"] = f"({design}){text}"   # voice design: the description replaces the reference
+            mode = "design"
+        elif self.options.get("style") and ref:
             kwargs["text"] = f"({self.options['style']}){text}"
             kwargs["reference_wav_path"] = ref
             mode = "reference"
@@ -62,10 +73,24 @@ class VoxCPM2Adapter(Adapter):
             mode = "none"
         self.last_mode = mode
         print(f"[voxcpm2] ref-mode={mode} lang={lang} reference={Path(ref).name if ref else '-'}", flush=True)
+        seed = self.options.get("seed")
+        if seed is not None:
+            if self._accepts_seed(model):
+                kwargs["seed"] = int(seed)
+            else:
+                print("[voxcpm2] this voxcpm build has no seed argument: seed ignored", flush=True)
         wav = model.generate(**kwargs)
         rate = int(getattr(getattr(model, "tts_model", model), "sample_rate", 48000))
         write_wav(out_wav, wav, rate)
         return rate
+
+    @staticmethod
+    def _accepts_seed(model) -> bool:
+        try:
+            params = inspect.signature(model.generate).parameters
+        except (TypeError, ValueError):
+            return False
+        return "seed" in params
 
     def synthesize(self, text, lang, out_wav):
         info = super().synthesize(text, lang, out_wav)

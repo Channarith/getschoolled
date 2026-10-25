@@ -20,7 +20,8 @@
    "model": "voxcpm2",
    "active": true,
    "primary_lang": "en",
-   "ai_label": "AI-generated voice of Channarith"
+   "ai_label": "AI-generated voice of Channarith",
+   "gender": "male"
   },
   {
    "id": "wei-miao",
@@ -29,7 +30,8 @@
    "model": "voxcpm2",
    "active": true,
    "primary_lang": "en",
-   "ai_label": "AI-generated voice of Wei Miao"
+   "ai_label": "AI-generated voice of Wei Miao",
+   "gender": "female"
   },
   {
    "id": "wei",
@@ -38,7 +40,96 @@
    "model": "voxcpm2",
    "active": true,
    "primary_lang": "yue",
-   "ai_label": "AI-generated voice of Wei"
+   "ai_label": "AI-generated voice of Wei",
+   "gender": "female"
+  },
+  {
+   "id": "stock-f-young-warm",
+   "label": "Sage",
+   "kind": "stock",
+   "stock": "stock-f-young-warm",
+   "model": "voxcpm2",
+   "active": false,
+   "primary_lang": "en",
+   "ai_label": "AI-generated voice (designed with VoxCPM2)",
+   "gender": "female"
+  },
+  {
+   "id": "stock-f-young-bright",
+   "label": "Lark",
+   "kind": "stock",
+   "stock": "stock-f-young-bright",
+   "model": "voxcpm2",
+   "active": false,
+   "primary_lang": "en",
+   "ai_label": "AI-generated voice (designed with VoxCPM2)",
+   "gender": "female"
+  },
+  {
+   "id": "stock-f-adult-crisp",
+   "label": "Wren",
+   "kind": "stock",
+   "stock": "stock-f-adult-crisp",
+   "model": "voxcpm2",
+   "active": false,
+   "primary_lang": "en",
+   "ai_label": "AI-generated voice (designed with VoxCPM2)",
+   "gender": "female"
+  },
+  {
+   "id": "stock-f-older-soft",
+   "label": "Willow",
+   "kind": "stock",
+   "stock": "stock-f-older-soft",
+   "model": "voxcpm2",
+   "active": false,
+   "primary_lang": "en",
+   "ai_label": "AI-generated voice (designed with VoxCPM2)",
+   "gender": "female"
+  },
+  {
+   "id": "stock-m-young-bright",
+   "label": "Reed",
+   "kind": "stock",
+   "stock": "stock-m-young-bright",
+   "model": "voxcpm2",
+   "active": false,
+   "primary_lang": "en",
+   "ai_label": "AI-generated voice (designed with VoxCPM2)",
+   "gender": "male"
+  },
+  {
+   "id": "stock-m-adult-deep",
+   "label": "Cedar",
+   "kind": "stock",
+   "stock": "stock-m-adult-deep",
+   "model": "voxcpm2",
+   "active": false,
+   "primary_lang": "en",
+   "ai_label": "AI-generated voice (designed with VoxCPM2)",
+   "gender": "male"
+  },
+  {
+   "id": "stock-m-adult-warm",
+   "label": "Slate",
+   "kind": "stock",
+   "stock": "stock-m-adult-warm",
+   "model": "voxcpm2",
+   "active": false,
+   "primary_lang": "en",
+   "ai_label": "AI-generated voice (designed with VoxCPM2)",
+   "gender": "male"
+  },
+  {
+   "id": "stock-m-older-deep",
+   "label": "Ridge",
+   "kind": "stock",
+   "stock": "stock-m-older-deep",
+   "model": "voxcpm2",
+   "active": false,
+   "primary_lang": "en",
+   "ai_label": "AI-generated voice (designed with VoxCPM2)",
+   "gender": "male"
   }
  ],
  "clips": [
