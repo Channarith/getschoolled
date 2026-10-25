@@ -24,6 +24,12 @@ from . import registry
 DESIGN_LANG = "en"
 DESIGN_SENTENCE = ("Hello, and welcome to your lesson. Today we will learn something new together, one clear step at a time, "
                    "and you can ask me to repeat anything.")
+# The sentence a voice is designed on, per design language. 'yue' is written Cantonese (spoken register); it only seeds the frozen reference
+# (the reference is cloned from in audio-only mode, so its text is never used downstream) but it is the sound the clone will copy.
+DESIGN_SENTENCES = {
+    "en": DESIGN_SENTENCE,
+    "yue": "你好，歡迎嚟到今日嘅課堂。今日我哋會一齊學啲新嘢，一步一步嚟，你有咩唔明，隨時都可以叫我再講一次。",
+}
 MIN_REF_S, MAX_REF_S = 5.0, 20.0
 
 
@@ -58,7 +64,9 @@ def freeze(voice_id: str, root: Path | None = None, takes: int = 3, adapter_fact
     """Design ``voice_id`` (a base id, or base~tone) and freeze the best take. Returns the sidecar dict. No-op when already frozen."""
     from tts_bakeoff.voice_clone import clean
 
-    base, tone = registry.split_id(voice_id)
+    base, tone, dlang = registry.split_full(voice_id)
+    design_lang = dlang or DESIGN_LANG
+    sentence = DESIGN_SENTENCES[design_lang]
     entry = registry.get(base, path)
     if tone != registry.NEUTRAL and tone not in entry.get("tones", []):
         raise registry.StockError(f"{base} has no tone {tone!r} (tones: {', '.join(entry.get('tones', []))})")
@@ -68,7 +76,7 @@ def freeze(voice_id: str, root: Path | None = None, takes: int = 3, adapter_fact
             log(f"{voice_id}: already frozen (sha {meta['sha256'][:10]}), skipped")
             return meta
     description = registry.description_for(entry, tone)
-    seed0 = registry.seed_for(entry, tone)
+    seed0 = registry.seed_for(entry, tone, dlang)
     make = adapter_factory or (lambda d, s: design_adapter(d, s))
     scored = []
     with tempfile.TemporaryDirectory() as td:
@@ -76,10 +84,10 @@ def freeze(voice_id: str, root: Path | None = None, takes: int = 3, adapter_fact
             seed = seed0 + k
             adapter = make(description, seed)
             wav = Path(td) / f"take{k}.wav"
-            adapter.synthesize(DESIGN_SENTENCE, DESIGN_LANG, wav)
+            adapter.synthesize(sentence, design_lang, wav)
             _remember_model(adapter)
             x, rate = clean.load_audio(wav)
-            a = clean.analyze(x, rate, None, DESIGN_SENTENCE, DESIGN_LANG)
+            a = clean.analyze(x, rate, None, sentence, design_lang)
             seconds = len(x) / rate
             if not (MIN_REF_S <= seconds <= MAX_REF_S):
                 a["score"] += 500   # a reference outside 5-20 s clones badly: any in-range take wins
@@ -100,7 +108,7 @@ def freeze(voice_id: str, root: Path | None = None, takes: int = 3, adapter_fact
             log(f"{voice_id}: reference cleaning skipped ({str(exc)[:80]})")
     meta = {
         "id": voice_id, "base": base, "tone": tone, "description": description, "seed": best["seed"], "chosen_take": best["take"],
-        "takes": [{k: v for k, v in s.items() if k != "_wav"} for s in scored], "sentence": DESIGN_SENTENCE, "lang": DESIGN_LANG,
+        "takes": [{k: v for k, v in s.items() if k != "_wav"} for s in scored], "sentence": sentence, "lang": design_lang,
         "model": "openbmb/VoxCPM2", "cleaned": cleaned, "sha256": registry.sha256_file(ref), "ai_generated": True,
         "label": registry.AI_LABEL, "license": registry.LICENSE_NOTE, "frozen": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
@@ -109,9 +117,10 @@ def freeze(voice_id: str, root: Path | None = None, takes: int = 3, adapter_fact
     return meta
 
 
-def build_adapter(voice_id: str, root: Path | None = None, gpu: bool = True, **extra):
-    """The only way to synthesize with a stock voice: an adapter that clones from its frozen, hash-checked reference."""
-    ref, meta = registry.require_frozen(voice_id, root)
+def build_adapter(voice_id: str, root: Path | None = None, gpu: bool = True, lang: str | None = None, path: Path = registry.STOCK, **extra):
+    """The only way to synthesize with a stock voice: an adapter that clones from its frozen, hash-checked reference. ``lang`` picks the
+    Cantonese-designed reference for a language the native speaker cleared with method 'yue-ref' (else the voice's own reference)."""
+    ref, meta = registry.require_frozen(registry.reference_id(voice_id, lang, path, root), root)
     if gpu:
         from tts_bakeoff.voice_clone.synth import require_gpu
 

@@ -83,7 +83,7 @@
     "en"
    ],
    "quality": {},
-   "description": "A adult woman, crisp, articulate voice"
+   "description": "An adult woman, crisp, articulate voice"
   },
   {
    "id": "stock-f-older-soft",
@@ -110,7 +110,7 @@
     "en"
    ],
    "quality": {},
-   "description": "A older, mature woman, soft, airy voice"
+   "description": "An older, mature woman, soft, airy voice"
   },
   {
    "id": "stock-m-young-bright",
@@ -164,7 +164,7 @@
     "en"
    ],
    "quality": {},
-   "description": "A adult man, deep, resonant voice"
+   "description": "An adult man, deep, resonant voice"
   },
   {
    "id": "stock-m-adult-warm",
@@ -191,7 +191,7 @@
     "en"
    ],
    "quality": {},
-   "description": "A adult man, warm, rounded voice"
+   "description": "An adult man, warm, rounded voice"
   },
   {
    "id": "stock-m-older-deep",
@@ -218,7 +218,223 @@
     "en"
    ],
    "quality": {},
-   "description": "A older, mature man, deep, resonant voice"
+   "description": "An older, mature man, deep, resonant voice"
+  },
+  {
+   "id": "stock-f-young-smooth",
+   "label": "Maple",
+   "gender": "female",
+   "g": "f",
+   "age": "young",
+   "timbre": "smooth",
+   "accent": null,
+   "seed": 15000,
+   "tones": [
+    "professional",
+    "warm",
+    "calm",
+    "energetic",
+    "cute",
+    "anime",
+    "tough",
+    "heavy",
+    "light"
+   ],
+   "design_lang": "en",
+   "langs": [
+    "en"
+   ],
+   "quality": {},
+   "description": "A young adult woman, smooth, even voice"
+  },
+  {
+   "id": "stock-f-young-clear",
+   "label": "Finch",
+   "gender": "female",
+   "g": "f",
+   "age": "young",
+   "timbre": "clear",
+   "accent": null,
+   "seed": 16000,
+   "tones": [
+    "professional",
+    "warm",
+    "calm",
+    "energetic",
+    "cute",
+    "anime",
+    "tough",
+    "heavy",
+    "light"
+   ],
+   "design_lang": "en",
+   "langs": [
+    "en"
+   ],
+   "quality": {},
+   "description": "A young adult woman, clear, steady voice"
+  },
+  {
+   "id": "stock-f-adult-warm",
+   "label": "Linden",
+   "gender": "female",
+   "g": "f",
+   "age": "adult",
+   "timbre": "warm",
+   "accent": null,
+   "seed": 17000,
+   "tones": [
+    "professional",
+    "warm",
+    "calm",
+    "energetic",
+    "cute",
+    "anime",
+    "tough",
+    "heavy",
+    "light"
+   ],
+   "design_lang": "en",
+   "langs": [
+    "en"
+   ],
+   "quality": {},
+   "description": "An adult woman, warm, rounded voice"
+  },
+  {
+   "id": "stock-f-adult-bright",
+   "label": "Dove",
+   "gender": "female",
+   "g": "f",
+   "age": "adult",
+   "timbre": "bright",
+   "accent": null,
+   "seed": 18000,
+   "tones": [
+    "professional",
+    "warm",
+    "calm",
+    "energetic",
+    "cute",
+    "anime",
+    "tough",
+    "heavy",
+    "light"
+   ],
+   "design_lang": "en",
+   "langs": [
+    "en"
+   ],
+   "quality": {},
+   "description": "An adult woman, bright, clear voice"
+  },
+  {
+   "id": "stock-m-young-warm",
+   "label": "Birch",
+   "gender": "male",
+   "g": "m",
+   "age": "young",
+   "timbre": "warm",
+   "accent": null,
+   "seed": 25000,
+   "tones": [
+    "professional",
+    "warm",
+    "calm",
+    "energetic",
+    "cute",
+    "anime",
+    "tough",
+    "heavy",
+    "light"
+   ],
+   "design_lang": "en",
+   "langs": [
+    "en"
+   ],
+   "quality": {},
+   "description": "A young adult man, warm, rounded voice"
+  },
+  {
+   "id": "stock-m-young-crisp",
+   "label": "Flint",
+   "gender": "male",
+   "g": "m",
+   "age": "young",
+   "timbre": "crisp",
+   "accent": null,
+   "seed": 26000,
+   "tones": [
+    "professional",
+    "warm",
+    "calm",
+    "energetic",
+    "cute",
+    "anime",
+    "tough",
+    "heavy",
+    "light"
+   ],
+   "design_lang": "en",
+   "langs": [
+    "en"
+   ],
+   "quality": {},
+   "description": "A young adult man, crisp, articulate voice"
+  },
+  {
+   "id": "stock-m-adult-smooth",
+   "label": "Heron",
+   "gender": "male",
+   "g": "m",
+   "age": "adult",
+   "timbre": "smooth",
+   "accent": null,
+   "seed": 27000,
+   "tones": [
+    "professional",
+    "warm",
+    "calm",
+    "energetic",
+    "cute",
+    "anime",
+    "tough",
+    "heavy",
+    "light"
+   ],
+   "design_lang": "en",
+   "langs": [
+    "en"
+   ],
+   "quality": {},
+   "description": "An adult man, smooth, even voice"
+  },
+  {
+   "id": "stock-m-adult-rich",
+   "label": "Pine",
+   "gender": "male",
+   "g": "m",
+   "age": "adult",
+   "timbre": "rich",
+   "accent": null,
+   "seed": 28000,
+   "tones": [
+    "professional",
+    "warm",
+    "calm",
+    "energetic",
+    "cute",
+    "anime",
+    "tough",
+    "heavy",
+    "light"
+   ],
+   "design_lang": "en",
+   "langs": [
+    "en"
+   ],
+   "quality": {},
+   "description": "An adult man, rich, full voice"
   }
  ]
 }

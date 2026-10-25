@@ -20,6 +20,9 @@ TIMBRES = {
     "deep": "deep, resonant voice",
     "soft": "soft, airy voice",
     "crisp": "crisp, articulate voice",
+    "smooth": "smooth, even voice",
+    "clear": "clear, steady voice",
+    "rich": "rich, full voice",
 }
 ACCENTS = {   # optional; a language-neutral voice leaves this out
     "us": "American English accent", "uk": "British English accent", "au": "Australian English accent",
@@ -31,12 +34,15 @@ TONES = {
     "warm": "warm, friendly, reassuring",
     "calm": "calm, soft-spoken, slow and steady",
     "energetic": "energetic, upbeat, slightly faster",
-    "cute": "cute, sweet, bright and playful",
-    "anime": "anime-style, high-pitched, lively and expressive",
+    "cute": "cute, sweet, bright and playful, clearly an adult voice",
+    "anime": "anime-style, lively, expressive and high-energy, youthful but clearly an adult voice",
     "tough": "tough, firm, a little gruff",
     "heavy": "heavy, deep and slow",
     "light": "light, gentle and airy",
 }
+# Tones are DESCRIPTIONS the model acts on, never pitch/formant DSP: Cantonese has six tones whose pitch contours carry the word, and shifting
+# pitch or formants after synthesis bends those contours (a wrong tone is a different word). 'cute' and 'anime' say 'adult' on purpose: the
+# registry has no child-like voices and a cute or anime tone must not turn into one.
 CHILD_NOTE = ("'child' would be a synthetic child-like voice for a children's platform. It is kept out of the registry (validate_registry rejects it) "
               "until the owner has decided; there is no switch that renders it.")
 
@@ -49,7 +55,8 @@ def build_description(gender: str, age: str, timbre: str, accent: str | None = N
         raise ValueError(f"unknown accent {accent!r}")
     if tone is not None and tone not in TONES:
         raise ValueError(f"unknown tone {tone!r}")
-    parts = [f"A {AGES[age]} {GENDERS[gender]}", TIMBRES[timbre]]
+    who = f"{AGES[age]} {GENDERS[gender]}"
+    parts = [f"{'An' if who[0] in 'aeiou' else 'A'} {who}", TIMBRES[timbre]]
     if accent:
         parts.append(ACCENTS[accent])
     if tone:
@@ -59,6 +66,13 @@ def build_description(gender: str, age: str, timbre: str, accent: str | None = N
 
 class DescriptionRejected(ValueError):
     pass
+
+
+_CHILDLIKE = re.compile(
+    r"\b(child\w*|kids?|toddlers?|babies|baby|infants?|little\s+(?:girl|boy|one)s?|small\s+(?:girl|boy)|boys?|girls?|schoolgirls?|schoolboys?|"
+    r"teen\w*|minors?|pre-?teen\w*|juvenile|kindergarten\w*|preschool\w*|tween\w*|loli\w*|shota)\b",
+    re.IGNORECASE,
+)
 
 
 _IMITATE = re.compile(
@@ -83,6 +97,9 @@ def validate_description(text: str) -> str:
         raise DescriptionRejected("description too long (max 240 characters)")
     if "(" in t or ")" in t:
         raise DescriptionRejected("no parentheses in a description (they delimit it)")
+    kid = _CHILDLIKE.search(t)
+    if kid:
+        raise DescriptionRejected(f"'{kid.group(0)}': child-like voices are not allowed; describe an adult voice ({CHILD_NOTE})")
     like = re.search(r"\blike\s+(?!(?:a|an|the)\b)\w+", t, re.IGNORECASE)
     if like:
         raise DescriptionRejected(f"'{like.group(0)}': 'like <name>' is not allowed; describe the voice itself (gender, age, tone)")

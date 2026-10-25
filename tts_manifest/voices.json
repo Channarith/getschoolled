@@ -117,6 +117,94 @@
       "primary_lang": "en",
       "ai_label": "AI-generated voice (designed with VoxCPM2)",
       "gender": "male"
+    },
+    {
+      "id": "stock-f-young-smooth",
+      "label": "Maple",
+      "kind": "stock",
+      "stock": "stock-f-young-smooth",
+      "model": "voxcpm2",
+      "active": false,
+      "primary_lang": "en",
+      "ai_label": "AI-generated voice (designed with VoxCPM2)",
+      "gender": "female"
+    },
+    {
+      "id": "stock-f-young-clear",
+      "label": "Finch",
+      "kind": "stock",
+      "stock": "stock-f-young-clear",
+      "model": "voxcpm2",
+      "active": false,
+      "primary_lang": "en",
+      "ai_label": "AI-generated voice (designed with VoxCPM2)",
+      "gender": "female"
+    },
+    {
+      "id": "stock-f-adult-warm",
+      "label": "Linden",
+      "kind": "stock",
+      "stock": "stock-f-adult-warm",
+      "model": "voxcpm2",
+      "active": false,
+      "primary_lang": "en",
+      "ai_label": "AI-generated voice (designed with VoxCPM2)",
+      "gender": "female"
+    },
+    {
+      "id": "stock-f-adult-bright",
+      "label": "Dove",
+      "kind": "stock",
+      "stock": "stock-f-adult-bright",
+      "model": "voxcpm2",
+      "active": false,
+      "primary_lang": "en",
+      "ai_label": "AI-generated voice (designed with VoxCPM2)",
+      "gender": "female"
+    },
+    {
+      "id": "stock-m-young-warm",
+      "label": "Birch",
+      "kind": "stock",
+      "stock": "stock-m-young-warm",
+      "model": "voxcpm2",
+      "active": false,
+      "primary_lang": "en",
+      "ai_label": "AI-generated voice (designed with VoxCPM2)",
+      "gender": "male"
+    },
+    {
+      "id": "stock-m-young-crisp",
+      "label": "Flint",
+      "kind": "stock",
+      "stock": "stock-m-young-crisp",
+      "model": "voxcpm2",
+      "active": false,
+      "primary_lang": "en",
+      "ai_label": "AI-generated voice (designed with VoxCPM2)",
+      "gender": "male"
+    },
+    {
+      "id": "stock-m-adult-smooth",
+      "label": "Heron",
+      "kind": "stock",
+      "stock": "stock-m-adult-smooth",
+      "model": "voxcpm2",
+      "active": false,
+      "primary_lang": "en",
+      "ai_label": "AI-generated voice (designed with VoxCPM2)",
+      "gender": "male"
+    },
+    {
+      "id": "stock-m-adult-rich",
+      "label": "Pine",
+      "kind": "stock",
+      "stock": "stock-m-adult-rich",
+      "model": "voxcpm2",
+      "active": false,
+      "primary_lang": "en",
+      "ai_label": "AI-generated voice (designed with VoxCPM2)",
+      "gender": "male"
     }
   ]
 }
