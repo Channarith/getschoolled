@@ -7,7 +7,6 @@ import { usePathname } from "next/navigation";
 import { isImmersiveSetupPath } from "../lib/layoutWidth";
 import { useDemoOnlyAnonymous, useSignedIn } from "../lib/flags";
 import { useT } from "../lib/i18n";
-import LanguagePicker from "./LanguagePicker";
 
 // Localized site footer (shared on every page). Client component so the labels
 // respond to the language picker instead of being hardcoded English.
@@ -37,9 +36,6 @@ export default function SiteFooter() {
       <Link href="/contact">{t("footer.contact")}</Link>
       <Link href="/download">{t("footer.getApp")}</Link>
       <span>· {t("footer.disclaimer")}</span>
-      <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6 }}>
-        {t("footer.language")}: <LanguagePicker compact />
-      </span>
     </footer>
   );
 }

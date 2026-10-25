@@ -122,9 +122,16 @@ def test_paid_session_still_advances_after_ten_minutes(tmp_path):
     assert session.path_pos == 1
 
 
-def test_teach_start_downgrades_an_unpaid_full_request(tmp_path):
+def test_teach_start_downgrades_an_unpaid_full_request(tmp_path, monkeypatch):
+    import theodore_course_studio.caller_claims as claims
     import theodore_course_studio.main as main_mod
 
+    # An explicit "full" request is verified against the identity service, flag or no flag: the request's own
+    # registered / is_admin / enrollment_status fields are never the proof.
+    users = {"Bearer user": {"id": "u1", "is_admin": False}, "Bearer admin": {"id": "u9", "is_admin": True}}
+    monkeypatch.setattr(claims, "_fetch_me", lambda auth: users.get(auth))
+    monkeypatch.delenv("STUDIO_VERIFY_CLAIMS", raising=False)
+    claims._CACHE.clear()
     old_builder = main_mod._builder
     old_teach_builder = main_mod._teach._builder
     shared = CourseBuilder(data_dir=tmp_path / "data")
@@ -133,46 +140,27 @@ def test_teach_start_downgrades_an_unpaid_full_request(tmp_path):
     try:
         course = _mini(shared, "api-sample")
         client = TestClient(main_mod.app)
-        unpaid = client.post("/api/studio/teach/start", json={
-            "session_id": "api-sample-1",
-            "course_id": course.course_id,
-            "access": "full",
-            "registered": True,
-            "enrollment_status": "enrolled",
-            "use_voice_agent": False,
-        })
+        base = {"course_id": course.course_id, "access": "full", "use_voice_agent": False}
+        unpaid = client.post("/api/studio/teach/start", json={**base, "session_id": "api-sample-1", "registered": True,
+                                                              "enrollment_status": "enrolled"}, headers={"authorization": "Bearer user"})
         assert unpaid.status_code == 200, unpaid.text
         assert unpaid.json()["access_mode"] == "sample"
         assert unpaid.json()["sample"]["minutes"] == 10
 
-        paid = client.post("/api/studio/teach/start", json={
-            "session_id": "api-full-1",
-            "course_id": course.course_id,
-            "access": "full",
-            "registered": True,
-            "enrollment_status": "paid",
-            "use_voice_agent": False,
-        })
-        assert paid.status_code == 200, paid.text
-        assert paid.json()["access_mode"] == "full"
+        anonymous = client.post("/api/studio/teach/start", json={**base, "session_id": "api-anon-1", "registered": True,
+                                                                 "enrollment_status": "paid", "is_admin": True})
+        assert anonymous.status_code == 200, anonymous.text
+        assert anonymous.json()["access_mode"] == "sample"
 
-        admin = client.post("/api/studio/teach/start", json={
-            "session_id": "api-admin-1",
-            "course_id": course.course_id,
-            "access": "full",
-            "is_admin": True,
-            "use_voice_agent": False,
-        })
+        admin = client.post("/api/studio/teach/start", json={**base, "session_id": "api-admin-1"},
+                            headers={"authorization": "Bearer admin"})
         assert admin.status_code == 200, admin.text
         assert admin.json()["access_mode"] == "full"
 
         authoring = client.post("/api/studio/teach/start", json={
-            "session_id": "api-author-1",
-            "course_id": course.course_id,
-            "use_voice_agent": False,
-        })
+            "session_id": "api-author-1", "course_id": course.course_id, "use_voice_agent": False})
         assert authoring.status_code == 200, authoring.text
-        assert authoring.json()["access_mode"] == "full"
+        assert authoring.json()["access_mode"] == "full"  # the authoring studio (no access mode, not a public course) is unchanged
     finally:
         main_mod._builder = old_builder
         main_mod._teach._builder = old_teach_builder

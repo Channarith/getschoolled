@@ -2175,6 +2175,7 @@ export async function getLearnLanguages(): Promise<{ languages: LangInfo[]; coun
 export type CatalogVoice = {
   id: string; label: string; language: string; locale: string;
   accent: string; gender: string; dialect: string;
+  edge_voice?: string;   // the edge-tts voice name behind this catalog id (en-US-AriaNeural)
 };
 export type VoiceGroup = { language: string; voices: CatalogVoice[] };
 export async function getTtsVoices(): Promise<{ groups: VoiceGroup[] }> {

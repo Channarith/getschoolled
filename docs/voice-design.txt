@@ -123,3 +123,49 @@ What Wei should listen for (per voice, per tone, both methods)
   2. Natural spoken Cantonese (not Mandarin-flavoured, no English accent, final particles like 㗎 呀 喎 sound right).
   3. Cute and anime: lively and sweet, still an adult. Not OK if it sounds like a child or a cartoon caricature.
   4. Same speaker (gender, age, timbre) in every sentence; no hiss, clicks, cut-off words or repeated syllables.
+
+
+Sage is the default Salane Voice (owner decision, 2026-10-25)
+  The owner listened in the Listening Lab and chose the designed voice Sage (stock-f-young-warm) as the default "Salane Voice": it sounds much better
+  than the edge-tts voice. tts_manifest/voices.json carries "default": true on exactly one voice (the tests refuse two, an inactive one, one without a
+  gender or primary_lang, or a designed one that is not cleared in its primary language). stock_voices.json records the clearance:
+  cleared.en = {by: "Channarith (owner)", on: 2026-10-25, method: en-ref, tones: neutral only}. English only: no other language is cleared.
+  python3 -m tts_bakeoff.voice_design clear --id <id> --lang en --by <name> --default      switches a voice on AND makes it the default (moves the flag)
+
+  What the visitor hears (web apps/web/app/lib/cloneVoice.ts resolveVoice; the same rules in apps/mobile/src/cloneVoice.ts, the Vision Play page
+  (clone_voice.js) and the course studio (voice_choice.js)):
+    1. a company/designed voice picked on purpose, while it is still published (a withdrawn or stale id falls through to 3);
+    2. an edge voice picked on purpose (aoep_voice_explicit = "1", or a Microsoft voice name), or any tone: the live edge-tts voice speaks;
+       the pre-rendered default is the plain voice, so a tone cannot ride on it;
+    3. otherwise the published default (Sage). This covers a visitor who never chose and one whose stored choice was the old automatic voice.
+  An id the app wrote itself to follow the language (en_gb_f ...) is NOT a deliberate choice, so a UK visitor still gets Sage and keeps en-GB menus.
+  A line Sage has no clip for (per-learner slides, answers built from course text, any language but English) falls back to the live edge-tts voice of
+  the same gender (female) and the same language; in the course studio it keeps the baked course narration. Never silent, never the browser voice
+  unless every server path fails. voices.json is awaited at most 1.5 s, so a slow or missing file only means the live voice speaks.
+
+  ONE control: the voice. The account menu, the footer and the mobile app have no separate Language setting any more. Voices are listed by language
+  (each language's own name as the header, a search box on top; "Salane Voice (Sage)" opens the English group, every other language opens with its own
+  "Salane Voice (default)"). Picking a voice sets the app language: an edge voice by its locale (en-GB/en-AU/en-SG keep the accent, zh-HK is Cantonese,
+  zh-CN/zh-TW Mandarin), a company/designed voice by its primary_lang (Channarith en, Wei Miao en, Wei yue; same language family keeps the current accent).
+  Start-up: a stored deliberate voice decides the language, else the stored language of an older release, else the browser's language with that
+  language's Salane Voice. Using a company voice for lines in another language never changes the language. If a language has no translated course text
+  the lesson falls back silently (English text, the voice still speaks its language); nothing is shown about it.
+
+Rendering every fixed spoken line for Sage (the Spark; English only)
+  tts_manifest/demo_voice_manifest.json now covers every fixed line the apps say, not only the courses: Driver's Ed 84, landing mascot 3, Vision Play
+  351 (tutorial prompts and quiz questions), On the Go course lines, and the On the Go fixed phrases (tts_bakeoff/demo_voice/fixed_lines.py, demo
+  "on_the_go_fixed": 121 lines: the answers to pause/resume/skip/repeat/restart, "Speed set to N times." for every speed 0.7 to 1.6, the question-limit
+  messages for every retry second 1 to 60, "Playing <title>." / "Next course: <title>." for the 16 curated demo courses, the short course list,
+  the away/back prompts). A test compares the keys OnTheGo.tsx speaks with this list, so a new spoken line cannot slip by.
+  Not spoken today, so not in the list: the demo and game tutorials (text overlays), the friendly mascot error messages, the widget status text.
+  Cannot be enumerated (fall back to the edge voice): answers built from the course text, a course name the visitor made up, per-learner slides.
+  Refresh after changing any of them:
+    python3 -m tts_bakeoff.demo_voice.fixed_lines --capture        # needs the network for the 16 course titles
+    python3 -m tts_bakeoff.demo_voice.manifest --offline
+  Render (resumable: finished clips are skipped) and publish:
+    cd ~/code/gs-main && git fetch -q origin && git checkout -q --detach origin/main
+    scripts/gs_run.sh --name sage-demo-render --gpu -- env TORCHDYNAMO_DISABLE=1 PYTHONPATH=$PWD:$PWD/packages/shared/src $HOME/venvs/voxcpm/bin/python \
+        -m tts_bakeoff.demo_voice.render run --voice stock-f-young-warm
+  (the voice speaks the languages it is cleared for: English. The first run needs the frozen reference: voice_design freeze --voices stock-f-young-warm.)
+  Other languages can follow once someone who speaks them has listened (voice_design review-page ... clear --lang <code> --by <name>); nothing but
+  English is cleared today.

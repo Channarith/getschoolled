@@ -12,8 +12,9 @@
 // Why `vi` and `km` specifically: both are product requirements for families
 // and language learners.
 //
-// Persistence: the user's pick is stored in localStorage so a return
-// visit lands in the same language without flicker.
+// Persistence: the language is stored in localStorage so a return visit lands
+// in the same language without flicker. It is set by picking a VOICE (the one
+// control; see voiceLanguage.ts), never by a separate language menu.
 
 "use client";
 
@@ -30,6 +31,8 @@ import { getMe, getToken, setAccountLanguage } from "./api";
 import { englishVariety, englishVoiceForLocale, varyEnglish } from "./englishVariety";
 import { setTrainingLocale, trainingLocaleFromUi } from "./trainingLocale";
 import { getVoicePrefs, setVoicePrefs } from "./voicePrefs";
+import { explicitEdgeVoice } from "./cloneVoice";
+import { initialLocale } from "./voiceLanguage";
 
 const DEFAULT_LOCALE: Locale = "en";
 const STORAGE_KEY = "aiclassroom.locale.v1";
@@ -38,16 +41,8 @@ function isSupported(code: string): code is Locale {
   return (LOCALES as readonly string[]).includes(code);
 }
 
-export function detectInitialLocale(): Locale {
-  if (typeof window === "undefined") return DEFAULT_LOCALE;
-  // 1. User's explicit pick wins.
-  try {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (stored && isSupported(stored)) return stored;
-  } catch {
-    /* localStorage may be blocked in private mode */
-  }
-  // 2. Browser language. zh-HK / yue is Cantonese; other zh tags stay Mandarin.
+/** The browser's own language as a supported locale ("" when none): zh-HK / yue is Cantonese, other zh tags stay Mandarin. */
+function browserLocale(): Locale | "" {
   const tags = (navigator.languages || [navigator.language || ""]).map((c) =>
     (c || "").toLowerCase().replace(/_/g, "-"),
   );
@@ -62,7 +57,24 @@ export function detectInitialLocale(): Locale {
     const base = tag.split("-")[0];
     if (isSupported(base)) return base;
   }
-  return DEFAULT_LOCALE;
+  return "";
+}
+
+// The language follows the VOICE (there is no separate language setting): a voice the visitor picked on purpose decides it, then a
+// stored language from an older release, then the browser's language. Older keys keep being read, so nobody's language is lost.
+export function detectInitialLocale(): Locale {
+  if (typeof window === "undefined") return DEFAULT_LOCALE;
+  let stored = "";
+  let edgeVoiceId = "";
+  try {
+    stored = window.localStorage.getItem(STORAGE_KEY) || "";
+    edgeVoiceId = explicitEdgeVoice();
+  } catch {
+    /* localStorage may be blocked in private mode */
+  }
+  return initialLocale({
+    storedLocale: stored, edgeVoiceId, browserLocale: browserLocale(), supported: LOCALES, fallback: DEFAULT_LOCALE,
+  }) as Locale;
 }
 
 function interpolate(template: string, vars?: Record<string, string | number>): string {

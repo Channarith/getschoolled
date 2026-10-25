@@ -53,11 +53,8 @@ export function courseStudioFrameSrc(opts: {
   if (opts.presentation === "audio") url.searchParams.set("presentation", "audio");
   if (opts.demo) url.searchParams.set("demo", "1");
   if (opts.intro) url.searchParams.set("intro", "1");
-  if (opts.access === "full") {
-    url.searchParams.set("registered", "1");
-    if (opts.isAdmin) url.searchParams.set("admin", "1");
-    else url.searchParams.set("enrollment", PAID_ENROLLMENT_STATUS);
-  }
+  // No registered / admin / enrollment claims in the URL: the studio server decides who may take the full class from
+  // the login (identity service) and the purchase ledger. Anything the address bar says is ignored there.
   if (opts.accountId) url.searchParams.set("account", opts.accountId);
   if (opts.learnerId) url.searchParams.set("student", opts.learnerId);
   if (!fromEnv) return `${url.pathname}?${url.searchParams.toString()}`;

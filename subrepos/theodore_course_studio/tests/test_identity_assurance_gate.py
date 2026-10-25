@@ -9,6 +9,15 @@ import pytest
 from fastapi.testclient import TestClient
 
 
+@pytest.fixture(autouse=True)
+def _verified_learner(monkeypatch):
+    """An explicit 'full' request is verified against the identity service: the learner is a real, logged-in account."""
+    import theodore_course_studio.caller_claims as claims
+
+    monkeypatch.setattr(claims, "_fetch_me", lambda auth: {"id": "student-1", "is_admin": False} if auth else None)
+    claims._CACHE.clear()
+
+
 @pytest.fixture()
 def course_id(monkeypatch):
     from theodore_course_studio.main import app

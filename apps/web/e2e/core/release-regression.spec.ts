@@ -375,10 +375,11 @@ test.describe("26 languages (WV-RR-09)", () => {
     expect(body).not.toMatch(/\b[a-z]+\.[a-z]+\.[a-z]+\b/);
   });
 
-  test("language selector renders on the login page", async ({ page }) => {
-    await page.goto("/");
-    const selector = page.getByRole("combobox", { name: /language/i });
-    await expect(selector).toBeVisible({ timeout: 8_000 });
+  test("the voice picker (the one language control) renders in the profile menu, with no separate Language selector", async ({ page }) => {
+    await page.goto("/login");
+    await page.locator('button[aria-haspopup="menu"]').first().click({ timeout: 15_000 });
+    await expect(page.locator("select").filter({ has: page.locator("option[value='auto:en']") }).first()).toBeVisible({ timeout: 8_000 });
+    await expect(page.getByRole("combobox", { name: /^language$/i })).toHaveCount(0);
   });
 });
 

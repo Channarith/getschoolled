@@ -8,7 +8,7 @@
 // human-grade audio, route narration through a neural TTS backend (XTTS / cloud
 // TTS via the speech service) — see speakNaturally's `audioUrl` hook.
 
-import { DEFAULT_VOICE_ID, cloneClipUrl, getSelectedVoice, selectedCloneGender } from "./cloneVoice";
+import { DEFAULT_VOICE_ID, cloneClipUrl, resolveSelectedVoice, selectedCloneGender } from "./cloneVoice";
 import {
   prosodyForStyle, type NarrationVoiceStyle, voiceNameStyleBonus,
 } from "./voiceProfiles";
@@ -489,18 +489,21 @@ export function speakNaturally(text: string, opts: SpeakOptions): void {
     }
   }).catch(() => { if (!finished && _epoch === myEpoch) speakBrowser(text, opts, done, myEpoch); });
 
-  // A selected company voice plays its pre-rendered clip for this exact text; no clip, no consent or any
-  // playback problem means the default voice speaks instead (never silent).
-  if (getSelectedVoice() === DEFAULT_VOICE_ID) { void defaultVoice(); return; }
-  // A missing clip falls back to a default voice of the SAME gender as the chosen company voice, never the other one.
-  const fallback = () => { void selectedCloneGender().then((g) => { if (g && !opts.voiceGender) opts.voiceGender = g; void defaultVoice(); }, () => { void defaultVoice(); }); };
-  cloneClipUrl(opts.locale, text).then((url) => {
+  // The narration voice is the visitor's choice, else the published default (Sage): a pre-rendered clip for this exact text and
+  // language. No clip, no consent, a slow voices.json or any playback problem means a live edge voice speaks instead, of the SAME
+  // gender and language as the chosen voice (never the other gender, never silent).
+  void resolveSelectedVoice().then((voice) => {
     if (finished || _epoch !== myEpoch) return;
-    if (!url) { fallback(); return; }
-    playCloneClip(url, opts, done, myEpoch).then((ok) => {
-      if (!ok && !finished && _epoch === myEpoch) fallback();
-    });
-  }).catch(() => { if (!finished && _epoch === myEpoch) fallback(); });
+    if (voice === DEFAULT_VOICE_ID) { void defaultVoice(); return; }
+    const fallback = () => { void selectedCloneGender().then((g) => { if (g && !opts.voiceGender) opts.voiceGender = g; void defaultVoice(); }, () => { void defaultVoice(); }); };
+    cloneClipUrl(opts.locale, text, voice).then((url) => {
+      if (finished || _epoch !== myEpoch) return;
+      if (!url) { fallback(); return; }
+      playCloneClip(url, opts, done, myEpoch).then((ok) => {
+        if (!ok && !finished && _epoch === myEpoch) fallback();
+      });
+    }).catch(() => { if (!finished && _epoch === myEpoch) fallback(); });
+  }, () => { void defaultVoice(); });
 }
 
 // Play one pre-rendered clip. Resolves true once it is playing (or was cancelled), false if it never started.

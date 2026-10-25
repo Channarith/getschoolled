@@ -62,7 +62,7 @@ export type StringKey =
   // Settings
   | "settings.title" | "settings.sub"
   | "settings.sectionNotif" | "settings.sectionLang" | "settings.sectionDiag"
-  | "settings.sectionVoice" | "settings.voiceDesc" | "settings.voiceDefault" | "voice.defaultAuto" | "voice.customGroup" | "voice.footerTitle" | "home.more"
+  | "settings.sectionVoice" | "settings.voiceDesc" | "settings.voiceDefault" | "voice.defaultAuto" | "voice.customGroup" | "voice.footerTitle" | "voice.search" | "home.more"
   | "settings.voiceAgent" | "settings.voiceAgentDesc" | "settings.voiceAgentSala" | "settings.voiceAgentXai"
   | "settings.sectionInstructor" | "settings.instructorDesc" | "settings.instructorAuto"
   | "settings.sectionTrainingLang" | "settings.trainingLangDesc"
@@ -529,7 +529,8 @@ const EN: Record<StringKey, string> = {
   "settings.voiceDefault": "Default",
   "voice.defaultAuto": "Default (auto)",
   "voice.customGroup": "Custom voices (AI-generated)",
-  "voice.footerTitle": "Language and voice",
+  "voice.footerTitle": "Voice and language",
+  "voice.search": "Search voices or languages",
   "home.more": "More",
   "settings.voiceAgent": "Voice agent",
   "settings.voiceAgentDesc": "Temporary choice for class voice. Sala is the usual teacher. xAI Voice Agent uses the speech service already configured on the server. The API key stays there.",

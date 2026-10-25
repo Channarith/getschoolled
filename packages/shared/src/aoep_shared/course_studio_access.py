@@ -97,3 +97,12 @@ def resolve_teach_access(
             return "full"
         return "sample"
     return "full"
+
+
+def purchasable_course(course_id: str):
+    """The public paid course with this id, or None. Price and title come from here, never from the browser."""
+    wanted = (course_id or "").strip()
+    for course in PUBLIC_STUDIO_COURSES:
+        if course["id"] == wanted and course.get("price_cents"):
+            return course
+    return None

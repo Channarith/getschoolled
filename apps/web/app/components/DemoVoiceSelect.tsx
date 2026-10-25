@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 
 import {
-  DEFAULT_VOICE_ID, VOICE_CHOICE_EVENT, getSelectedVoice, loadCloneVoices, setSelectedVoice, type CloneVoice,
+  DEFAULT_VOICE_ID, VOICE_CHOICE_EVENT, defaultCloneVoice, getSelectedVoice, loadCloneVoices, salaneVoiceLabel, setSelectedVoice, type CloneVoice,
 } from "../lib/cloneVoice";
 
-/** Picks the narration voice for the demos: Salane (default) or a consented company voice. Hidden until a voice is published. */
+/** Picks the narration voice for the demos: the Salane Voice (Sage, the published default) or a consented company voice. Hidden until a voice is published. */
 export default function DemoVoiceSelect({ className }: { className?: string }) {
   const [voices, setVoices] = useState<CloneVoice[]>([]);
   const [choice, setChoice] = useState(DEFAULT_VOICE_ID);
@@ -17,7 +17,7 @@ export default function DemoVoiceSelect({ className }: { className?: string }) {
       if (!alive) return;
       setVoices(v);
       const saved = getSelectedVoice();
-      setChoice(v.some((x) => x.id === saved) ? saved : DEFAULT_VOICE_ID);
+      setChoice(v.some((x) => x.id === saved && !x.default) ? saved : DEFAULT_VOICE_ID);
     });
     const sync = () => setChoice(getSelectedVoice());
     window.addEventListener(VOICE_CHOICE_EVENT, sync);
@@ -25,7 +25,9 @@ export default function DemoVoiceSelect({ className }: { className?: string }) {
   }, []);
 
   if (!voices.length) return null;
-  const current = voices.find((v) => v.id === choice);
+  const defaultId = defaultCloneVoice(voices)?.id;
+  const others = voices.filter((v) => v.id !== defaultId);   // the default is the first option, not a second copy
+  const current = choice === DEFAULT_VOICE_ID ? defaultCloneVoice(voices) : voices.find((v) => v.id === choice);
   return (
     <label className={className ?? "demo-voice-select"} style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 14 }}>
       <span>Narrator voice</span>
@@ -34,8 +36,8 @@ export default function DemoVoiceSelect({ className }: { className?: string }) {
         value={choice}
         onChange={(e) => { setChoice(e.target.value); setSelectedVoice(e.target.value); }}
       >
-        <option value={DEFAULT_VOICE_ID}>Salane (default)</option>
-        {voices.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
+        <option value={DEFAULT_VOICE_ID}>{salaneVoiceLabel(voices)}</option>
+        {others.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
       </select>
       {current && <small style={{ opacity: 0.75 }}>{current.ai_label}</small>}
     </label>

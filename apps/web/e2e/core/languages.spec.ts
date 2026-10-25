@@ -8,8 +8,8 @@ const REPO = path.resolve(__dirname, "../../../..");
 /**
  * 26 Languages (WV-LANG)
  *
- *   WV-LANG-01  Language selector is visible and functional on the login page
- *   WV-LANG-02  Switching locale changes UI strings (no raw i18n keys shown)
+ *   WV-LANG-01  The voice picker is the one language control (no separate Language selector)
+ *   WV-LANG-02  Picking a voice in another language switches the UI (no raw i18n keys shown)
  *   WV-LANG-03  26 locale codes are defined in the i18n config
  *   WV-LANG-04  TTS locale map covers all 26 languages in the mobile voice assistant
  *   WV-LANG-05  Drive Mode respects the selected training locale
@@ -56,43 +56,52 @@ test.describe("26 languages — config coverage (WV-LANG-03/04)", () => {
   });
 });
 
+
+// One control: the VOICE sets the language (see app/lib/voiceLanguage.ts). The speech catalog is stubbed so the voice list does not depend on
+// the speech service being up.
+const VOICE_CATALOG = JSON.stringify({ groups: [
+  { language: "en", voices: [{ id: "en_us_f", label: "American — Aria (F)", language: "en", locale: "en-US", accent: "American", gender: "female", dialect: "" }] },
+  { language: "es", voices: [{ id: "es_es_f", label: "Spanish (Spain) — Elvira (F)", language: "es", locale: "es-ES", accent: "Spanish (Spain)", gender: "female", dialect: "" }] },
+] });
+async function openVoiceMenu(page: import("@playwright/test").Page) {
+  await page.route("**/tts/voices", (route) => route.fulfill({ status: 200, contentType: "application/json", body: VOICE_CATALOG }));
+  await page.goto("/login");
+  await page.locator('button[aria-haspopup="menu"]').first().click({ timeout: 15_000 });
+  return page.locator("select").filter({ has: page.locator("option[value='auto:en']") }).first();
+}
+
 test.describe("26 languages — UI (WV-LANG-01/02)", () => {
-  test("language selector is visible on the login page (WV-LANG-01)", async ({
+  test("the voice picker is the one language control; there is no separate Language selector (WV-LANG-01)", async ({
     page,
   }) => {
-    await page.goto("/");
-    const selector = page.getByRole("combobox", { name: /language/i });
-    await expect(selector).toBeVisible({ timeout: 8_000 });
+    const voice = await openVoiceMenu(page);
+    await expect(voice).toBeVisible({ timeout: 8_000 });
+    const groups = await voice.locator("optgroup").evaluateAll((els) => els.map((e) => (e as HTMLOptGroupElement).label));
+    expect(groups).toContain("English");
+    expect(groups.some((g) => /espa/i.test(g))).toBe(true);
+    await expect(page.getByRole("combobox", { name: /^language$/i })).toHaveCount(0);
   });
 
-  test("switching to Spanish shows translated strings (WV-LANG-02)", async ({
+  test("picking a Spanish voice switches the language and shows translated strings (WV-LANG-02)", async ({
     page,
   }) => {
-    await page.goto("/");
-    const selector = page.getByRole("combobox", { name: /language/i });
-    if (await selector.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      // selectOption requires a string, not regex — try the Spanish option by value.
-      await selector.selectOption({ value: "es" }).catch(() =>
-        selector.selectOption({ label: "Español" }).catch(() =>
-          selector.selectOption({ label: "Spanish" })
-        )
-      );
-      await page.waitForTimeout(1_000);
-      // The UI must not show raw i18n keys after switching.
-      const body = await page.textContent("body");
-      // Raw keys look like "hero.title" or "profile.signIn".
-      const rawKeys = (body?.match(/\b[a-z]+\.[a-z]+\b/g) || []).filter(
-        (k) =>
-          !k.startsWith("http") &&
-          !k.startsWith("www") &&
-          !k.includes("@") &&
-          k.split(".").every((p) => p.length > 1)
-      );
-      // Allow up to 3 unresolved keys (some may be URLs or version strings).
-      expect(rawKeys.length).toBeLessThan(4);
-    } else {
-      test.skip(true, "Language selector not found on login page");
-    }
+    const voice = await openVoiceMenu(page);
+    await expect(voice).toBeVisible({ timeout: 8_000 });
+    await voice.selectOption("es_es_f");
+    await page.waitForTimeout(1_000);
+    expect(await page.evaluate(() => document.documentElement.lang)).toBe("es");
+    // The UI must not show raw i18n keys after switching.
+    const body = await page.textContent("body");
+    // Raw keys look like "hero.title" or "profile.signIn".
+    const rawKeys = (body?.match(/\b[a-z]+\.[a-z]+\b/g) || []).filter(
+      (k) =>
+        !k.startsWith("http") &&
+        !k.startsWith("www") &&
+        !k.includes("@") &&
+        k.split(".").every((p) => p.length > 1)
+    );
+    // Allow up to 3 unresolved keys (some may be URLs or version strings).
+    expect(rawKeys.length).toBeLessThan(4);
   });
 
   test("Spanish corporate page has no raw i18n keys (WV-LANG-06)", async ({

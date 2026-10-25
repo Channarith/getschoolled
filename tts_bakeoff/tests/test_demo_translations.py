@@ -107,7 +107,9 @@ def test_committed_manifest_has_three_voices_each_with_its_own_language_and_cant
     by = {v["id"]: v for v in people}
     assert list(by) == ["channarith", "wei-miao", "wei"]
     assert all(v.get("gender") in ("male", "female") for v in m["voices"])   # publish() reads this list: no gender here means no same-gender fallback
-    assert all(v["active"] is False for v in m["voices"] if v.get("kind") == "stock")
+    stock = [v for v in m["voices"] if v.get("kind") == "stock"]
+    assert [v["id"] for v in stock if v.get("default")] == ["stock-f-young-warm"] and stock[0]["active"] is True   # Sage: the owner's default Salane Voice
+    assert all(v["active"] is False for v in stock if not v.get("default"))   # every other designed voice waits for a listener's clearance
     assert (by["channarith"]["primary_lang"], by["wei-miao"]["primary_lang"], by["wei"]["primary_lang"]) == ("en", "en", "yue")
     assert by["wei"]["speaker"] == "wei" and by["wei-miao"]["speaker"] == "wei-miao" and all(v["model"] == "voxcpm2" for v in m["voices"])
     assert len({v["speaker"] for v in people}) == 3                      # three people/ids, never merged

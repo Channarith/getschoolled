@@ -8,12 +8,11 @@ import { AUTH_EVENT, clearToken, getToken, lockAdmin, setPreview } from "../lib/
 import { invalidatePortfolioCache } from "./BookmarkButton";
 import { useT } from "../lib/i18n";
 import { useFlag } from "../lib/flags";
-import LanguagePicker from "./LanguagePicker";
 import VoicePrefsControls from "./VoicePrefsControls";
 
 // Netflix-style profile dropdown: a single avatar button on the right of the nav
 // that opens a menu with the user's personal surfaces (profile/account, rewards,
-// themes, language, get the app, sign out) when signed in, or sign in / create
+// themes, voice, get the app, sign out) when signed in, or sign in / create
 // account when signed out. Keeps the top nav focused on content tabs.
 export default function ProfileMenu() {
   const { t } = useT();
@@ -135,12 +134,6 @@ export default function ProfileMenu() {
 
           <div style={{ borderTop: "1px solid var(--border)", margin: "8px 0", paddingTop: 8 }}>
             <div style={{ padding: "0 14px 6px", fontSize: 12, color: "var(--muted)" }}>
-              🌐 {t("profile.language")}
-            </div>
-            <div style={{ padding: "0 10px" }}>
-              <LanguagePicker />
-            </div>
-            <div style={{ padding: "10px 14px 6px", fontSize: 12, color: "var(--muted)" }}>
               🎙 {t("profile.voice")}
             </div>
             <div style={{ padding: "0 10px 4px" }}>

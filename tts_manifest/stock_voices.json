@@ -28,8 +28,19 @@
    "langs": [
     "en"
    ],
-   "quality": {},
-   "description": "A young adult woman, warm, rounded voice"
+   "quality": {
+    "en": "Owner listened in the Listening Lab and chose Sage as the default Salane Voice for English (2026-10-25: 'sounds much better' than the edge-tts voice)."
+   },
+   "description": "A young adult woman, warm, rounded voice",
+   "cleared": {
+    "en": {
+     "by": "Channarith (owner)",
+     "on": "2026-10-25",
+     "method": "en-ref",
+     "tones": [],
+     "note": "Owner listened in the Listening Lab and chose Sage as the default Salane Voice for English (2026-10-25: 'sounds much better' than the edge-tts voice)."
+    }
+   }
   },
   {
    "id": "stock-f-young-bright",
