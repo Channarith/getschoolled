@@ -1,0 +1,85 @@
+DELIVERING TRANSLATIONS TO THE CLUSTER
+======================================
+DRAFT for owner review. Nothing in this change touches production: no deploy, no kubectl apply, no bucket write.
+
+Why this exists
+  Translations are made by the v2 pipeline on the Spark (km, yue, es, zh, th, vi, hi first) and on kalel (the rest), in
+  ~/.cache/aoep/course_translations_v2/<course>/<lang>.json. The cluster never sees those folders. The only translations in the
+  cluster today are the ~157 files (1.7 MB) baked into the curriculum and identity images from data/course_translations, made before
+  the v2 pipeline (most lack provenance, so the new On the Go search treats them as not shippable and lists "English only").
+  GET /audio/search (PR #847) also answers 404 on salareen.com: the curriculum image with that route has not been deployed yet.
+
+Recommendation: object storage, private prefix (not a PVC)
+  Bucket salareen-prod (Vultr, https://sjc1.vultrobjects.com), prefix course-translations/, objects private (ACL private).
+  Reasons
+    * Size is tiny: 222 audio courses x 28 languages = 6,216 slots; at today's ~11 KB per file that is about 68 MB. Cost is
+      negligible (well under the cheapest storage tier).
+    * Survives restarts, redeploys and autoscaling: every replica rebuilds its local mirror from the bucket in seconds. A PVC is
+      ReadWriteOnce (one node), complicates the autoscaled curriculum deployment, and needs a sync job anyway.
+    * No image rebuild to ship a new language: publish, wait up to 5 minutes, done.
+    * The cluster already holds the credentials: aoep-secrets has OBJECT_STORE_ACCESS_KEY / OBJECT_STORE_SECRET_KEY, aoep-config has
+      OBJECT_STORE_ENDPOINT / OBJECT_STORE_BUCKET, and curriculum and identity load both (envFrom). No new secret.
+  Risk to know: the cluster key is the same key that can write the bucket (the voice clips use it too). The service only reads, but a
+  compromised pod could write. A read-only key for the cluster is a later hardening step (Vultr object-storage key scoped to read).
+
+How it works
+  Mac (publisher)                                   Cluster (curriculum, identity)
+  scripts/publish_translations.sh                   aoep_shared.translation_store (switched on by AOEP_TRANSLATIONS_BACKEND=bucket)
+    pull   rsync from Spark + kalel (read-only)       reads course-translations/_delivery.json, downloads ONLY the files it lists
+    build  keep only current + validator "ship"       checks size + sha256 + shape of every file, writes a local mirror folder
+    upload private objects first, manifest LAST       library_dir() returns the mirror, so every reader works unchanged
+  _delivery.json = course/lang -> sha256, size, validated_at, source_sha256, pipeline version.
+  Read-time validation stays: audio_search.shippable still checks that each file is a translation of TODAY's English and passes the v2
+  validator, so a stale or held file is never listed even if it were delivered.
+
+Fail closed
+  * Bucket unreachable, manifest missing or malformed, a file whose size/sha256/shape is wrong: nothing new is served, the previous
+    mirror stays, the request path never raises (it quietly falls back to the baked folder, or English only).
+  * Names are checked (no path escapes). Files withdrawn from the manifest are removed from the mirror at the next refresh.
+  * Refresh happens in a background thread at most once per AOEP_TRANSLATIONS_TTL_S (default 300 s). The first request after a cold start
+    waits up to AOEP_TRANSLATIONS_BOOT_WAIT_S (default 3 s) so a fresh pod already serves the bucket's files.
+
+Publisher rules (scripts/publish_translations.py)
+  * A file is published only if is_current() says it is a translation of today's English (source hash + pipeline) and the v2 validator says
+    "ship". Held, rejected, stale, partial (no segments), unprovenanced files are never published (see <staging>/_skipped.json).
+  * Newest provenance.generated_at wins between Spark and kalel. A valid published file is never replaced by a stale or held one.
+  * The _work/ folders (unfinished segments) are never pulled.
+  * Dry run is the default. Upload refuses to publish an EMPTY set, or one that drops more than half of what is live, unless --allow-shrink.
+  * Credentials come from the environment or config/local.env, are passed to the aws CLI through its environment, and are never printed.
+  * Nothing is made public. Objects are uploaded with ACL private.
+
+Owner checklist (in this order)
+  1. Publish what exists now (dry run first; it changes nothing):
+       scripts/publish_translations.sh
+     Read the per-language counts it prints. If both machines are reachable and the files are current, then:
+       scripts/publish_translations.sh --yes
+     Status of staging and of the bucket:
+       scripts/publish_translations.sh status
+  2. Deploy the curriculum image (it has GET /audio/search) and identity, with the web app as usual:
+       (set -a; . config/local.env; set +a; bash scratchpad/deploy20.sh curriculum:services/curriculum identity:services/identity web:apps/web)
+     Until curriculum is deployed, salareen.com/audio/search is 404 and the On the Go search has nothing to call.
+  3. Switch the mirror on (narrow: only the two readers; no volume needed, the mirror lives in the container's /tmp, about 70 MB):
+       kubectl -n aoep set env deploy/curriculum deploy/identity \
+         AOEP_TRANSLATIONS_BACKEND=bucket AOEP_TRANSLATIONS_PREFIX=course-translations AOEP_TRANSLATIONS_MIRROR=/tmp/aoep-course-translations
+       kubectl -n aoep rollout status deploy/curriculum deploy/identity
+     The same settings are committed as infra/k8s-vke/translations-bucket-vke.yaml (with a size-limited emptyDir for the mirror) and listed in
+     infra/k8s-vke/kustomization.yaml, for the next time you apply the whole kustomization. They are NOT applied by this change.
+  4. Verify on the live site (read-only):
+       scripts/check_translations_live.sh
+     It prints, per language, how many audio courses are "Ready". Zero everywhere with HTTP 200 means the mirror has not synced yet (wait
+     5 minutes) or nothing valid was published.
+  5. Ship more later: run scripts/publish_translations.sh --yes again after each translation batch; the services pick it up within 5 minutes.
+
+Withdraw or roll back
+  * One language or course stops being served within 5 minutes:   scripts/publish_translations.sh withdraw --lang km --yes
+    (add --course ID to limit it; add --prune to delete the objects too).
+  * Switch the mirror off again (readers return to the baked folder at the next rollout):
+       kubectl -n aoep set env deploy/curriculum deploy/identity AOEP_TRANSLATIONS_BACKEND-
+  * A bad publish cannot half-apply: files are uploaded first and the manifest last, so a failed run leaves the old set live.
+
+What this does not do
+  * It does not make translations (translate_catalog_v2.py on the Spark and kalel does) and does not review them: everything delivered is
+    machine translation until a native speaker has checked it.
+  * It delivers the AUDIO catalog (222 courses). Pass --studio to publish.py build to include the Course Studio catalog as well.
+  * Audio is still live text-to-speech in the voice the learner picked; this only delivers the translated text.
+  * Legacy scripts/translate_on_machine.sh and scripts/stage_translations.py still write the older layout; the v2 path above replaces them.

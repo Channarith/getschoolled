@@ -1,0 +1,45 @@
+# Delivered course translations: curriculum and identity mirror them from the PRIVATE object-store prefix course-translations/
+# (docs/translations-delivery.txt). The credentials (OBJECT_STORE_ACCESS_KEY / OBJECT_STORE_SECRET_KEY) and OBJECT_STORE_ENDPOINT /
+# OBJECT_STORE_BUCKET already reach both deployments through aoep-secrets / aoep-config; only the switch and the scratch folder are new.
+# Not applied by this commit. Without a published _delivery.json the services quietly keep reading the baked AOEP_COURSE_TRANSLATION_DIR.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: curriculum
+  namespace: aoep
+spec:
+  template:
+    spec:
+      containers:
+        - name: curriculum
+          env:
+            - { name: AOEP_TRANSLATIONS_BACKEND, value: "bucket" }
+            - { name: AOEP_TRANSLATIONS_PREFIX, value: "course-translations" }
+            - { name: AOEP_TRANSLATIONS_MIRROR, value: "/mirror/course-translations" }
+            - { name: AOEP_TRANSLATIONS_TTL_S, value: "300" }
+          volumeMounts:
+            - { name: translations-mirror, mountPath: /mirror }
+      volumes:
+        - name: translations-mirror
+          emptyDir: { sizeLimit: 256Mi }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: identity
+  namespace: aoep
+spec:
+  template:
+    spec:
+      containers:
+        - name: identity
+          env:
+            - { name: AOEP_TRANSLATIONS_BACKEND, value: "bucket" }
+            - { name: AOEP_TRANSLATIONS_PREFIX, value: "course-translations" }
+            - { name: AOEP_TRANSLATIONS_MIRROR, value: "/mirror/course-translations" }
+            - { name: AOEP_TRANSLATIONS_TTL_S, value: "300" }
+          volumeMounts:
+            - { name: translations-mirror, mountPath: /mirror }
+      volumes:
+        - name: translations-mirror
+          emptyDir: { sizeLimit: 256Mi }
