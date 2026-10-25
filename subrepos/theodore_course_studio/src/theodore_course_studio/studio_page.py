@@ -488,15 +488,22 @@ STUDIO_CSS = """
     #course-widget .cw-grip { flex:none; width:44px; height:44px; border:0; border-radius:12px; background:transparent; color:#d4af37;
       font:900 18px/1 system-ui,sans-serif; letter-spacing:-2px; cursor:grab; touch-action:none; }
     #course-widget .cw-grip:active { cursor:grabbing; }
-    #course-widget .cw-status { flex:1; min-width:0; margin:0; font-size:12px; line-height:1.3; color:#f6efe4; overflow:hidden; max-height:5.2em; }
-    #course-widget .cw-status[data-kind="paused"] { color:#fde68a; }
+    /* The status is a small dot (green listening, red muted, amber waiting or paused); the words live in its tooltip. */
+    #course-widget .cw-status { position:relative; flex:1; min-width:0; margin:0; height:14px; display:flex; align-items:center; }
+    #course-widget .cw-status::before { content:""; width:10px; height:10px; border-radius:50%; background:#eab308; }
+    #course-widget .cw-status[data-state="on"]::before { background:#22c55e; box-shadow:0 0 8px #22c55e; }
+    #course-widget .cw-status[data-state="muted"]::before { background:#f87171; }
+    #course-widget .cw-status[data-kind="paused"]::before { background:#fbbf24; box-shadow:0 0 8px #fbbf24; }
+    #course-widget .cw-sr { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+    /* Only the camera picture, no captions or buttons of its own, inside the panel. */
+    #course-widget .student-cam-hide, #course-widget .student-cam-status, #course-widget .student-cam-note { display:none !important; }
     #course-widget .cw-btn { flex:none; width:44px; height:44px; border:0; border-radius:12px; background:rgba(255,255,255,.08); color:#f6efe4;
       font:800 18px/1 system-ui,sans-serif; cursor:pointer; }
     #course-widget .cw-btn:focus-visible, #course-widget .cw-grip:focus-visible, #course-widget .cw-menu [role="menuitem"]:focus-visible { outline:2px solid #fde047; outline-offset:2px; }
     #course-widget .cw-body { padding:0 6px 6px; }
     #course-widget[data-collapsed="1"] .cw-body { height:0; padding:0; overflow:hidden; opacity:0; pointer-events:none; }
     #course-widget .cw-cam { border-radius:12px; overflow:hidden; }
-    html body.course-clean #course-widget #student-cam { position:static !important; width:100% !important; max-width:none !important;
+    html body.course-clean #course-widget #student-cam { position:relative !important; width:100% !important; max-width:none !important;
       left:auto !important; top:auto !important; right:auto !important; bottom:auto !important; margin:0; box-shadow:none; border-radius:12px; z-index:auto; }
     #course-widget .cw-voice { margin-top:6px; }
     html body.course-clean #course-widget #theodore-live-audio { position:static !important; left:auto !important; right:auto !important; top:auto !important;
@@ -510,7 +517,7 @@ STUDIO_CSS = """
     #course-widget .cw-menu select { width:100%; }
     /* Demo: the same widget, top-right, with the 10-minute timer inside it. The demo hides the live-audio pill and puts the camera
        and the clock in the top-left corner on their own; inside the widget they sit in its normal flow instead. */
-    html body.demo-widget #course-widget #student-cam { position:static !important; width:100% !important; max-width:none !important;
+    html body.demo-widget #course-widget #student-cam { position:relative !important; width:100% !important; max-width:none !important;
       left:auto !important; top:auto !important; right:auto !important; bottom:auto !important; margin:0; box-shadow:none; border-radius:12px; z-index:auto; }
     html body.demo-widget #course-widget #theodore-live-audio { position:static !important; left:auto !important; right:auto !important; top:auto !important;
       bottom:auto !important; width:auto !important; display:block !important; pointer-events:auto; }
@@ -518,7 +525,7 @@ STUDIO_CSS = """
       min-width:0; margin:0 0 6px; padding:2px 6px; border-radius:0; background:transparent; box-shadow:none; text-align:left; }
     html body.demo-widget #course-widget #sample-clock[hidden] { display:none !important; }
     html body.demo-widget #course-widget #sample-clock span { font:800 20px/1 ui-monospace, "SFMono-Regular", Menlo, monospace; color:#f6efe4; letter-spacing:.03em; }
-    html body.demo-widget #course-widget #sample-clock small { display:block; margin:0; font:700 10px/1.2 system-ui,sans-serif; color:#cbd5e1; letter-spacing:.08em; text-transform:uppercase; }
+    html body.demo-widget #course-widget #sample-clock small { display:none; margin:0; font:700 10px/1.2 system-ui,sans-serif; color:#cbd5e1; letter-spacing:.08em; text-transform:uppercase; }
     #course-widget .cw-clock:empty { display:none; }
     html body.demo-widget .sala-help { display:none !important; }
     @media (prefers-reduced-motion: reduce) { #course-widget, #course-widget * { transition:none !important; animation:none !important; } }
@@ -1282,6 +1289,7 @@ STUDIO_JS = """
     let serverAudio = null;
     let neuralObjectUrl = null;
     let courseVoiceGender = 'female';
+    let narrationGenderOverride = '';   // gender of the chosen company voice while its clip is missing
     let lastTeachPayload = null;
     let earlyOptions = [];
     let certOptions = [];
@@ -6452,12 +6460,18 @@ STUDIO_JS = """
       const picked = !!(choice.custom || choiceEdge);
       const clip = (holdLesson || picked) ? null : manifestClip(ttsMeta);
       const upcoming = picked ? '' : nextSlideAudioUrl(ttsMeta);
+      narrationGenderOverride = '';
       if (choice.custom) {
+        // No clip yet (or any playback problem): speak with a server voice of the SAME gender as the chosen company voice.
+        const withCustomGender = () => window.SalaVoiceChoice.customGender().catch(() => '').then((g) => {
+          narrationGenderOverride = g || '';
+          if (gen === speechGen && !settled) playOnDemand();
+        });
         window.SalaVoiceChoice.cloneClipUrl(choiceLang, spoken).then((url) => {
           if (gen !== speechGen || settled) return;
           if (url) playManifest(url, 0, 0);
-          else playOnDemand();
-        }).catch(() => { if (gen === speechGen && !settled) playOnDemand(); });
+          else withCustomGender();
+        }).catch(() => { if (gen === speechGen && !settled) withCustomGender(); });
       } else if (clip) playManifest(clip.url, clip.durationMs, 0);
       else playOnDemand();
       if (upcoming && (!clip || upcoming !== clip.url)) preloadNextSlideAudio(upcoming);
@@ -6673,8 +6687,8 @@ STUDIO_JS = """
 
     function fetchLockedVoice(text, ttsMeta) {
       const language = (ttsMeta && ttsMeta.language) || teachLanguage || 'en';
-      const gender = courseVoiceGender || (ttsMeta && ttsMeta.voice_gender) || 'female';
-      const voice = window.SalaVoiceChoice ? window.SalaVoiceChoice.edgeVoiceFor(language) : '';
+      const gender = narrationGenderOverride || courseVoiceGender || (ttsMeta && ttsMeta.voice_gender) || 'female';
+      const voice = (!narrationGenderOverride && window.SalaVoiceChoice) ? window.SalaVoiceChoice.edgeVoiceFor(language) : '';
       const attempt = (n) => fetch('/api/studio/tts', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -7724,7 +7738,7 @@ def render_studio_page() -> str:
             <div class="modality-row" id="teach-modalities"></div>
             <div class="examples-box" id="teach-examples"></div>
             <div class="lang-warning" id="lang-warning" style="display:none"></div>
-            <div class="sample-clock" id="sample-clock" hidden>
+            <div class="sample-clock" id="sample-clock" hidden title="Free demo: time left">
               <span id="sample-clock-time">10:00</span>
               <small data-i18n="freeTrial">free trial</small>
             </div>

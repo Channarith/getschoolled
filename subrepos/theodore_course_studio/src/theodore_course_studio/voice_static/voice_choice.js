@@ -93,5 +93,15 @@
     });
   }
 
-  window.SalaVoiceChoice = { chosen: chosen, edgeVoiceFor: edgeVoiceFor, cloneClipUrl: cloneClipUrl, clipHash: clipHash };
+  // Gender ("male" | "female" | "") of the chosen company voice, so a missing clip falls back to an edge voice of the same gender.
+  function customGender() {
+    var voice = chosen().custom;
+    if (!voice) return Promise.resolve("");
+    return activeVoices().then(function (voices) {
+      var v = voices.filter(function (x) { return x.id === voice; })[0];
+      return v && (v.gender === "male" || v.gender === "female") ? v.gender : "";
+    });
+  }
+
+  window.SalaVoiceChoice = { chosen: chosen, edgeVoiceFor: edgeVoiceFor, cloneClipUrl: cloneClipUrl, clipHash: clipHash, customGender: customGender };
 })();

@@ -5,7 +5,7 @@ export const DEFAULT_VOICE_ID = "default";
 export const VOICE_CHOICE_KEY = "aoep_demo_voice";
 export const VOICE_CHOICE_EVENT = "aoep-demo-voice";
 
-export type CloneVoice = { id: string; label: string; ai_label: string; active: boolean };
+export type CloneVoice = { id: string; label: string; ai_label: string; active: boolean; gender?: "male" | "female" };
 
 const ASSETS = (process.env.NEXT_PUBLIC_VOICE_ASSETS_URL || "/voice-assets").replace(/\/$/, "");
 /** Where the published clips live; the course-studio frame gets it as a URL parameter so its narration finds the same clips. */
@@ -42,6 +42,14 @@ export function loadCloneVoices(): Promise<CloneVoice[]> {
       .catch(() => []);
   }
   return voicesPromise;
+}
+
+/** Gender of the selected company voice ("male" | "female"), or "" for the default voice or an unpublished gender. */
+export async function selectedCloneGender(): Promise<"male" | "female" | ""> {
+  const id = getSelectedVoice();
+  if (id === DEFAULT_VOICE_ID) return "";
+  const voice = (await loadCloneVoices()).find((v) => v.id === id);
+  return voice?.gender === "male" || voice?.gender === "female" ? voice.gender : "";
 }
 
 export function getSelectedVoice(): string {
