@@ -200,3 +200,26 @@ def test_locked_voice_client_does_not_retry_when_no_engine():
 
     assert "res.status === 204" in STUDIO_JS
     assert "err.noEngine" in STUDIO_JS
+
+
+def test_valid_voice_id_only_accepts_edge_voice_names() -> None:
+    assert neural_tts.valid_voice_id("en-US-AriaNeural") == "en-US-AriaNeural"
+    assert neural_tts.valid_voice_id("zh-CN-liaoning-XiaobeiNeural") == "zh-CN-liaoning-XiaobeiNeural"
+    for bad in ("", "default", "../etc/passwd", "en-US-Aria", "x" * 80, "en-US-AriaNeural;rm"):
+        assert neural_tts.valid_voice_id(bad) == ""
+
+
+def test_synthesize_course_uses_the_visitors_voice_when_valid(monkeypatch) -> None:
+    seen: list[str] = []
+
+    def fake_synthesize(text, language, *, rate=1.0, gender="female", voice=""):
+        seen.append(voice)
+        return b"mp3"
+
+    monkeypatch.setattr(neural_tts, "synthesize", fake_synthesize)
+    monkeypatch.setattr(neural_tts, "stitch_mp3_chunks", lambda chunks: b"".join(chunks))
+    monkeypatch.setattr(neural_tts, "cacheable_path", lambda path: None)
+    neural_tts.synthesize_course("Hello there.", "en", voice="en-GB-SoniaNeural")
+    neural_tts.synthesize_course("Hello there again.", "en", voice="not a voice")
+    assert seen[0] == "en-GB-SoniaNeural"
+    assert seen[1] == neural_tts.voice_for("en", gender="female")

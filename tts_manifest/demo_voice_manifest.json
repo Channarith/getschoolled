@@ -43,6 +43,594 @@
  ],
  "clips": [
   {
+   "id": "drivers_ed:en:00762e8b13d9ea",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "After a crash, a safe first priority is often:",
+   "hash": "00762e8b13d9ea"
+  },
+  {
+   "id": "drivers_ed:en:00899ca7b7bf86",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "The driver on the right",
+   "hash": "00899ca7b7bf86"
+  },
+  {
+   "id": "drivers_ed:en:0165ce254bbd8c",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "California’s Basic Speed Law: never drive faster than is safe for conditions, even below the posted limit. Common posted limits include 25 mph in business or residential districts unless posted otherwise, and higher freeway limits as posted. Here are a few friendly examples. Rain is heavy — you drive below the posted limit because conditions demand it. A residential street is posted 25 mph unless another limit is posted. A clear freeway shows a higher posted limit — you still obey Basic Speed Law.",
+   "hash": "0165ce254bbd8c"
+  },
+  {
+   "id": "drivers_ed:en:0205d8a943e248",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Close your eyes and hope",
+   "hash": "0205d8a943e248"
+  },
+  {
+   "id": "drivers_ed:en:0246c9e21841cc",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "The larger vehicle",
+   "hash": "0246c9e21841cc"
+  },
+  {
+   "id": "drivers_ed:en:02d83d17f42bf4",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Nobody if you are late for work",
+   "hash": "02d83d17f42bf4"
+  },
+  {
+   "id": "drivers_ed:en:036b25649b749d",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Count a three-second gap out loud.",
+   "hash": "036b25649b749d"
+  },
+  {
+   "id": "drivers_ed:en:0385ca1e35d304",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "California rules of the road, including signs, signals, and right-of-way",
+   "hash": "0385ca1e35d304"
+  },
+  {
+   "id": "drivers_ed:en:03b8a8b3554492",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Restricted — use hands-free or pull over safely",
+   "hash": "03b8a8b3554492"
+  },
+  {
+   "id": "drivers_ed:en:03c9f12b4a1c6c",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "While driving in California, handheld phone use is:",
+   "hash": "03c9f12b4a1c6c"
+  },
+  {
+   "id": "drivers_ed:en:03cd063801a101",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Name one legal way to use a phone while driving in CA.",
+   "hash": "03cd063801a101"
+  },
+  {
+   "id": "drivers_ed:en:041fe7071405e4",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Leave immediately to avoid paperwork",
+   "hash": "041fe7071405e4"
+  },
+  {
+   "id": "drivers_ed:en:049a69f8f269f9",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Rolling through if the way looks empty",
+   "hash": "049a69f8f269f9"
+  },
+  {
+   "id": "drivers_ed:en:05e9eebf2603f1",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Required for navigation screens",
+   "hash": "05e9eebf2603f1"
+  },
+  {
+   "id": "drivers_ed:en:05f488f589e6b7",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "What do you typically need for a California provisional instruction permit?",
+   "hash": "05f488f589e6b7"
+  },
+  {
+   "id": "drivers_ed:en:063ea55e53c0e1",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "One car length only",
+   "hash": "063ea55e53c0e1"
+  },
+  {
+   "id": "drivers_ed:en:06493a7b9c6fd5",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Correct lane-change order is closest to:",
+   "hash": "06493a7b9c6fd5"
+  },
+  {
+   "id": "drivers_ed:en:06bad45c8d3f23",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Fine if you keep one hand on the wheel",
+   "hash": "06bad45c8d3f23"
+  },
+  {
+   "id": "drivers_ed:en:07500ff81bb603",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Who must stop for flashing red bus lights on an undivided road?",
+   "hash": "07500ff81bb603"
+  },
+  {
+   "id": "drivers_ed:en:0770fc6c8c221c",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Never drive faster than is safe for conditions, even below the posted limit",
+   "hash": "0770fc6c8c221c"
+  },
+  {
+   "id": "drivers_ed:en:084acd7b273494",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Only freeways have speed rules",
+   "hash": "084acd7b273494"
+  },
+  {
+   "id": "drivers_ed:en:087d80ed3432a5",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Post the crash on social media first",
+   "hash": "087d80ed3432a5"
+  },
+  {
+   "id": "drivers_ed:en:0895f9d676cff2",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "To get a provisional instruction permit in California you typically need to pass a vision exam and a knowledge test, complete required application steps, and meet age/education requirements. Confirm current rules on dmv.ca.gov before you apply. Here are a few friendly examples. You are 16, finish the application steps, pass vision and knowledge tests. You confirm age and education rules on dmv.ca.gov before you go. You bring required ID documents — not just a phone screenshot of grades.",
+   "hash": "0895f9d676cff2"
+  },
+  {
+   "id": "drivers_ed:en:08d0c9836692d4",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Move first, then signal if someone honks",
+   "hash": "08d0c9836692d4"
+  },
+  {
+   "id": "drivers_ed:en:09060f2e4735a4",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Traffic in both directions",
+   "hash": "09060f2e4735a4"
+  },
+  {
+   "id": "drivers_ed:en:0a6d59a3d80c82",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "At a four-way stop, the first vehicle to arrive goes first. If two arrive together, yield to the driver on your right. Yield to pedestrians in marked or unmarked crosswalks and to emergency vehicles with lights and sirens. Here are a few friendly examples. You arrive first at a four-way stop — you go when clear. You and another car arrive together — you yield to the driver on your right. An ambulance approaches with lights and sirens — everyone yields.",
+   "hash": "0a6d59a3d80c82"
+  },
+  {
+   "id": "drivers_ed:en:0ad2472e8717e5",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "The driver turning left always",
+   "hash": "0ad2472e8717e5"
+  },
+  {
+   "id": "drivers_ed:en:0b38f89644abc7",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "At a four-way stop, who goes first if you arrive together?",
+   "hash": "0b38f89644abc7"
+  },
+  {
+   "id": "drivers_ed:en:0b6fc093393b38",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Say the Basic Speed Law in one sentence.",
+   "hash": "0b6fc093393b38"
+  },
+  {
+   "id": "drivers_ed:en:0bb27392d688a9",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Whatever the car behind you uses",
+   "hash": "0bb27392d688a9"
+  },
+  {
+   "id": "drivers_ed:en:0d020ca8580ef3",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Honking instead of stopping",
+   "hash": "0d020ca8580ef3"
+  },
+  {
+   "id": "drivers_ed:en:0d8ad320f6406b",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Posted limits do not apply in rain",
+   "hash": "0d8ad320f6406b"
+  },
+  {
+   "id": "drivers_ed:en:0d8f2edc561361",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Check mirrors, signal, check blind spot, then move",
+   "hash": "0d8f2edc561361"
+  },
+  {
+   "id": "drivers_ed:en:0d91fcef7f2f58",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Move out of traffic if safe, hazards on, help injured, exchange info",
+   "hash": "0d91fcef7f2f58"
+  },
+  {
+   "id": "drivers_ed:en:0d94d7efe62312",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Only cars coming from the left",
+   "hash": "0d94d7efe62312"
+  },
+  {
+   "id": "drivers_ed:en:0e5412a1b27b0f",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Only cars behind the bus",
+   "hash": "0e5412a1b27b0f"
+  },
+  {
+   "id": "drivers_ed:en:0ea3c2778c8491",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Only a written note from a parent",
+   "hash": "0ea3c2778c8491"
+  },
+  {
+   "id": "drivers_ed:en:0f368d82fe2b1d",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "If safe, move out of traffic and turn on hazards. Call 911 for injuries. Exchange names, contact, license, and insurance info. Do not argue fault at the scene; report as required. Here are a few friendly examples. If safe, you move out of traffic and turn on hazards. Someone is hurt — you call 911. You exchange license, contact, and insurance info without arguing fault.",
+   "hash": "0f368d82fe2b1d"
+  },
+  {
+   "id": "drivers_ed:en:1066da57508b41",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "In California, a right turn on red generally requires:",
+   "hash": "1066da57508b41"
+  },
+  {
+   "id": "drivers_ed:en:10da4ed0feaec8",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Proof you already own a car",
+   "hash": "10da4ed0feaec8"
+  },
+  {
+   "id": "drivers_ed:en:110ccd745e1395",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "When a school bus displays flashing red lights and a stop signal arm on an undivided roadway, traffic in both directions must stop. On a divided highway, only traffic traveling the same direction as the bus must stop. Stay stopped until the lights stop and the arm is withdrawn. Here are a few friendly examples. Undivided road, bus has red lights + stop arm — traffic both ways stops. Divided highway — only same-direction traffic must stop. Lights stop and arm withdraws — you proceed when safe.",
+   "hash": "110ccd745e1395"
+  },
+  {
+   "id": "drivers_ed:en:11392fec4245f3",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "1.0%",
+   "hash": "11392fec4245f3"
+  },
+  {
+   "id": "drivers_ed:en:11478b4c05b346",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Review road signs, sharing the road, and night/weather driving in the next short lessons. Take free CA DMV practice tests until you consistently score high before your real exam. Here are a few friendly examples. You schedule signs next, then sharing the road. You take short practice quizzes after each 15–20 minute block. You avoid cramming the night before the exam alone.",
+   "hash": "11478b4c05b346"
+  },
+  {
+   "id": "drivers_ed:en:117e8e3d064405",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Signal before turns and lane changes. Check mirrors, signal, check your blind spot over your shoulder, then move smoothly. Do not change lanes in an intersection. Here are a few friendly examples. Before changing lanes: mirrors, signal, shoulder check, then move smoothly. You decide not to change lanes inside an intersection. You signal early so others can predict your turn.",
+   "hash": "117e8e3d064405"
+  },
+  {
+   "id": "drivers_ed:en:11f8baa34d8b2c",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "California requires seat belt use. Handheld phone use while driving is restricted — use hands-free or pull over safely. Distracted driving citations and crash risk are high; put the phone away. Here are a few friendly examples. Everyone buckles up before you shift into drive. You need to text — you pull over safely instead of holding the phone. Hands-free is used only when legal and still attention stays on the road.",
+   "hash": "11f8baa34d8b2c"
+  },
+  {
+   "id": "drivers_ed:en:1215c5f799fb23",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "A complete stop, then yield to pedestrians and cross traffic (unless prohibited)",
+   "hash": "1215c5f799fb23"
+  },
+  {
+   "id": "drivers_ed:en:12f4e68f574982",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Name one rule this course will teach you.",
+   "hash": "12f4e68f574982"
+  },
+  {
+   "id": "drivers_ed:en:132afdc6f98764",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Signal only after you are in the new lane",
+   "hash": "132afdc6f98764"
+  },
+  {
+   "id": "drivers_ed:en:13be6af398695d",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "In good conditions, what following gap should you aim for?",
+   "hash": "13be6af398695d"
+  },
+  {
+   "id": "drivers_ed:en:14249157bd473d",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Memorizing one friend’s wrong answers",
+   "hash": "14249157bd473d"
+  },
+  {
+   "id": "drivers_ed:en:14453b48af539d",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Use at least a three-second following gap in good conditions. Increase space in rain, fog, night, heavy traffic, or when following large trucks and motorcycles. Here are a few friendly examples. In dry daylight you pick a fixed landmark and count three seconds behind a car. Fog rolls in — you increase the gap beyond three seconds. You follow a motorcycle — you leave extra space.",
+   "hash": "14453b48af539d"
+  },
+  {
+   "id": "drivers_ed:en:14d374c7cd3c7f",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "When is a right turn on red allowed in California?",
+   "hash": "14d374c7cd3c7f"
+  },
+  {
+   "id": "drivers_ed:en:14e54d22f9db5e",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "List three things to do after a crash if it is safe.",
+   "hash": "14e54d22f9db5e"
+  },
+  {
+   "id": "drivers_ed:en:15527f53461429",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "What BAC limit applies to drivers 21 and older?",
+   "hash": "15527f53461429"
+  },
+  {
+   "id": "drivers_ed:en:155c67ac02019e",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "For drivers 21+, California’s BAC limit is generally:",
+   "hash": "155c67ac02019e"
+  },
+  {
+   "id": "drivers_ed:en:15647248c69fa6",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Only how to change a tire",
+   "hash": "15647248c69fa6"
+  },
+  {
+   "id": "drivers_ed:en:164e5927a6e7a1",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Skipping the handbook entirely",
+   "hash": "164e5927a6e7a1"
+  },
+  {
+   "id": "drivers_ed:en:1660b873ab56ce",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Name two steps you need before a provisional permit.",
+   "hash": "1660b873ab56ce"
+  },
+  {
+   "id": "drivers_ed:en:168eb9f23a947f",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "A full driver’s license from another country",
+   "hash": "168eb9f23a947f"
+  },
+  {
+   "id": "drivers_ed:en:176bf1ec65a02d",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Whoever honks first",
+   "hash": "176bf1ec65a02d"
+  },
+  {
+   "id": "drivers_ed:en:1770bd1cbd9f3e",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Only freeway etiquette",
+   "hash": "1770bd1cbd9f3e"
+  },
+  {
+   "id": "drivers_ed:en:1779dc1987bf63",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "California’s Basic Speed Law means:",
+   "hash": "1779dc1987bf63"
+  },
+  {
+   "id": "drivers_ed:en:178fd56f288a81",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Allowed anytime under 25 mph",
+   "hash": "178fd56f288a81"
+  },
+  {
+   "id": "drivers_ed:en:184f259136b139",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "At least three seconds",
+   "hash": "184f259136b139"
+  },
+  {
+   "id": "drivers_ed:en:18aae55c607446",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "On an undivided roadway, who must stop for a school bus with flashing red lights and stop arm?",
+   "hash": "18aae55c607446"
+  },
+  {
+   "id": "drivers_ed:en:18b07c569a3e2d",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "A good next study habit is:",
+   "hash": "18b07c569a3e2d"
+  },
+  {
+   "id": "drivers_ed:en:18b780d30e7f47",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "List the mirror–signal–blind-spot order.",
+   "hash": "18b780d30e7f47"
+  },
+  {
+   "id": "drivers_ed:en:1950da896c1345",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Half a second if you are late",
+   "hash": "1950da896c1345"
+  },
+  {
+   "id": "drivers_ed:en:1a3733bf708815",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "You may exceed the limit if no police are visible",
+   "hash": "1a3733bf708815"
+  },
+  {
+   "id": "drivers_ed:en:1abe6ee70a7d04",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Argue about who is at fault at the scene",
+   "hash": "1abe6ee70a7d04"
+  },
+  {
+   "id": "drivers_ed:en:1ac0cd0e64a551",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "0.15%",
+   "hash": "1ac0cd0e64a551"
+  },
+  {
+   "id": "drivers_ed:en:1b4a35dfc21687",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "0.08%",
+   "hash": "1b4a35dfc21687"
+  },
+  {
+   "id": "drivers_ed:en:1be3b8bacd2ce0",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "At a four-way stop, if two cars arrive together, who goes first?",
+   "hash": "1be3b8bacd2ce0"
+  },
+  {
+   "id": "drivers_ed:en:1bf9c8fe0ea43b",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Vision exam, knowledge test, and required application steps",
+   "hash": "1bf9c8fe0ea43b"
+  },
+  {
+   "id": "drivers_ed:en:1c7dce8139883d",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "California generally allows a right turn on red after a complete stop unless a sign prohibits it. Yield to pedestrians and cross traffic. Left on red is only allowed from a one-way street onto a one-way street when permitted. Here are a few friendly examples. Right on red after a full stop is usually OK unless a sign bans it — you still yield. You stop completely behind the line before turning right on red. Left on red is only from one-way onto one-way when allowed — you verify.",
+   "hash": "1c7dce8139883d"
+  },
+  {
+   "id": "drivers_ed:en:1d06cab6ebefa0",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Short lessons plus official CA DMV practice tests",
+   "hash": "1d06cab6ebefa0"
+  },
+  {
+   "id": "drivers_ed:en:1d527521247208",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Name the next topic you will review after this lesson.",
+   "hash": "1d527521247208"
+  },
+  {
+   "id": "drivers_ed:en:1d90fd83c3fee7",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "0.00% for all ages with no exceptions listed elsewhere",
+   "hash": "1d90fd83c3fee7"
+  },
+  {
+   "id": "drivers_ed:en:1dc51afb9a93c7",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Only watching viral driving videos",
+   "hash": "1dc51afb9a93c7"
+  },
+  {
+   "id": "drivers_ed:en:1e7af25642b2a3",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Turning only after the light turns green",
+   "hash": "1e7af25642b2a3"
+  },
+  {
+   "id": "drivers_ed:en:1ec265249efce4",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "What does this course teach?",
+   "hash": "1ec265249efce4"
+  },
+  {
+   "id": "drivers_ed:en:1f30d8701bbb9f",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "This course teaches California rules of the road: signs, signals, right-of-way, speed, and sharing the road. Move through each lesson in order. Here are a few friendly examples. You start with signs, then signals, right-of-way, and speed. Each lesson continues the California driver education course. You practice the rule on the page before the next page begins.",
+   "hash": "1f30d8701bbb9f"
+  },
+  {
+   "id": "drivers_ed:en:1f921aacf4b2f9",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "For drivers 21+, the BAC limit is 0.08%. Drivers under 21 are subject to zero-tolerance rules. Commercial drivers have a lower limit. Never drive impaired — arrange another ride. Here are a few friendly examples. You are 22 and plan to drink — you arrange a ride home, not a “I’ll be fine.” A friend under 21 learns zero-tolerance applies to them. Commercial drivers remember their BAC limit is lower.",
+   "hash": "1f921aacf4b2f9"
+  },
+  {
+   "id": "drivers_ed:en:1fbb9bbd0bd6a1",
+   "demo": "drivers_ed",
+   "lang": "en",
+   "text": "Only how to parallel park",
+   "hash": "1fbb9bbd0bd6a1"
+  },
+  {
    "id": "landing:en:05c3d88b4ba589",
    "demo": "landing",
    "lang": "en",

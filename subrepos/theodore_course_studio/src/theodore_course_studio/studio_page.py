@@ -508,6 +508,19 @@ STUDIO_CSS = """
       background:rgba(255,255,255,.08); color:#f6efe4; font:700 14px/1.2 system-ui,sans-serif; text-align:left; padding:0 12px; display:flex; align-items:center; }
     #course-widget .cw-menu .cw-info { background:transparent; color:#cbd5e1; font-weight:600; }
     #course-widget .cw-menu select { width:100%; }
+    /* Demo: the same widget, top-right, with the 10-minute timer inside it. The demo hides the live-audio pill and puts the camera
+       and the clock in the top-left corner on their own; inside the widget they sit in its normal flow instead. */
+    html body.demo-widget #course-widget #student-cam { position:static !important; width:100% !important; max-width:none !important;
+      left:auto !important; top:auto !important; right:auto !important; bottom:auto !important; margin:0; box-shadow:none; border-radius:12px; z-index:auto; }
+    html body.demo-widget #course-widget #theodore-live-audio { position:static !important; left:auto !important; right:auto !important; top:auto !important;
+      bottom:auto !important; width:auto !important; display:block !important; pointer-events:auto; }
+    html body.demo-widget #course-widget #sample-clock { position:static !important; display:flex; align-items:baseline; justify-content:space-between; gap:8px;
+      min-width:0; margin:0 0 6px; padding:2px 6px; border-radius:0; background:transparent; box-shadow:none; text-align:left; }
+    html body.demo-widget #course-widget #sample-clock[hidden] { display:none !important; }
+    html body.demo-widget #course-widget #sample-clock span { font:800 20px/1 ui-monospace, "SFMono-Regular", Menlo, monospace; color:#f6efe4; letter-spacing:.03em; }
+    html body.demo-widget #course-widget #sample-clock small { display:block; margin:0; font:700 10px/1.2 system-ui,sans-serif; color:#cbd5e1; letter-spacing:.08em; text-transform:uppercase; }
+    #course-widget .cw-clock:empty { display:none; }
+    html body.demo-widget .sala-help { display:none !important; }
     @media (prefers-reduced-motion: reduce) { #course-widget, #course-widget * { transition:none !important; animation:none !important; } }
     /* Demo tutorial and help button. */
     .sala-help { position:fixed; right:14px; top:92px; z-index:2147483000; width:40px; height:40px; border-radius:50%; border:0;
@@ -6430,9 +6443,22 @@ STUDIO_JS = """
         }
         onNarrationEnded(genCheck);
       };
-      const clip = holdLesson ? null : manifestClip(ttsMeta);
-      const upcoming = nextSlideAudioUrl(ttsMeta);
-      if (clip) playManifest(clip.url, clip.durationMs, 0);
+      // The voice picked in the account menu wins over the baked course narration: a company voice plays its
+      // pre-rendered clip (any miss falls back to the edge voice, then the course voice); an edge voice is rendered
+      // on demand in that voice. Nothing is spoken by the browser's own voice unless every server path fails.
+      const choice = (!holdLesson && window.SalaVoiceChoice) ? window.SalaVoiceChoice.chosen() : { custom: '', edge: '' };
+      const choiceLang = (ttsMeta && ttsMeta.language) || teachLanguage || 'en';
+      const choiceEdge = (!holdLesson && window.SalaVoiceChoice) ? window.SalaVoiceChoice.edgeVoiceFor(choiceLang) : '';
+      const picked = !!(choice.custom || choiceEdge);
+      const clip = (holdLesson || picked) ? null : manifestClip(ttsMeta);
+      const upcoming = picked ? '' : nextSlideAudioUrl(ttsMeta);
+      if (choice.custom) {
+        window.SalaVoiceChoice.cloneClipUrl(choiceLang, spoken).then((url) => {
+          if (gen !== speechGen || settled) return;
+          if (url) playManifest(url, 0, 0);
+          else playOnDemand();
+        }).catch(() => { if (gen === speechGen && !settled) playOnDemand(); });
+      } else if (clip) playManifest(clip.url, clip.durationMs, 0);
       else playOnDemand();
       if (upcoming && (!clip || upcoming !== clip.url)) preloadNextSlideAudio(upcoming);
 
@@ -6648,10 +6674,11 @@ STUDIO_JS = """
     function fetchLockedVoice(text, ttsMeta) {
       const language = (ttsMeta && ttsMeta.language) || teachLanguage || 'en';
       const gender = courseVoiceGender || (ttsMeta && ttsMeta.voice_gender) || 'female';
+      const voice = window.SalaVoiceChoice ? window.SalaVoiceChoice.edgeVoiceFor(language) : '';
       const attempt = (n) => fetch('/api/studio/tts', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ text: text, language: language, gender: gender })
+        body: JSON.stringify({ text: text, language: language, gender: gender, voice: voice })
       }).then((res) => {
         if (res.status === 204) { const none = new Error('no voice engine'); none.noEngine = true; throw none; }
         if (!res.ok) throw new Error('tts ' + res.status);
@@ -7769,6 +7796,7 @@ def render_studio_page() -> str:
         + """\n</script>
   <!-- Voice-first "Sala only" overlay. Reads ?voicefirst=0 to disable
        and ?typemode=1 to show the accessibility type-to-ask pill. -->
+  <script src="/api/studio/voice-overlay/voice_choice.js"></script>
   <script type="module" src="/api/studio/voice-overlay/course_voice.js" defer></script>
 </body>\n</html>\n"""
     )

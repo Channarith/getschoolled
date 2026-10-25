@@ -93,6 +93,34 @@ def vision_play(static: Path = VISION_STATIC):
 
 
 LANDING_LINES = ROOT / "apps" / "web" / "app" / "lib" / "landingVoiceLines.json"
+DRIVERS_ED_LINES = ROOT / "tts_manifest" / "drivers_ed_lines.json"   # captured from the studio API by `--capture-drivers-ed`
+
+
+def drivers_ed_capture(api: str = "https://salareen.com") -> list[str]:
+    """What the Driver's Ed demo presenter says: each slide's narration, its activity prompt and its quiz question and choices.
+
+    Read from the studio's public course list (the same slides the demo plays); the duplicates the studio keeps per build collapse here.
+    """
+    courses = _get_json(f"{api.rstrip('/')}/api/studio/courses")["courses"]
+    out: list[str] = []
+    for course in courses:
+        if course.get("category") != "driver_education" or course.get("language") != "en":
+            continue
+        for slide in course.get("slides", []):
+            quiz = slide.get("quiz_spec") or {}
+            for text in [slide.get("narration"), slide.get("activity_prompt"), quiz.get("prompt"), *(quiz.get("choices") or [])]:
+                text = normalize(text or "")
+                if text and text not in out:
+                    out.append(text)
+    return out
+
+
+def drivers_ed(path: Path = DRIVERS_ED_LINES):
+    """The committed capture of the Driver's Ed demo lines (English; other languages come through translations)."""
+    if not Path(path).is_file():
+        return []
+    rows = json.loads(Path(path).read_text(encoding="utf-8"))["lines"]
+    return [{"demo": "drivers_ed", "lang": "en", "text": t} for t in rows]
 
 
 def landing(path: Path = LANDING_LINES):
@@ -114,7 +142,7 @@ def extra(path: Path | None):
 
 def build(langs=DEFAULT_LANGS, api="https://salareen.com", extra_texts=None, vision=True, log=print, translated=True) -> dict:
     from .translations import clips as translated_clips   # lazy: translations imports this module for MANIFEST
-    items = on_the_go(langs, api, log) + (vision_play() if vision else []) + landing() + extra(extra_texts) + (translated_clips() if translated else [])
+    items = on_the_go(langs, api, log) + (vision_play() if vision else []) + landing() + drivers_ed() + extra(extra_texts) + (translated_clips() if translated else [])
     seen, clips = set(), []
     for it in items:
         text = normalize(it["text"])
@@ -138,14 +166,14 @@ def refresh_offline(path: Path = MANIFEST) -> dict:
     """Re-merge voices.json and tts_manifest/translations/ into the committed manifest without calling the curriculum API."""
     from .translations import clips as translated_clips
     m = json.loads(Path(path).read_text(encoding="utf-8"))
-    clips = [c for c in m["clips"] if "status" not in c and c["demo"] != "landing"]
+    clips = [c for c in m["clips"] if "status" not in c and c["demo"] not in ("landing", "drivers_ed")]
     seen = {(c["lang"], c["hash"]) for c in clips}
-    for it in landing():
+    for it in landing() + drivers_ed():
         text = normalize(it["text"])
         h = clip_hash(it["lang"], text)
         if text and (it["lang"], h) not in seen:
             seen.add((it["lang"], h))
-            clips.append({"id": f"landing:{it['lang']}:{h}", "demo": "landing", "lang": it["lang"], "text": text, "hash": h})
+            clips.append({"id": f"{it['demo']}:{it['lang']}:{h}", "demo": it["demo"], "lang": it["lang"], "text": text, "hash": h})
     for it in translated_clips():
         text = normalize(it["text"])
         h = clip_hash(it["lang"], text)
@@ -164,8 +192,14 @@ def main(argv=None) -> int:
     ap.add_argument("--api", default="https://salareen.com")
     ap.add_argument("--extra-texts")
     ap.add_argument("--out", default=str(MANIFEST))
+    ap.add_argument("--capture-drivers-ed", action="store_true", help="refresh tts_manifest/drivers_ed_lines.json from the studio API, then rebuild offline")
     ap.add_argument("--offline", action="store_true", help="no network: keep the committed clips, re-merge voices.json and the translations")
     args = ap.parse_args(argv)
+    if args.capture_drivers_ed:
+        lines = drivers_ed_capture(args.api)
+        DRIVERS_ED_LINES.write_text(json.dumps({"source": f"{args.api}/api/studio/courses", "lines": lines}, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+        print(f"captured {len(lines)} Driver's Ed lines")
+        args.offline = True
     m = refresh_offline() if args.offline else build(tuple(args.langs.split(",")), args.api, Path(args.extra_texts) if args.extra_texts else None)
     Path(args.out).write_text(json.dumps(m, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     by = {}

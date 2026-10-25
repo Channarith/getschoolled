@@ -322,19 +322,30 @@ def stitch_mp3_chunks(chunks: list[bytes]) -> bytes:
         return output.read_bytes()
 
 
+_EDGE_VOICE_ID = re.compile(r"^[a-z]{2,3}(?:-[A-Za-z0-9]+)+Neural$")
+
+
+def valid_voice_id(voice: str | None) -> str:
+    """The voice id if it looks like an edge neural voice name (en-US-AriaNeural), else ''."""
+    name = (voice or "").strip()
+    return name if len(name) <= 64 and _EDGE_VOICE_ID.match(name) else ""
+
+
 def synthesize_course(
     text: str,
     language: str,
     *,
     rate: float = 1.0,
     gender: str = "female",
+    voice: str = "",
 ) -> bytes:
     """One MP3 for a whole page, always in the locked course voice.
 
     Long pages are split and joined. A later page never switches to another
     speaker just because the line is longer or a request needs a retry.
+    `voice` is the visitor's own pick (an edge voice id from the voice menu); '' keeps the course voice.
     """
-    voice = voice_for(language, gender=gender)
+    voice = voice_for(language, gender=gender, voice=valid_voice_id(voice))
     chunks = split_for_speech(text)
     if not chunks:
         raise TTSUnavailable("nothing to speak")
