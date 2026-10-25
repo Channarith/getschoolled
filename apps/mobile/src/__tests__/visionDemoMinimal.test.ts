@@ -1,7 +1,13 @@
-import { readFileSync } from "fs";
-import { join } from "path";
+export {};   // makes this a module, so the declarations below stay local to this file
 
-const screen = readFileSync(join(__dirname, "..", "screens", "DemoWebScreen.tsx"), "utf8");
+// Node builtins, declared locally because the mobile typecheck intentionally omits @types/node.
+declare const __dirname: string;
+declare function require(name: "fs"): { readFileSync(path: string, encoding: string): string };
+declare function require(name: "path"): { resolve(...parts: string[]): string };
+
+const fs = require("fs");
+const path = require("path");
+const screen = fs.readFileSync(path.resolve(__dirname, "..", "screens", "DemoWebScreen.tsx"), "utf8");
 
 describe("Vision Play on the phone is just the game", () => {
   it("hides the native header bar for vision demos (Back, title, Camera check live in the game's widget menu)", () => {
