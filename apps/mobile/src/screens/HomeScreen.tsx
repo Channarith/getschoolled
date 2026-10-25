@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator, Image, ImageBackground, Modal, RefreshControl, ScrollView,
+  ActivityIndicator, Image, ImageBackground, Linking, Modal, RefreshControl, ScrollView,
   StyleSheet, Text, View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -24,6 +24,7 @@ import MascotSvg from "../components/MascotSvg";
 import AdBanner from "../components/AdBanner";
 import HomeFooter from "../components/HomeFooter";
 import { useAuth } from "../auth/AuthContext";
+import { WEB_APP_URL } from "../config";
 import { useT } from "../i18n";
 import { theme, wallpapers } from "../theme";
 
@@ -259,6 +260,11 @@ export default function HomeScreen({
                   onPress={onOpenKids}
                 />
               ) : null}
+              <HomeAction
+                icon="book-outline"
+                label={t("home.navStory")}
+                onPress={() => void Linking.openURL(`${WEB_APP_URL.replace(/\/+$/, "")}/our-story`)}
+              />
               </>
             ) : null}
           </View>

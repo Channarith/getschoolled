@@ -3,7 +3,7 @@
     "name": "Salareen",
     "slug": "aiclassroom",
     "scheme": "aiclassroom",
-    "version": "0.97.55",
+    "version": "0.97.56",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/salareen_icon_1024.png",
@@ -47,13 +47,13 @@
         "expo-image-picker",
         {
           "photosPermission": "Attach screenshots when you report a bug so we can see what went wrong.",
-          "cameraPermission": "Salareen uses your camera for live class video and the Learner Check face scan."
+          "cameraPermission": "Salareen uses your camera for live class video, the Learner Check face scan, and camera games that follow your hands and body."
         }
       ],
       [
         "expo-camera",
         {
-          "cameraPermission": "Salareen uses your camera for live class video and the Learner Check face scan.",
+          "cameraPermission": "Salareen uses your camera for live class video, the Learner Check face scan, and camera games that follow your hands and body.",
           "microphonePermission": "Salareen uses the microphone for live class audio and hands-free On the Go voice questions.",
           "recordAudioAndroid": false
         }
@@ -68,7 +68,7 @@
           "remote-notification"
         ],
         "NSMicrophoneUsageDescription": "Salareen uses the microphone for live class audio and hands-free On the Go voice questions.",
-        "NSCameraUsageDescription": "Salareen uses your camera for live class video and the Learner Check face scan.",
+        "NSCameraUsageDescription": "Salareen uses your camera for live class video, the Learner Check face scan, and camera games that follow your hands and body.",
         "NSSpeechRecognitionUsageDescription": "Salareen uses mobile speech recognition so you can ask questions hands-free in On the Go.",
         "NSLocationWhenInUseUsageDescription": "Detect when you are driving so Salareen can offer hands-free On the Go lessons.",
         "NSMotionUsageDescription": "Use device motion to improve driving detection while On the Go is enabled.",
@@ -76,7 +76,7 @@
         "NSPhotoLibraryAddUsageDescription": "Salareen only saves to your photo library if you choose to export or save learning materials.",
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "0.97.55"
+      "buildNumber": "0.97.56"
     },
     "android": {
       "package": "com.aiclassroom.app",
@@ -94,7 +94,7 @@
         "ACCESS_COARSE_LOCATION",
         "ACTIVITY_RECOGNITION"
       ],
-      "versionCode": 9755
+      "versionCode": 9756
     },
     "extra": {
       "deployMode": "cloud",

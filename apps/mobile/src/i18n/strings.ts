@@ -10,8 +10,12 @@
 import type { LocaleCode } from "./languages";
 import gapJson from "./gapFill.json" with { type: "json" };
 import packJson from "./uiPack.json" with { type: "json" };
+// Machine translations (scripts/mobile_i18n_fill.py), the lowest layer: they only fill keys no human translation covers.
+// Every entry is unreviewed and needs a native-speaker pass; see machineFill.meta.json.
+import machineJson from "./machineFill.json" with { type: "json" };
 
 const GAP = gapJson as Partial<Record<LocaleCode, Record<string, string>>>;
+const MACHINE = machineJson as Partial<Record<LocaleCode, Record<string, string>>>;
 
 export type StringKey =
   // Navigation / tabs
@@ -196,7 +200,7 @@ export type StringKey =
   | "adapt.pace.slow" | "adapt.pace.moderate" | "adapt.pace.fast"
   | "careers.searchRole" | "careers.searchLocation"
   | "careers.coverage" | "careers.apply" | "careers.tapMatch" | "careers.empty"
-  | "home.navWorlds" | "home.navCorporate" | "home.navKids"
+  | "home.navWorlds" | "home.navCorporate" | "home.navKids" | "home.navStory"
   | "home.mascotTitle" | "home.mascotBody" | "home.close"
   | "camera.title" | "camera.body" | "camera.empty" | "camera.saved" | "camera.continue"
   | "camera.retake" | "camera.open" | "camera.permission" | "camera.failed"
@@ -722,6 +726,7 @@ const EN: Record<StringKey, string> = {
   "home.navWorlds": "Worlds",
   "home.navCorporate": "Corporate",
   "home.navKids": "Kids",
+  "home.navStory": "Our Story",
   "home.mascotTitle": "Bayon Buddy",
   "home.mascotBody": "Locale-aware study buddy with the S + Bodhi leaf mark.",
   "home.close": "Close",
@@ -1474,23 +1479,24 @@ export const STRINGS: Record<LocaleCode, Dict> = {
   "en-GB": {},
   "en-AU": {},
   "en-SG": {},
-  es: { ...GAP.es, ...ES },
-  fr: { ...GAP.fr, ...FR },
-  de: { ...GAP.de, ...DE },
-  it: { ...GAP.it, ...IT },
-  pt: { ...GAP.pt, ...PT },
-  ru: { ...GAP.ru, ...RU },
-  ar: { ...GAP.ar, ...AR },
-  hi: { ...GAP.hi, ...HI },
-  zh: { ...PACK.zh, ...GAP.zh, ...ZH },
-  ja: { ...GAP.ja, ...JA },
-  ko: { ...GAP.ko, ...KO },
-  vi: { ...GAP.vi, ...VI },
-  // Fallback locales inherit English until a full translation lands.
-  nl: {}, pl: {}, uk: {}, tr: {}, he: {}, bn: {}, ur: {},
-  fa: {}, th: {}, id: {}, sw: {}, el: {}, cs: {},
-  km: { ...PACK.km, ...GAP.km, ...KM },
-  yue: { ...PACK.yue },
+  es: { ...MACHINE.es, ...GAP.es, ...ES },
+  fr: { ...MACHINE.fr, ...GAP.fr, ...FR },
+  de: { ...MACHINE.de, ...GAP.de, ...DE },
+  it: { ...MACHINE.it, ...GAP.it, ...IT },
+  pt: { ...MACHINE.pt, ...GAP.pt, ...PT },
+  ru: { ...MACHINE.ru, ...GAP.ru, ...RU },
+  ar: { ...MACHINE.ar, ...GAP.ar, ...AR },
+  hi: { ...MACHINE.hi, ...GAP.hi, ...HI },
+  zh: { ...MACHINE.zh, ...PACK.zh, ...GAP.zh, ...ZH },
+  ja: { ...MACHINE.ja, ...GAP.ja, ...JA },
+  ko: { ...MACHINE.ko, ...GAP.ko, ...KO },
+  vi: { ...MACHINE.vi, ...GAP.vi, ...VI },
+  // These have machine translations only (unreviewed); anything still missing falls back to English.
+  nl: { ...MACHINE.nl }, pl: { ...MACHINE.pl }, uk: { ...MACHINE.uk }, tr: { ...MACHINE.tr }, he: { ...MACHINE.he }, bn: { ...MACHINE.bn },
+  ur: { ...MACHINE.ur }, fa: { ...MACHINE.fa }, th: { ...MACHINE.th }, id: { ...MACHINE.id }, sw: { ...MACHINE.sw }, el: { ...MACHINE.el },
+  cs: { ...MACHINE.cs },
+  km: { ...MACHINE.km, ...PACK.km, ...GAP.km, ...KM },
+  yue: { ...MACHINE.yue, ...PACK.yue },
 };
 
 export const FALLBACK: Record<StringKey, string> = EN;
