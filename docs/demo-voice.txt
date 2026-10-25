@@ -144,3 +144,17 @@ Edge-tts tones and the tiered pre-render (backup path)
 
   COMPLIANCE: edge-tts is an unofficial client of Microsoft's Edge Read Aloud service. Serving its output live is one thing; keeping and shipping
   its audio as stored files is a bigger step. The licensed route to the same neural voices is Azure AI Speech (same voice names).
+
+
+Publishing safely (added after the 2026-10-25 incident)
+  render publish needs the CONSENT RECORDS, which live on the Spark (~/voices). Run it there. Run on a machine without them (the Mac) it now
+  refuses: it can no longer tell "consent missing" from "consent revoked", and it used to switch every company voice OFF and empty its index.json,
+  which the next upload then published (Channarith, Wei Miao and Wei vanished from the voice pickers).
+    * From a machine without the records: render publish --trust-previous published   (or --trust-previous saved-live-voices.json): voices that are ON in
+      the live list stay ON, nothing new is ever switched ON, a voice with a REVOKED marker is never listed.
+    * An empty index.json is never written over a non-empty one (unless the voice was switched off on purpose, or --allow-empty-index VOICE).
+    * render publish prints a table (voice, active, clips, coverage, languages) and warns when an ACTIVE voice covers under 90% of its manifest lines
+      (the rest fall back to a same-gender edge voice, so a lesson can change voice mid-way).
+  scripts/sync_voice_assets.sh sync compares with the published list first (public URLs, no credentials) and prints what changes for visitors.
+  It refuses (exit 2) to switch a live voice OFF (--allow-deactivate VOICE) or to cut an index below half (--allow-shrink); if the published list
+  cannot be read a real upload refuses (--skip-sanity-check to override), a dry run just says the check was skipped.

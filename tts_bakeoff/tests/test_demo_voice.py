@@ -67,8 +67,12 @@ def _convert(wav, mp3):
 
 
 @pytest.fixture
-def consented(monkeypatch):
+def consented(monkeypatch, tmp_path_factory):
     state = {"ok": True}
+    reg = tmp_path_factory.mktemp("consent-registry")   # publish refuses on a machine without consent records: stand one in
+    (reg / "channarith").mkdir()
+    (reg / "channarith" / "consent.json").write_text("{}", encoding="utf-8")
+    monkeypatch.setenv("GS_VOICES_DIR", str(reg))
 
     def req(speaker, scope="course_narration", base=None):
         if not state["ok"]:
