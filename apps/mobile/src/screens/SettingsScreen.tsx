@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  Alert, ScrollView, StyleSheet, Switch, Text, View,
+  Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View,
 } from "react-native";
 
 import {
@@ -10,6 +10,8 @@ import {
   type Instructor, type StudentProfile, type VoiceEnrollmentStatus,
 } from "../api";
 import { useAuth } from "../auth/AuthContext";
+import { diagEntryCount, initDiag, isDebugMode, setDebugMode, shareDiagReport } from "../diag/diagLog";
+import { createTapCounter } from "../secretTaps";
 import AnimatedPressable from "../components/AnimatedPressable";
 import DropdownListSelector from "../components/DropdownListSelector";
 import BiometricSetupModal from "../components/BiometricSetupModal";
@@ -52,12 +54,14 @@ type Props = {
   onOpenTraining?: () => void;
   onOpenBugReport?: () => void;
   onSignIn?: () => void;
+  /** Opens the hosted camera check (camera, face, hand tracking) inside the app. */
+  onOpenCameraCheck?: () => void;
 };
 
 export default function SettingsScreen({
   onAuthChange, onOpenLearningProfile, drivingStatus, onDrivingSettingsChange,
   guestMode = false, onOpenAccount, onOpenRewards, onOpenLanguages, onOpenBilling,
-  onOpenHomework, onOpenTraining, onOpenBugReport, onSignIn,
+  onOpenHomework, onOpenTraining, onOpenBugReport, onSignIn, onOpenCameraCheck,
 }: Props) {
   const { t, locale, setLocale } = useT();
   const { playFullIntro } = useIntroSplash();
@@ -74,6 +78,10 @@ export default function SettingsScreen({
   const [trainingLocaleOpen, setTrainingLocaleOpen] = useState(false);
   const [hourOpen, setHourOpen] = useState(false);
   const [showVoiceEnroll, setShowVoiceEnroll] = useState(false);
+  const [debugOn, setDebugOn] = useState(isDebugMode());
+  // Seven quick taps on the version line switch on WebView remote debugging and verbose logs (hidden on purpose).
+  const [debugTaps] = useState(() => createTapCounter({ count: 7, windowMs: 3000 }));
+  useEffect(() => { void initDiag().then(() => setDebugOn(isDebugMode())); }, []);
   const [voiceEnrollStatus, setVoiceEnrollStatus] = useState<VoiceEnrollmentStatus | null>(null);
 
   const probeIdentity = useCallback(async () => {
@@ -562,7 +570,32 @@ export default function SettingsScreen({
       </Section>
 
       <Section title={t("settings.sectionAbout")}>
-        <Text style={styles.about}>{t("settings.aboutBody", { version: APP_VERSION })}</Text>
+        <Pressable
+          testID="settings-about"
+          onPress={() => {
+            if (!debugTaps.tap()) return;
+            const next = !debugOn;
+            setDebugOn(next);
+            void setDebugMode(next);
+            Alert.alert("Debug mode", next
+              ? "On. Camera pages show more detail and chrome://inspect can reach the WebView on Android. Tap the version 7 times again to turn it off."
+              : "Off.");
+          }}
+        >
+          <Text style={styles.about}>{t("settings.aboutBody", { version: APP_VERSION })}{debugOn ? "  ·  debug" : ""}</Text>
+        </Pressable>
+        {onOpenCameraCheck ? (
+          <Row label="Camera check" desc="Test the camera, face and hand tracking the games use. Nothing is uploaded.">
+            <AnimatedPressable onPress={onOpenCameraCheck} style={styles.btn} testID="settings-camera-check">
+              <Text style={styles.btnText} numberOfLines={2}>Run camera check</Text>
+            </AnimatedPressable>
+          </Row>
+        ) : null}
+        <Row label="Share diagnostics" desc={`A text report of device, permissions and recent camera or page problems (${diagEntryCount()} events). No pictures or audio. You see it before it goes anywhere.`}>
+          <AnimatedPressable onPress={() => void shareDiagReport()} style={styles.btn} testID="settings-share-diagnostics">
+            <Text style={styles.btnText} numberOfLines={2}>Share report</Text>
+          </AnimatedPressable>
+        </Row>
       </Section>
 
       {/* Face & voice enrolment modal */}
