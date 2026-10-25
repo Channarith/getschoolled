@@ -15,6 +15,8 @@ import {
   type AudioCourseRow,
 } from "../lib/api";
 import DriveStageLook from "./DriveStageLook";
+import OnTheGoCoursePicker from "./OnTheGoCoursePicker";
+import OnTheGoPresence from "./OnTheGoPresence";
 import SignInToUse from "./SignInToUse";
 import VideoAdBreak from "./VideoAdBreak";
 import { effectiveAdTier } from "../lib/useCourseAds";
@@ -44,6 +46,10 @@ import {
   timerLabel,
   type OnTheGoMode,
 } from "../lib/onTheGoMode";
+import {
+  DEMO_PICKER_FLAG, QuestionLimiter, cleanTitle, curatedRows, neighbourCourse, parseCourseCommand,
+  readProgress, resumeSegment, saveProgress, type CourseCommand, type Progress,
+} from "../lib/onTheGoCatalog";
 
 // Hands-free "Drive Mode": big controls, no required visuals, on-device TTS
 // narration with an autoplay queue so learners keep their eyes on the road.
@@ -63,7 +69,8 @@ function audibleCourse<T extends { segments: { text?: string }[] }>(course: T): 
 }
 
 function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
-  const experience = onTheGoExperience(mode);
+  const curatedFlag = useFlag<boolean>(DEMO_PICKER_FLAG, true);
+  const experience = onTheGoExperience(mode, { curatedPicker: curatedFlag });
   const { t, locale } = useT();
   const searchParams = useSearchParams();
   const deepLinkCourse = searchParams.get("course");
@@ -105,6 +112,11 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
   const [accountReady, setAccountReady] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(experience.sampleSeconds);
   const [demoEnded, setDemoEnded] = useState(false);
+  const [cameraActive, setCameraActive] = useState(false);
+  const [progress, setProgress] = useState<Progress>({ lastCourseId: "", courses: {} });
+  const [speechOk, setSpeechOk] = useState(false);
+  const awayPausedRef = useRef(false);
+  const limiterRef = useRef(new QuestionLimiter());
   const demoEndedRef = useRef(false);
   const queue = useRef<AudioCourseRow[]>([]);
   const recognitionRef = useRef<any>(null);
@@ -146,6 +158,44 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
   tierRef.current = tier;
   trainingLangRef.current = trainingLang;
   autoListenRef.current = autoListen;
+
+  // Remember where each course was left (only while it is actually playing, so loading the page never overwrites it).
+  useEffect(() => {
+    if (!course || !playing) return;
+    saveProgress(course.id, seg);
+    setProgress(readProgress());
+  }, [course?.id, seg, playing]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    setProgress(readProgress());
+    setSpeechOk(supportsSpeechRecognition());
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Camera starts only after the learner has tapped Start; it stays on until the course is stopped or the demo ends.
+  useEffect(() => { if (playing) setCameraActive(true); }, [playing]);
+  useEffect(() => { if (demoEnded) setCameraActive(false); }, [demoEnded]);
+
+  // Always-on listening: once the lesson plays, keep the ambient recognizer running (wake word or a real question).
+  useEffect(() => {
+    if (!course || !playing || !autoListen || driveVoiceRef.current) return;
+    if ((ambientRef.current as { __running?: boolean } | null)?.__running) return;
+    void startAmbientListening();
+  }, [course?.id, playing, autoListen]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Privacy: a hidden tab, a locked screen or a phone call ends listening; it resumes when the page is visible again.
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.hidden) {
+        try { ambientRef.current?.stop?.(); } catch { /* */ }
+        ambientRef.current = null;
+        setListening(false);
+      } else if (autoListenRef.current && playingRef.current && !driveVoiceRef.current) {
+        void startAmbientListening();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function refreshVoiceStyle() {
     const prefs = getVoicePrefs();
@@ -239,6 +289,20 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
           setPickedId(pinned.id);
           setCourse(audibleCourse(pinned));
           setSeg(0);
+          if (experience.curatedPicker) {
+            try {
+              const all = await listAudioCourses({ limit: "300" }, locale, trainingLang);
+              if (cancelled) return;
+              const cur = curatedRows(all.courses);
+              if (cur.length) {
+                const merged = cur.some((r) => r.id === row.id) ? cur : [row, ...cur];
+                setRows(merged);
+                queue.current = merged;
+                const last = readProgress().lastCourseId;
+                if (last && last !== pinned.id && merged.some((r) => r.id === last)) setPickedId(last);
+              }
+            } catch { /* the pinned course alone still plays */ }
+          }
         } catch {
           // Pinned course failed to load - fall back to the first AI course
           // the catalog returns (or whatever sampleCourses picks last).
@@ -268,7 +332,7 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
       .catch((e) => setError(String(e)))
       .finally(() => setCoursesLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cat, q, locale, trainingLang, demoOnlyAnon, experience.showTimer, experience.fullCatalog, experience.mode]);
+  }, [cat, q, locale, trainingLang, demoOnlyAnon, experience.showTimer, experience.fullCatalog, experience.mode, experience.curatedPicker]);
   useEffect(() => { refresh(); }, [refresh]);
 
   const speak = useCallback((text: string, onEnd?: () => void) => {
@@ -420,14 +484,16 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
     setError("");
     try {
       const c = audibleCourse(await getAudioCourse(id, locale, trainingLang));
-      setCourse(c); setSeg(0);
+      const startAt = resumeSegment(readProgress(), id, c.segments.length);
+      setCourse(c); setSeg(startAt);
+      awayPausedRef.current = false;
       // The voice agent speaks the class and hears questions. Connect it
       // before the first segment so playback does not fall back to a wake phrase.
       if (experience.salaAgent && autoListenRef.current && micReadyRef.current) {
         const voiced = await beginDriveVoice(c);
         if (!voiced) setAssistantStatus(t("drive.voiceAgentOff"));
       }
-      playSeg(c, 0);
+      playSeg(c, startAt);
     } catch (e) { setError(String(e)); }
   }
 
@@ -537,6 +603,8 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
     setPlaying(false);
     setCourse(null);
     setAssistantOpen(false);
+    setCameraActive(false);
+    awayPausedRef.current = false;
   }
 
   function pauseForAssistant(status = t("drive.listenStatus")) {
@@ -641,6 +709,7 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
 
   async function startAmbientListening() {
     if (!autoListenRef.current || !supportsSpeechRecognition()) return;
+    if (typeof document !== "undefined" && document.hidden) return;
     if (!micReadyRef.current) {
       const access = await ensureMicAccess();
       if (access !== "ok") {
@@ -828,12 +897,90 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
     handleAssistantQuestion(cleaned);
   }
 
+  // Say a short line in the chosen voice, then continue (used for course commands and friendly limits).
+  function announceThen(text: string, then?: () => void) {
+    setAssistantAnswer(text);
+    setAssistantStatus(text);
+    setAssistantOpen(true);
+    playGenRef.current++;
+    cancelSpeech();
+    const gen = playGenRef.current;
+    speak(text, () => {
+      if (playGenRef.current !== gen) return;
+      then?.();
+    });
+  }
+
+  function handleCourseCommand(cmd: CourseCommand) {
+    const rows = queue.current;
+    const here = courseRef.current?.id || "";
+    const go = (id: string, key: "drive.coursePlaying" | "drive.courseNextIs") => {
+      const row = rows.find((r) => r.id === id);
+      announceThen(t(key, { title: cleanTitle(row?.title || "") }), () => { setAssistantOpen(false); void startCourse(id); });
+    };
+    switch (cmd.kind) {
+      case "play":
+        go(cmd.id, "drive.coursePlaying");
+        return;
+      case "next":
+      case "previous": {
+        const n = neighbourCourse(rows, here, cmd.kind === "next" ? 1 : -1);
+        if (!n || n.id === here) { resumeAfterAssistant(0); return; }
+        go(n.id, "drive.courseNextIs");
+        return;
+      }
+      case "list": {
+        const titles = rows.slice(0, 5).map((r) => cleanTitle(r.title)).join(", ");
+        announceThen(t("drive.courseList", { titles }), () => resumeAfterAssistant(0));
+        return;
+      }
+      case "unknown":
+        announceThen(t("drive.courseUnknown", { name: cmd.wanted }), () => resumeAfterAssistant(0));
+        return;
+    }
+  }
+
+  function chooseCourse(id: string) {
+    setPickedId(id);
+    // Choosing while a lesson plays switches straight away; otherwise Start plays the pick.
+    if (courseRef.current && playingRef.current && courseRef.current.id !== id) void startCourse(id);
+  }
+
+  function toggleMic() {
+    if (autoListenRef.current) {
+      stopAmbientListening();            // also clears autoListenRef
+      setAutoListen(false);
+      setAssistantStatus(t("drive.micMuted"));
+    } else {
+      autoListenRef.current = true;
+      setAutoListen(true);               // the effect restarts the recognizer while a lesson plays
+      setAssistantStatus(t("drive.micOnAgain"));
+    }
+  }
+
+  // Looking away or leaving pauses the lesson; coming back carries on. Only a pause WE made is undone.
+  function handleAway() {
+    if (!playingRef.current || demoEndedRef.current) return;
+    awayPausedRef.current = true;
+    pause();
+    setAssistantOpen(true);
+    setAssistantStatus(t("drive.awayPaused"));
+  }
+  function handleBack() {
+    if (!awayPausedRef.current) return;
+    awayPausedRef.current = false;
+    setAssistantStatus(t("drive.backResume"));
+    resumeAfterAssistant(0);
+  }
+
   function handleAssistantQuestion(input: string) {
     if (!course) return;
     clearResumeTimer();
     const command = input.trim();
     if (!command) return;
     setAssistantTranscript(command);
+    const courseCmd = parseCourseCommand(command, queue.current, course.id);
+    if (courseCmd) { handleCourseCommand(courseCmd); return; }
     const playback = parsePlaybackCommand(command);
     if (playback) {
       const say = (key: string, vars?: Record<string, string | number>) => setAssistantAnswer(t(key, vars));
@@ -878,6 +1025,14 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
           return;
         }
       }
+    }
+    const budget = limiterRef.current.check();
+    if (!budget.ok) {
+      announceThen(
+        budget.reason === "session" ? t("drive.limitSession") : t("drive.limitRate", { seconds: budget.retryAfterS }),
+        () => resumeAfterAssistant(0),
+      );
+      return;
     }
     if (driveVoiceRef.current) {
       playGenRef.current++;
@@ -984,6 +1139,7 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
   }, [experience.showTimer, playing, secondsLeft, demoEnded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function onTransport() {
+    awayPausedRef.current = false;
     if (demoEndedRef.current) return;
     if (experience.salaAgent && (!getToken() || tierRef.current === "free")) return;
     if (playingRef.current) {
@@ -1094,6 +1250,18 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
                 ))}
               </select>
             </label>
+          ) : experience.curatedPicker ? (
+            <OnTheGoCoursePicker
+              rows={rows}
+              selectedId={pickedId || course?.id || ""}
+              loading={coursesLoading}
+              progress={progress}
+              labels={{
+                search: t("drive.pickerSearch"), choose: t("drive.chooseCourse"), none: t("drive.noMatch"),
+                loading: t("drive.loadingCourses"), resume: t("drive.pickerResume"), all: t("drive.pickerAll"),
+              }}
+              onSelect={chooseCourse}
+            />
           ) : (
             <div
               aria-label={t("drive.courseLabel")}
@@ -1142,7 +1310,7 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
                   animation: playing ? "sala-ring 1.1s ease-in-out infinite" : "none",
                 }}
               >
-                <img src="/mascots/sala-gold.png" alt="" width={120} height={156} style={{ objectFit: "contain", opacity: 0.92 }} />
+                <img src="/mascots/sala-gold-cutout.png" alt="" width={64} height={168} style={{ objectFit: "contain", height: 168, width: "auto" }} />
               </span>
               <style>{`@keyframes sala-ring { 50% { transform: scale(1.06); } }`}</style>
             </button>
@@ -1202,12 +1370,13 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
       )}
 
       {canDrive && (
-        <div style={{ position: "fixed", right: 18, bottom: 18, zIndex: 50, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
+        <div style={{ position: "fixed", left: 18, bottom: 72, zIndex: 50, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8 }}>
           {assistantOpen && assistantStatus && (
             <div role="status" aria-live="polite" style={{ maxWidth: 240, padding: "8px 12px", borderRadius: 12, background: "#0b1020", color: "#e8ecf6", fontSize: 14, boxShadow: "0 6px 20px rgba(0,0,0,.35)" }}>
               {assistantStatus}
             </div>
           )}
+          {experience.mode !== "demo" && (
           <button
             type="button"
             data-testid="on-the-go-help"
@@ -1216,21 +1385,43 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
             onClick={() => setHelpOpen(true)}
             style={{ width: 36, height: 36, borderRadius: "50%", border: "2px solid #d4af37", background: "#0b1020", color: "#fde047", fontWeight: 800, cursor: "pointer" }}
           >?</button>
+          )}
           <button
             type="button"
             data-testid="on-the-go-mascot"
-            aria-label="Pause and ask a question"
-            title="Pause and ask a question"
+            aria-label={t("drive.askSala")}
+            title={t("drive.askSala")}
             disabled={demoEnded}
-            onClick={() => { if (!listening) void startVoiceRecognition(false); }}
+            onClick={() => { if (!oneShotActiveRef.current) void startVoiceRecognition(false); }}
             style={{
-              width: 72, height: 72, padding: 0, borderRadius: "50%", cursor: "pointer",
+              position: "relative", width: 88, height: 88, padding: 0, borderRadius: "50%", cursor: "pointer",
+              display: "grid", placeItems: "center", overflow: "visible",
               border: `3px solid ${listening ? "#22c55e" : "#d4af37"}`,
-              background: "#0b1020 url(/logo-mark.webp) center/cover no-repeat",
-              boxShadow: listening ? "0 0 0 6px rgba(34,197,94,.35), 0 8px 24px rgba(0,0,0,.4)" : "0 8px 24px rgba(0,0,0,.4)",
+              background: "#0b1020",
+              boxShadow: listening ? "0 0 0 6px rgba(34,197,94,.3), 0 8px 24px rgba(0,0,0,.4)" : "0 8px 24px rgba(0,0,0,.4)",
             }}
-          />
+          >
+            <img
+              src="/mascots/sala-gold-cutout.png" alt="" width={74} height={74}
+              style={{ width: 74, height: 74, objectFit: "cover", objectPosition: "50% 4%", borderRadius: "50%", pointerEvents: "none" }}
+            />
+            <span
+              aria-hidden data-testid="on-the-go-mic-dot"
+              style={{ position: "absolute", right: 2, bottom: 4, width: 14, height: 14, borderRadius: "50%", border: "2px solid #0b1020", background: listening && autoListen ? "#22c55e" : "#6b7280" }}
+            />
+          </button>
         </div>
+      )}
+      {canDrive && (
+        <OnTheGoPresence
+          active={cameraActive}
+          micOn={autoListen}
+          micAvailable={speechOk}
+          listening={listening}
+          onToggleMic={toggleMic}
+          onAway={handleAway}
+          onBack={handleBack}
+        />
       )}
     </main>
   );
