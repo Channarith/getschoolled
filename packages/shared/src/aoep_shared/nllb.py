@@ -82,7 +82,10 @@ def _model_dtype(device):
 
     if getattr(device, "type", str(device)) != "cuda":
         return torch.float32
-    raw = (os.environ.get("NLLB_DTYPE") or "bf16").strip().lower()
+    from .nllb_profile import active
+
+    prof = active()
+    raw = (os.environ.get("NLLB_DTYPE") or (prof.dtype if prof and prof.backend == "hf" else "") or "bf16").strip().lower()
     return {"fp16": torch.float16, "bf16": torch.bfloat16, "fp32": torch.float32}.get(raw, torch.bfloat16)
 
 
@@ -99,8 +102,11 @@ def _get_model():
                 "NLLB deps missing; pip install transformers sentencepiece torch"
             )
             raise RuntimeError(_load_error)
+        from .nllb_profile import active
+
+        prof = active()
         model_id = (
-            os.environ.get("NLLB_MODEL") or "facebook/nllb-200-distilled-600M"
+            os.environ.get("NLLB_MODEL") or (prof.model if prof else "") or "facebook/nllb-200-distilled-600M"
         ).strip()
         try:
             from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
@@ -189,9 +195,14 @@ def translate_batch(
     cleaned = [" ".join((x or "").split()) for x in texts]
     if src == tgt:
         return cleaned
+    from .nllb_profile import active
+
+    prof = active()
+    if prof is not None and prof.backend == "ct2":
+        return _translate_batch_ct2(cleaned, src, tgt, prof, batch_size, num_beams, gen)
     tokenizer, model = _get_model()
     max_len = int(os.environ.get("NLLB_MAX_LENGTH") or "512")
-    batch = int(batch_size or os.environ.get("NLLB_BATCH_SIZE") or "16")
+    batch = int(batch_size or os.environ.get("NLLB_BATCH_SIZE") or (prof.batch if prof else 0) or "16")
     beams = int((gen or {}).get("num_beams") or num_beams or os.environ.get("NLLB_NUM_BEAMS") or "4")
     seed = (gen or {}).get("seed")
     if seed is not None:
@@ -221,6 +232,58 @@ def translate_batch(
             )
         for i, text in zip(idx, tokenizer.batch_decode(generated, skip_special_tokens=True)):
             out[i] = text.strip()
+    return out
+
+
+_ct2 = None
+
+
+def _get_ct2(prof):
+    """Lazy-load the CTranslate2 translator (int8) and the HF tokenizer for the profile's model. CUDA only: no silent CPU."""
+    global _ct2
+    with _lock:
+        if _ct2 is not None:
+            return _ct2
+        import ctranslate2
+        from transformers import AutoTokenizer
+
+        from .devices import pick_device
+
+        device = pick_device("nllb", os.environ.get("NLLB_DEVICE"))
+        folder = os.path.expanduser(os.environ.get("NLLB_CT2_DIR") or prof.ct2_dir)
+        if not os.path.isdir(folder):
+            raise RuntimeError(
+                f"CTranslate2 model not found at {folder}: convert once with "
+                f"ct2-transformers-converter --model {prof.model} --quantization {prof.compute_type} --output_dir {folder}"
+            )
+        translator = ctranslate2.Translator(folder, device=device, compute_type=prof.compute_type or "default")
+        _ct2 = (AutoTokenizer.from_pretrained(prof.model), translator)
+        return _ct2
+
+
+def _translate_batch_ct2(cleaned, src, tgt, prof, batch_size, num_beams, gen):
+    """The CTranslate2 backend: same contract as the HF path (order kept, empty segments stay empty)."""
+    tokenizer, translator = _get_ct2(prof)
+    beams = int((gen or {}).get("num_beams") or num_beams or os.environ.get("NLLB_NUM_BEAMS") or "4")
+    batch = int(batch_size or os.environ.get("NLLB_BATCH_SIZE") or prof.batch)
+    max_len = int(os.environ.get("NLLB_MAX_LENGTH") or "512")
+    if hasattr(tokenizer, "src_lang"):
+        tokenizer.src_lang = src
+    order = sorted((i for i, c in enumerate(cleaned) if c), key=lambda i: -len(cleaned[i]))
+    out = [""] * len(cleaned)
+    for start in range(0, len(order), max(1, batch)):
+        idx = order[start : start + max(1, batch)]
+        sources = [tokenizer.convert_ids_to_tokens(tokenizer.encode(cleaned[i], truncation=True, max_length=max_len)) for i in idx]
+        results = translator.translate_batch(
+            sources, target_prefix=[[tgt]] * len(idx), beam_size=beams, max_decoding_length=max_len,
+            repetition_penalty=float((gen or {}).get("repetition_penalty") or 1.0),
+            no_repeat_ngram_size=int((gen or {}).get("no_repeat_ngram_size") or 0),
+        )
+        for i, res in zip(idx, results):
+            tokens = res.hypotheses[0]
+            if tokens and tokens[0] == tgt:
+                tokens = tokens[1:]
+            out[i] = tokenizer.decode(tokenizer.convert_tokens_to_ids(tokens), skip_special_tokens=True).strip()
     return out
 
 

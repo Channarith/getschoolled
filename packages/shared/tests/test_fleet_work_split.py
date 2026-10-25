@@ -256,3 +256,128 @@ def test_collect_rsync_never_deletes(tmp_path):
     ws.collect("kalel", False, tmp_path, library=tmp_path / "lib", runner=runner)
     rsync = next(c for c in seen if c[0] == "rsync")
     assert "--ignore-existing" in rsync and not any(a.startswith("--delete") for a in rsync)
+
+
+# ---------------------------------------------------------------- kalel: the iBuyPower, RTX 5060 Ti with 8 GB
+
+KALEL_GPU = {"name": "NVIDIA GeForce RTX 5060 Ti", "mem_total_gb": 8.0, "mem_used_gb": 0.5}
+
+
+def real_fleet(**over):
+    """The three machines as inventoried: Spark with unified memory, kalel 8 GB VRAM / 30 GB RAM, the Mac without CUDA."""
+    spark = machine("spark", cuda=True, avail=80, total=121, reserve=16)
+    spark.inv["gpu"] = {"name": "NVIDIA GB10", "mem_total_gb": None, "unified_memory": True}
+    kalel = machine("kalel", cuda=True, avail=24, total=30, reserve=8)
+    kalel.inv["gpu"] = dict(KALEL_GPU)
+    ms = {"spark": spark, "kalel": kalel, "mac": machine("mac", cuda=False, avail=20, total=36, os_name="Darwin", caps={"gpu": 0, "cpu": 1})}
+    ms.update(over)
+    return ms
+
+
+def test_vram_is_the_card_for_discrete_gpus_all_ram_for_unified_and_unknown_otherwise():
+    ms = real_fleet()
+    assert ms["kalel"].vram_gb == 8.0
+    assert ms["spark"].vram_gb == 121
+    assert fleet()["kalel"].vram_gb is None  # no gpu section in the inventory: not a limit
+
+
+def test_a_job_that_needs_12gb_of_vram_is_never_placed_on_kalel():
+    big = ws.Item("big-gpu", "needs 12 GB VRAM", 1, ("true",), "gpu", True, (), 4, 30, vram_gb=12.0, tags=("translate",))
+    ms = real_fleet()
+    assert "12 GB of GPU memory" in ws.eligible(big, ms["kalel"]) and ws.eligible(big, ms["spark"]) == ""
+    result = ws.plan([big], ms)
+    assert placed(result) == {"big-gpu": "spark"}
+    only_kalel = ws.plan([big], {"kalel": ms["kalel"]})
+    assert only_kalel["unplaced"] and "GPU memory" in only_kalel["unplaced"][0]["reasons"]["kalel"]
+
+
+def test_translation_on_kalel_runs_the_lite_nllb_profile_and_on_the_spark_does_not():
+    result = ws.plan(CATALOG, real_fleet())
+    seen = {}
+    for name, w in result["waves"].items():
+        for lab in ("now", "next"):
+            for row in w[lab]:
+                if row["item"].id.startswith("translate-"):
+                    seen.setdefault(name, []).append(dict(row["item"].env))
+    assert seen.get("kalel"), "kalel should take translation shards"
+    assert all(e.get("NLLB_PROFILE") == "8gb" for e in seen["kalel"])
+    assert all("NLLB_PROFILE" not in e for e in seen.get("spark", []))
+    line = ws.command_line(next(r["item"] for lab in ("now", "next") for r in result["waves"]["kalel"][lab] if r["item"].id.startswith("translate-")))
+    assert "NLLB_PROFILE=8gb" in line and "scripts/gs_run.sh --name translate-" in line and "--gpu" in line
+
+
+def test_voice_samples_never_leave_the_spark():
+    ms = real_fleet()
+    clone = next(i for i in CATALOG if i.id == "demo-voice-clone")
+    assert "voice-samples" in clone.tags and clone.roles == ("spark",)
+    for other in ("kalel", "mac"):
+        assert ws.eligible(clone, ms[other]) != ""
+    unpinned = ws.replace(clone, roles=())  # the tag alone must keep it off kalel and the Mac, not only the role
+    for other in ("kalel", "mac"):
+        assert "never run on" in ws.eligible(unpinned, ms[other])
+    assert ws.eligible(unpinned, ms["spark"]) == ""
+    no_spark = ws.plan([unpinned], {k: v for k, v in ms.items() if k != "spark"})
+    assert no_spark["unplaced"] and placed(no_spark) == {}  # unplaced rather than moved to another machine
+
+
+def test_kalel_never_takes_training_or_big_finetunes_and_only_the_allowed_job_types():
+    ms = real_fleet()
+    where = placed(ws.plan(CATALOG, ms))
+    allowed = ws.ALLOW_TAGS["kalel"]
+    for item in CATALOG:
+        if where.get(item.id) == "kalel":
+            assert set(item.tags) & allowed, f"{item.id} tags={item.tags}"
+            assert not set(item.tags) & {"train", "finetune", "voice-samples"}
+    train = next(i for i in CATALOG if i.id == "voice-agent-train")
+    assert ws.eligible(train, ms["kalel"]) != ""
+    untagged = ws.Item("mystery", "no tags", 2, ("true",), "cpu")
+    assert "only takes" in ws.eligible(untagged, ms["kalel"]) and ws.eligible(untagged, ms["spark"]) == ""
+
+
+def test_kalel_takes_asr_and_cpu_work_it_has_room_for_but_voice_ingest_stays_pinned_to_the_spark():
+    ms = real_fleet()
+    by = {i.id: i for i in CATALOG}
+    assert by["voice-ingest"].roles == ("spark",) and ws.eligible(by["voice-ingest"], ms["kalel"]) == "only on spark"
+    asr = ws.Item("asr-small", "whisper job", 2, ("true",), "gpu", True, (), 6, 60, tags=("asr",), vram_gb=6.0)
+    assert ws.eligible(asr, ms["kalel"]) == ""  # whisper large-v3 in 8-bit/fp16 needs ~3-6 GB of the 8
+    assert ws.eligible(by["demo-edge-voices"], ms["kalel"]) == ""
+    scrape = ws.Item("crawl", "crawl", 2, ("true",), "cpu", False, (), 2, 60, tags=("scrape",))
+    assert ws.eligible(scrape, ms["kalel"]) == ""
+    low = real_fleet()
+    low["kalel"].inv["gpu"]["mem_total_gb"] = 4.0  # a 4 GB card: no whisper, and no lite translation either
+    assert ws.eligible(asr, low["kalel"]) != ""
+    assert all(ws.eligible(i, low["kalel"]) for i in CATALOG if i.id.startswith("translate-"))
+
+
+def test_the_spark_stays_first_for_training_and_kalel_only_fills_in_behind_it():
+    result = ws.plan(CATALOG, real_fleet())
+    where = placed(result)
+    assert where["voice-agent-train"] == "spark" and where["voice-agent-eval"] == "spark"
+    spark_gpu = [r for lab in ("now", "next") for r in result["waves"]["spark"][lab] if r["item"].lane == "gpu"]
+    assert spark_gpu[0]["item"].id == "voice-agent-train" and spark_gpu[0]["start_min"] == 0
+
+
+def test_kalel_start_wave_respects_the_ram_budget_and_its_single_gpu_lock():
+    ms = real_fleet()  # 24 GB free, reserve 8 -> 16 GB to start; each translation shard budgets 14 GB
+    result = ws.plan(CATALOG, ms)
+    now = result["waves"]["kalel"]["now"]
+    assert sum(r["item"].mem_gb for r in now) <= ms["kalel"].start_budget_gb + 1e-9
+    assert sum(1 for r in now if r["item"].lane == "gpu") <= 1
+    ms["kalel"].inv["gpu_lock_held"] = True
+    held = ws.plan(CATALOG, ms)
+    assert not any(r["item"].lane == "gpu" for r in held["waves"]["kalel"]["now"])
+
+
+def test_kalel_translations_are_collected_from_its_own_host_with_the_v2_validation(tmp_path, monkeypatch):
+    calls = []
+
+    def fake_run(cmd, **kw):
+        calls.append(cmd)
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+
+    monkeypatch.setenv("FLEET_HOST_KALEL", "192.168.1.119")
+    out = ws.collect("kalel", False, tmp_path, library=tmp_path / "lib", runner=fake_run)
+    rsync = calls[0]
+    assert rsync[0] == "rsync" and "--ignore-existing" in rsync and "--delete" not in rsync
+    assert any(str(a).startswith("cvanthin@192.168.1.119:") for a in rsync)  # the override, user from hosts.conf
+    assert (tmp_path / "_incoming_kalel").is_dir() and out["merged"] == 0 and out["applied"] is False
