@@ -25,7 +25,8 @@ test("curated list is unique and the default course comes first", () => {
   assert.equal(new Set(DEMO_COURSE_IDS).size, DEMO_COURSE_IDS.length);
   assert.equal(DEMO_COURSE_IDS[0], "audio-intro-to-machine-learning");
   const out = curatedRows([...rows].reverse());
-  assert.deepEqual(out.map((r) => r.id), ["audio-intro-to-machine-learning", "audio-cybersecurity-basics", "audio-the-roman-empire", "audio-ancient-egypt", "audio-the-history-of-cinema"]);
+  assert.deepEqual(out.map((r) => r.id), ["audio-intro-to-machine-learning", "audio-cybersecurity-basics", "audio-the-roman-empire"]);
+  assert.equal(DEMO_COURSE_IDS.length, 6);
   assert.deepEqual(curatedRows([{ id: "not-curated" }]), []);
 });
 

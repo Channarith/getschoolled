@@ -3,10 +3,13 @@
 //   node apps/web/e2e/on-the-go-demo.mjs http://127.0.0.1:3071 /tmp/shots
 import { createRequire } from "node:module";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 const require = createRequire(import.meta.url);
 const { chromium, devices } = require("playwright");
 
+// The shared dance/giggle module is a studio asset: serve the real file so the avatar behaves as it does in production.
+const SALA_MODULE = readFileSync(new globalThis.URL("../../../subrepos/theodore_course_studio/src/theodore_course_studio/voice_static/sala_interactions.js", import.meta.url), "utf8");
 const BASE = process.argv[2] || "http://127.0.0.1:3071";
 const SHOTS = process.argv[3] || "/tmp";
 const URL = `${BASE}/demo/on-the-go`;
@@ -14,9 +17,9 @@ const URL = `${BASE}/demo/on-the-go`;
 const CATALOG = [
   ["audio-intro-to-machine-learning", "Intro to Machine Learning (audio)", "Technology"],
   ["audio-the-roman-empire", "The Roman Empire (audio)", "History"],
-  ["audio-ancient-egypt", "Ancient Egypt (audio)", "History"],
+  ["audio-climate-and-weather", "Climate and Weather (audio)", "Science"],
   ["audio-cybersecurity-basics", "Cybersecurity Basics (audio)", "Technology"],
-  ["audio-the-history-of-cinema", "The History of Cinema (audio)", "Arts & Culture"],
+  ["audio-understanding-classical-music", "Understanding Classical Music (audio)", "Arts & Culture"],
   ["audio-not-in-the-curated-list", "Hidden Extra Course (audio)", "Other"],
 ];
 const row = ([id, title, category]) => ({
@@ -56,6 +59,8 @@ async function setup(browser, opts = {}) {
   });
   await page.route(/\/audio\/courses(\?.*)?$/, (route) =>
     route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ total: CATALOG.length, offset: 0, limit: 300, courses: CATALOG.map(row) }) }));
+  await page.route("**/api/studio/voice-overlay/sala_interactions.js", (route) =>
+    route.fulfill({ status: 200, contentType: "text/javascript", body: SALA_MODULE }));
   await page.route("**/tts/status", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ available: false }) }));
   await page.route("**/vendor/vision/tasks-vision.mjs", (route) =>
     route.fulfill({
@@ -119,6 +124,24 @@ async function setup(browser, opts = {}) {
   return { ctx, page, errors };
 }
 
+
+// The course list is a dropdown now: open it before searching or picking, and the widget menu before using the mic or camera items.
+async function openList(page) {
+  if ((await page.getByTestId("otg-search-popup").count()) === 0) {
+    // A friendly-error toast can sit over the dropdown for a moment: fall back to a direct click.
+    await page.getByTestId("otg-trigger").click({ timeout: 4000 }).catch(() => page.getByTestId("otg-trigger").dispatchEvent("click"));
+  }
+  await page.getByTestId("otg-search-popup").waitFor({ state: "visible", timeout: 10000 });
+}
+async function typeQuery(page, text) { await openList(page); await page.getByTestId("otg-search-input").fill(text); }
+async function pick(page, id) { await openList(page); await page.getByTestId(`otg-course-${id}`).click(); }
+async function courseCount(page) { await openList(page); return page.locator("[data-testid^=otg-course-]").count(); }
+async function courseText(page, id) { await openList(page); return page.getByTestId(`otg-course-${id}`).innerText(); }
+async function menuClick(page, testId) {
+  if ((await page.getByTestId("on-the-go-widget-menu-list").count()) === 0) await page.getByTestId("on-the-go-widget-menu").click();
+  await page.getByTestId(testId).click();
+}
+
 const spokenText = (page) => page.evaluate(() => window.__spoken.join(" || "));
 const say = (page, text) => page.evaluate((t) => window.__say(t), text);
 const cameraLive = (page) => page.evaluate(() => window.__streams.some((x) => x.video && x.s.getTracks().some((t) => t.readyState === "live")));
@@ -136,6 +159,7 @@ let failed = 0;
 let lastPage = null;
 const ONLY = process.env.ONLY || "";
 const check = async (name, fn) => {
+  if (process.env.PROGRESS) console.log("→", name);
   if (ONLY && !name.includes(ONLY)) return;
   try { await fn(); console.log(`PASS ${name}`); } catch (e) {
     failed += 1;
@@ -159,18 +183,20 @@ try {
   await check("picker lists curated courses only, with search and categories", async () => {
     const { ctx, page, errors } = await setup(browser);
     await begin(page);
-    for (const id of ["audio-intro-to-machine-learning", "audio-the-roman-empire", "audio-ancient-egypt", "audio-cybersecurity-basics", "audio-the-history-of-cinema"]) {
+    assert.equal(await page.getByTestId("otg-search-list").count(), 0, "the list is a closed dropdown until it is opened");
+    await openList(page);
+    for (const id of ["audio-intro-to-machine-learning", "audio-the-roman-empire", "audio-climate-and-weather", "audio-cybersecurity-basics", "audio-understanding-classical-music"]) {
       assert.equal(await page.getByTestId(`otg-course-${id}`).count(), 1, id);
     }
     assert.equal(await page.getByTestId("otg-course-audio-not-in-the-curated-list").count(), 0, "uncurated course must not be offered in the demo");
-    await page.getByTestId("otg-search-input").fill("roman");
-    assert.equal(await page.locator("[data-testid^=otg-course-]").count(), 1);
-    await page.getByTestId("otg-search-input").fill("romn empyre");   // typos still find it
-    assert.equal(await page.locator("[data-testid^=otg-course-]").count(), 1);
-    await page.getByTestId("otg-search-input").fill("zzzzqq");
+    await typeQuery(page, "roman");
+    assert.equal(await courseCount(page), 1);
+    await typeQuery(page, "romn empyre");   // typos still find it
+    assert.equal(await courseCount(page), 1);
+    await typeQuery(page, "zzzzqq");
     await page.getByTestId("otg-no-match").waitFor({ state: "visible" });
-    await page.getByTestId("otg-search-input").fill("");
-    assert.equal(await page.locator("[data-testid^=otg-course-]").count(), 5);
+    await typeQuery(page, "");
+    assert.equal(await courseCount(page), 5);
     await page.screenshot({ path: `${SHOTS}/otg-1-picker.png` });
     assert.deepEqual(errors, []);
     await ctx.close();
@@ -180,7 +206,7 @@ try {
   await check("choosing a course plays that course; avatar and widget are visible", async () => {
     const { ctx, page } = await setup(browser);
     await begin(page);
-    await page.getByTestId("otg-course-audio-the-roman-empire").click();
+    await pick(page, "audio-the-roman-empire");
     await start(page).click();
     await page.waitForFunction(() => window.__spoken.some((t) => /Roman Empire/.test(t)), null, { timeout: 15000 });
     assert.ok(await page.getByTestId("on-the-go-mascot").isVisible(), "avatar visible");
@@ -193,19 +219,19 @@ try {
   });
 
   // 3. Spoken course commands.
-  await check("voice: 'play the ancient egypt course', then 'next course'", async () => {
+  await check("voice: 'play the climate and weather course', then 'next course'", async () => {
     const { ctx, page } = await setup(browser);
     await page.addInitScript(() => { window.__ttsMs = 700; });
     await begin(page);
     await start(page).click();
     await page.waitForFunction(() => window.__recs.some((r) => !r.__stopped), null, { timeout: 15000 });
-    await say(page, "hey sala play the ancient egypt course");
-    await page.waitForFunction(() => window.__spoken.some((t) => /Playing Ancient Egypt/.test(t)), null, { timeout: 15000 });
-    await page.waitForFunction(() => window.__spoken.some((t) => /Ancient Egypt part/.test(t)), null, { timeout: 15000 });
+    await say(page, "hey sala play the climate and weather course");
+    await page.waitForFunction(() => window.__spoken.some((t) => /Playing Climate and Weather/.test(t)), null, { timeout: 15000 });
+    await page.waitForFunction(() => window.__spoken.some((t) => /Climate and Weather part/.test(t)), null, { timeout: 15000 });
     await page.waitForFunction(() => window.__recs.some((r) => !r.__stopped), null, { timeout: 15000 });
     await say(page, "hey sala next course");
     await page.waitForFunction(() => window.__spoken.some((t) => /Next course:/.test(t)), null, { timeout: 15000 });
-    await page.waitForFunction(() => window.__spoken.some((t) => /The History of Cinema part 1/.test(t)), null, { timeout: 15000 });
+    await page.waitForFunction(() => window.__spoken.some((t) => /Understanding Classical Music part 1/.test(t)), null, { timeout: 15000 });
     await ctx.close();
   });
 
@@ -214,7 +240,7 @@ try {
     const { ctx, page } = await setup(browser);
     await page.addInitScript(() => { window.__ttsMs = 900; });
     await begin(page);
-    await page.getByTestId("otg-course-audio-cybersecurity-basics").click();
+    await pick(page, "audio-cybersecurity-basics");
     await start(page).click();
     await page.waitForFunction(() => window.__spoken.some((t) => /Cybersecurity Basics part 3/.test(t)), null, { timeout: 15000 });
     await page.getByRole("button", { name: /pause/i }).first().click();
@@ -223,7 +249,7 @@ try {
     await page.reload({ waitUntil: "domcontentloaded" });
     await closeTutorials(page);
     await page.getByTestId("on-the-go-search").waitFor({ state: "visible" });
-    assert.match(await page.getByTestId("otg-course-audio-cybersecurity-basics").innerText(), /Resume at part/);
+    assert.match(await courseText(page, "audio-cybersecurity-basics"), /Resume at part/);
     await ctx.close();
   });
 
@@ -250,7 +276,7 @@ try {
     await start(page).click();
     await page.waitForFunction(() => document.querySelector("[data-testid=on-the-go-presence]")?.getAttribute("data-state") === "present", null, { timeout: 15000 });
     assert.equal(await cameraLive(page), true);
-    await page.getByTestId("on-the-go-camera-toggle").click();
+    await menuClick(page, "on-the-go-camera-toggle");
     await page.waitForFunction(() => document.querySelector("[data-testid=on-the-go-presence]")?.getAttribute("data-state") === "off");
     assert.equal(await cameraLive(page), false, "camera tracks stopped");
     assert.equal(await page.evaluate(() => localStorage.getItem("salareen.onTheGo.camera")), "off");
@@ -266,7 +292,7 @@ try {
   await check("avatar click: ask a question, answer is spoken, lesson resumes", async () => {
     const { ctx, page } = await setup(browser);
     await begin(page);
-    await page.getByTestId("otg-course-audio-intro-to-machine-learning").click();
+    await pick(page, "audio-intro-to-machine-learning");
     await start(page).click();
     await page.waitForFunction(() => window.__spoken.length > 0, null, { timeout: 15000 });
     await page.getByTestId("on-the-go-mascot").click();
@@ -287,12 +313,12 @@ try {
     await begin(page);
     await start(page).click();
     await page.waitForFunction(() => window.__recs.some((r) => !r.__stopped), null, { timeout: 15000 });
-    await page.getByTestId("on-the-go-mic-toggle").click();
+    await menuClick(page, "on-the-go-mic-toggle");
     await page.waitForFunction(() => window.__recs.every((r) => r.__stopped), null, { timeout: 5000 });
-    assert.equal(await say(page, "hey sala play the ancient egypt course"), false, "no live recognizer while muted");
+    assert.equal(await say(page, "hey sala play the climate and weather course"), false, "no live recognizer while muted");
     await page.waitForTimeout(800);
-    assert.ok(!(await spokenText(page)).includes("Playing Ancient Egypt"));
-    await page.getByTestId("on-the-go-mic-toggle").click();
+    assert.ok(!(await spokenText(page)).includes("Playing Climate and Weather"));
+    await menuClick(page, "on-the-go-mic-toggle");
     await page.waitForFunction(() => window.__recs.some((r) => !r.__stopped), null, { timeout: 10000 });
     await ctx.close();
   });
@@ -305,8 +331,8 @@ try {
     await page.waitForFunction(() => document.querySelector("[data-testid=on-the-go-presence]")?.getAttribute("data-state") === "denied", null, { timeout: 15000 });
     await page.waitForFunction(() => window.__spoken.length > 0, null, { timeout: 15000 });
     await page.waitForFunction(() => window.__recs.some((r) => !r.__stopped), null, { timeout: 15000 });
-    await say(page, "hey sala play the ancient egypt course");
-    await page.waitForFunction(() => window.__spoken.some((t) => /Playing Ancient Egypt/.test(t)), null, { timeout: 15000 });
+    await say(page, "hey sala play the climate and weather course");
+    await page.waitForFunction(() => window.__spoken.some((t) => /Playing Climate and Weather/.test(t)), null, { timeout: 15000 });
     await ctx.close();
   });
 
@@ -358,68 +384,70 @@ try {
     const avatar = await page.getByTestId("on-the-go-mascot").boundingBox();
     assert.ok(widget.x >= 0 && widget.x + widget.width <= vw, "widget inside the screen");
     assert.ok(avatar.x >= 0 && avatar.x + avatar.width <= vw, "avatar inside the screen");
-    const input = await page.getByTestId("otg-search-input").boundingBox();
+    const input = await page.getByTestId("otg-trigger").boundingBox();
     const overlap = !(widget.x + widget.width <= input.x || input.x + input.width <= widget.x || widget.y + widget.height <= input.y || input.y + input.height <= widget.y);
-    assert.equal(overlap, false, `the camera widget must not cover the search box: widget ${JSON.stringify(widget)} input ${JSON.stringify(input)}`);
+    assert.equal(overlap, false, `the combined widget must not cover the course dropdown: widget ${JSON.stringify(widget)} input ${JSON.stringify(input)}`);
     await page.screenshot({ path: `${SHOTS}/otg-11-phone.png` });
     await ctx.close();
   });
 
   // 12. Search ranks courses that are ready in the voice's language first, with badges, and can hide English-only courses.
   await check("search: courses ready in the voice's language first, badges, include-English toggle, empty state", async () => {
-    const ready = { es: ["audio-the-roman-empire", "audio-the-history-of-cinema"], fr: [] };
-    const { ctx, page, errors } = await setup(browser, { locale: "es", ready, localTitles: { "audio-the-roman-empire": "El Imperio Romano", "audio-the-history-of-cinema": "La historia del cine" } });
+    const ready = { es: ["audio-the-roman-empire", "audio-understanding-classical-music"], fr: [] };
+    const { ctx, page, errors } = await setup(browser, { locale: "es", ready, localTitles: { "audio-the-roman-empire": "El Imperio Romano", "audio-understanding-classical-music": "La historia del cine" } });
     await begin(page);
+    await openList(page);
     const ids = await page.locator("[data-testid^=otg-course-]").evaluateAll((els) => els.map((e) => e.getAttribute("data-testid").replace("otg-course-", "")));
-    assert.deepEqual(ids.slice(0, 2).sort(), ["audio-the-history-of-cinema", "audio-the-roman-empire"], `ready first: ${ids}`);
+    assert.deepEqual(ids.slice(0, 2).sort(), ["audio-the-roman-empire", "audio-understanding-classical-music"], `ready first: ${ids}`);
     assert.equal(await page.getByTestId("otg-badge-audio-the-roman-empire").getAttribute("data-kind"), "ready");
-    assert.equal(await page.getByTestId("otg-badge-audio-ancient-egypt").getAttribute("data-kind"), "english-only");
-    assert.match(await page.getByTestId("otg-course-audio-the-roman-empire").innerText(), /El Imperio Romano/);
-    await page.getByTestId("otg-search-input").fill("imperio");
-    assert.equal(await page.locator("[data-testid^=otg-course-]").count(), 1);
-    await page.getByTestId("otg-search-input").fill("");
+    assert.equal(await page.getByTestId("otg-badge-audio-climate-and-weather").getAttribute("data-kind"), "english-only");
+    assert.match(await courseText(page, "audio-the-roman-empire"), /El Imperio Romano/);
+    await typeQuery(page, "imperio");
+    assert.equal(await courseCount(page), 1);
+    await typeQuery(page, "");
     await page.getByTestId("otg-include-english").uncheck();
-    assert.equal(await page.locator("[data-testid^=otg-course-]").count(), 2, "English-only courses hidden");
+    assert.equal(await courseCount(page), 2, "English-only courses hidden");
     await page.getByTestId("otg-include-english").check();
-    assert.equal(await page.locator("[data-testid^=otg-course-]").count(), 5);
+    assert.equal(await courseCount(page), 5);
     await page.screenshot({ path: `${SHOTS}/otg-12-search-es.png` });
     assert.deepEqual(errors, []);
     await ctx.close();
     const fr = await setup(browser, { locale: "fr", ready });
     await begin(fr.page);
+    await openList(fr.page);
     await fr.page.getByTestId("otg-empty-language").waitFor({ state: "visible" });
-    assert.equal(await fr.page.locator("[data-testid^=otg-course-]").count(), 5, "English courses still listed");
+    assert.equal(await courseCount(fr.page), 5, "English courses still listed");
     await fr.ctx.close();
   });
 
   await check("search: a pre-translated course loads and plays right away; search keeps working if the index is down", async () => {
     const { ctx, page } = await setup(browser, { locale: "es", ready: { es: ["audio-the-roman-empire"] } });
     await begin(page);
-    await page.getByTestId("otg-search-input").fill("roman");
+    await typeQuery(page, "roman");
     await page.getByTestId("otg-search-input").press("Enter");   // keyboard pick of the first result
     await start(page).click();
     await page.waitForFunction(() => window.__spoken.some((t) => /Roman Empire/.test(t)), null, { timeout: 15000 });
     await ctx.close();
     const down = await setup(browser, { searchFails: true });
     await begin(down.page);
-    assert.equal(await down.page.locator("[data-testid^=otg-course-]").count(), 5, "falls back to the catalog rows");
+    assert.equal(await courseCount(down.page), 5, "falls back to the catalog rows");
     await down.ctx.close();
   });
 
-  await check("voice: 'search for cinema' filters the list and says so", async () => {
+  await check("voice: 'search for classical' filters the list and says so", async () => {
     const { ctx, page } = await setup(browser);
     await page.addInitScript(() => { window.__ttsMs = 700; });
     await begin(page);
     await start(page).click();
     await page.waitForFunction(() => window.__recs.some((r) => !r.__stopped), null, { timeout: 15000 });
-    await say(page, "hey sala search for cinema");
-    await page.waitForFunction(() => window.__spoken.some((t) => /Searching for cinema/.test(t)), null, { timeout: 15000 });
-    assert.equal(await page.locator("[data-testid^=otg-course-]").count(), 1);
-    assert.equal(await page.getByTestId("otg-search-input").inputValue(), "cinema");
+    await say(page, "hey sala search for classical");
+    await page.waitForFunction(() => window.__spoken.some((t) => /Searching for classical/.test(t)), null, { timeout: 15000 });
+    assert.equal(await courseCount(page), 1);
+    assert.equal(await page.getByTestId("otg-search-input").inputValue(), "classical");
     await page.waitForFunction(() => window.__recs.some((r) => !r.__stopped), null, { timeout: 15000 });
     await say(page, "hey sala clear search");
     await page.waitForFunction(() => window.__spoken.some((t) => /Showing all courses/.test(t)), null, { timeout: 15000 });
-    assert.equal(await page.locator("[data-testid^=otg-course-]").count(), 5);
+    assert.equal(await courseCount(page), 5);
     await ctx.close();
   });
 
@@ -435,7 +463,7 @@ try {
     await start(page).click();
     await page.waitForFunction(() => document.querySelector("[data-testid=on-the-go-mascot]")?.getAttribute("data-state") === "listening", null, { timeout: 15000 });
     assert.match(await page.getByTestId("on-the-go-avatar-label").innerText(), /Listening: ask me anything/);
-    await page.getByTestId("on-the-go-mic-toggle").click();
+    await menuClick(page, "on-the-go-mic-toggle");
     await page.waitForFunction(() => document.querySelector("[data-testid=on-the-go-mascot]")?.getAttribute("data-state") === "muted", null, { timeout: 5000 });
     assert.match(await page.getByTestId("on-the-go-avatar-label").innerText(), /Muted/);
     await avatar.click();   // tapping a muted Sala listens again
@@ -489,7 +517,7 @@ try {
     await closeTutorials(page);
     await start(page).click();
     assert.equal(await page.getByTestId("on-the-go-consent").count(), 0, "not asked again");
-    await page.getByTestId("otg-privacy-choices").click();
+    await menuClick(page, "otg-privacy-choices");
     await page.getByTestId("on-the-go-consent").waitFor({ state: "visible" });
     await ctx.close();
   });
@@ -502,6 +530,195 @@ try {
     await page.waitForFunction(() => window.__spoken.length > 0, null, { timeout: 15000 });
     assert.equal(await page.evaluate(() => window.__recs.length), 0);
     assert.equal(await page.getByTestId("on-the-go-mascot").getAttribute("data-state"), "muted");
+    await ctx.close();
+  });
+
+  // 15. ONE combined widget: Sala head + camera + timer + menu. No standalone mic/camera/fullscreen buttons, no separate avatar.
+  await check("one combined widget holds Sala, camera and timer; mic, camera, fullscreen, privacy live only in its menu", async () => {
+    const { ctx, page, errors } = await setup(browser);
+    await page.addInitScript(() => { window.__ttsMs = 600000; });
+    await begin(page);
+    await start(page).click();
+    await page.waitForFunction(() => document.querySelector("[data-testid=on-the-go-presence]")?.getAttribute("data-state") === "present", null, { timeout: 15000 });
+    assert.equal(await page.locator("[data-testid=on-the-go-presence]").count(), 1, "exactly one widget");
+    assert.equal(await page.locator("[data-testid=on-the-go-mascot]").count(), 1, "exactly one Sala");
+    assert.equal(await page.locator("[data-testid=on-the-go-presence] [data-testid=on-the-go-mascot][data-sala-avatar]").count(), 1, "Sala head is inside the widget and carries data-sala-avatar");
+    assert.equal(await page.locator("[data-testid=on-the-go-presence] [data-testid=on-the-go-timer]").count(), 1, "the demo timer is inside the widget");
+    assert.equal(await page.locator("[data-testid=on-the-go-timer]").count(), 1, "no second timer");
+    for (const id of ["on-the-go-mic-toggle", "on-the-go-camera-toggle", "on-the-go-fullscreen", "otg-privacy-choices", "on-the-go-help"]) {
+      assert.equal(await page.getByTestId(id).count(), 0, `${id} is not on the page until the menu is opened`);
+    }
+    await page.getByTestId("on-the-go-widget-menu").click();
+    for (const id of ["on-the-go-mic-toggle", "on-the-go-camera-toggle", "on-the-go-fullscreen", "otg-privacy-choices"]) {
+      assert.equal(await page.getByTestId(id).count(), 1, `${id} is in the menu`);
+    }
+    assert.match(await page.getByTestId("on-the-go-widget-menu-list").innerText(), /headphones/i);
+    await page.keyboard.press("Escape");
+    assert.equal(await page.getByTestId("on-the-go-widget-menu-list").count(), 0, "Escape closes the menu");
+    await page.screenshot({ path: `${SHOTS}/otg-15-widget.png` });
+    assert.deepEqual(errors, []);
+    await ctx.close();
+  });
+
+  await check("Sala head: tap listens, long-press mutes and unmutes; the widget drags and minimises", async () => {
+    const { ctx, page } = await setup(browser);
+    await page.addInitScript(() => { window.__ttsMs = 600000; });
+    await begin(page);
+    await start(page).click();
+    await page.waitForFunction(() => window.__recs.some((r) => !r.__stopped), null, { timeout: 15000 });
+    const head = page.getByTestId("on-the-go-mascot");
+    const hb = await head.boundingBox();
+    await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+    await page.mouse.down();
+    await page.waitForTimeout(900);          // long-press
+    await page.mouse.up();
+    await page.waitForFunction(() => window.__recs.every((r) => r.__stopped), null, { timeout: 5000 });
+    assert.equal(await head.getAttribute("data-state"), "muted", "long-press mutes");
+    await head.click();                       // a tap on a muted Sala listens again
+    await page.waitForFunction(() => window.__recs.some((r) => !r.__stopped), null, { timeout: 10000 });
+    // drag by the bar
+    const w = page.getByTestId("on-the-go-presence");
+    const before = await w.boundingBox();
+    const gb = await page.getByTestId("on-the-go-widget-grip").boundingBox();
+    await page.mouse.move(gb.x + gb.width / 2, gb.y + gb.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(before.x - 160, before.y + 120, { steps: 8 });
+    await page.mouse.up();
+    const after = await w.boundingBox();
+    assert.ok(Math.abs(after.x - before.x) > 100 && after.y > before.y + 60, `widget moved ${JSON.stringify(before)} -> ${JSON.stringify(after)}`);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await closeTutorials(page);
+    await page.getByTestId("on-the-go-presence").waitFor({ state: "visible", timeout: 15000 });
+    const restored = await page.getByTestId("on-the-go-presence").boundingBox();
+    assert.ok(Math.abs(restored.x - after.x) < 6, "position is remembered");
+    // minimise keeps Sala and the status dot
+    await page.getByTestId("on-the-go-widget-min").click();
+    assert.equal(await page.getByTestId("on-the-go-presence").getAttribute("data-minimized"), "1");
+    assert.ok(await page.getByTestId("on-the-go-mascot").isVisible(), "Sala stays visible when minimised");
+    await ctx.close();
+  });
+
+  // 16. The anonymous demo ends for real: card with no price, camera and microphone stop.
+  await check("end of the demo: 'Create or log in to your account', no price, camera and mic stopped", async () => {
+    const { ctx, page } = await setup(browser);
+    await page.addInitScript(() => { window.__ttsMs = 3600000; });
+    await page.clock.install();
+    await begin(page);
+    await start(page).click();
+    await page.waitForFunction(() => window.__recs.some((r) => !r.__stopped), null, { timeout: 15000 });
+    for (let i = 0; i < 640; i += 1) {     // one second per React render: the timer re-arms itself after each tick
+      await page.clock.runFor(1000);
+      await page.waitForTimeout(8);
+      if (await page.getByTestId("on-the-go-trial-end").count()) break;
+    }
+    await page.getByTestId("on-the-go-trial-end").waitFor({ state: "visible", timeout: 15000 });
+    const text = await page.getByTestId("on-the-go-trial-end").innerText();
+    assert.match(text, /Create or log in to your account/);
+    assert.doesNotMatch(text, /\$|price|card|paypal/i, "no price or payment on the end card");
+    assert.equal(await page.getByTestId("otg-trial-create").getAttribute("href"), "/login?mode=signup&next=%2Fdrive");
+    assert.equal(await page.getByTestId("otg-trial-login").getAttribute("href"), "/login?next=%2Fdrive");
+    assert.equal(await page.getByTestId("otg-trial-notnow").getAttribute("href"), "/");
+    assert.equal(await cameraLive(page), false, "camera stopped");
+    assert.ok(await page.evaluate(() => window.__recs.every((r) => r.__stopped)), "microphone stopped");
+    await ctx.close();
+  });
+
+  // 17. The dance easter egg works inside the combined widget: touch scrub, grip-only dragging, the native speech bridge, reduced motion.
+  const isDancing = (page) => page.evaluate(() => {
+    const el = document.querySelector("[data-testid=on-the-go-mascot]");
+    return Boolean(el && (el.classList.contains("sala-dancing") || el.classList.contains("sala-dancing-calm")));
+  });
+  const touchScrub = (page, selector) => page.evaluate(async (sel) => {
+    const el = document.querySelector(sel);
+    const r = el.getBoundingClientRect();
+    const y = r.top + r.height / 2, cx = r.left + r.width / 2, amp = r.width * 0.42;
+    const fire = (type, x, buttons) => el.dispatchEvent(new PointerEvent(type, {
+      pointerId: 7, pointerType: "touch", isPrimary: true, buttons, clientX: x, clientY: y, bubbles: true, cancelable: true,
+    }));
+    fire("pointerdown", cx, 1);
+    for (const x of [cx - amp, cx + amp, cx - amp, cx + amp, cx - amp, cx + amp]) { fire("pointermove", x, 1); await new Promise((res) => setTimeout(res, 60)); }
+    fire("pointerup", cx, 0);
+  }, selector);
+
+  await check("dance: a touch scrub over the Sala head dances (Pixel 7), also while muted", async () => {
+    const { ctx, page } = await setup(browser, { device: devices["Pixel 7"] });
+    await page.addInitScript(() => { window.__ttsMs = 600000; });
+    await begin(page);
+    await start(page).click();
+    await page.waitForFunction(() => window.__recs.some((r) => !r.__stopped), null, { timeout: 15000 });
+    await page.waitForFunction(() => document.querySelector("[data-testid=on-the-go-mascot]")?.style.touchAction === "none", null, { timeout: 15000 });   // the shared module attached
+    assert.equal(await isDancing(page), false);
+    await touchScrub(page, "[data-testid=on-the-go-mascot]");
+    await page.waitForFunction(() => /sala-dancing/.test(document.querySelector("[data-testid=on-the-go-mascot]").className), null, { timeout: 4000 });
+    await page.waitForTimeout(300);
+    // muted: the scrub still works
+    await menuClick(page, "on-the-go-mic-toggle");
+    await page.waitForFunction(() => window.__recs.every((r) => r.__stopped), null, { timeout: 5000 });
+    await page.evaluate(() => window.dispatchEvent(new Event("sala:attention")));   // ends the first dance
+    await page.waitForTimeout(11000);          // cooldown
+    await touchScrub(page, "[data-testid=on-the-go-mascot]");
+    await page.waitForFunction(() => /sala-dancing/.test(document.querySelector("[data-testid=on-the-go-mascot]").className), null, { timeout: 4000 });
+    await ctx.close();
+  });
+
+  await check("dance: dragging the widget by its grip (touch) moves it and does NOT dance; the head never drags the widget", async () => {
+    const { ctx, page } = await setup(browser, { device: devices["Pixel 7"] });
+    await page.addInitScript(() => { window.__ttsMs = 600000; });
+    await begin(page);
+    await start(page).click();
+    await page.waitForFunction(() => document.querySelector("[data-testid=on-the-go-mascot]")?.style.touchAction === "none", null, { timeout: 15000 });
+    const w = page.getByTestId("on-the-go-presence");
+    const before = await w.boundingBox();
+    await page.evaluate(async () => {
+      const grip = document.querySelector("[data-testid=on-the-go-widget-grip]");
+      const r = grip.getBoundingClientRect();
+      const x0 = r.left + r.width / 2, y0 = r.top + r.height / 2;
+      const fire = (type, x, y, buttons) => grip.dispatchEvent(new PointerEvent(type, { pointerId: 9, pointerType: "touch", isPrimary: true, buttons, clientX: x, clientY: y, bubbles: true, cancelable: true }));
+      fire("pointerdown", x0, y0, 1);
+      for (let i = 1; i <= 8; i += 1) { fire("pointermove", x0 - i * 15, y0 + i * 12, 1); await new Promise((res) => setTimeout(res, 30)); }
+      fire("pointerup", x0 - 120, y0 + 96, 0);
+    });
+    const after = await w.boundingBox();
+    assert.ok(Math.abs(after.x - before.x) > 80 && after.y > before.y + 60, `the grip moves the widget ${JSON.stringify(before)} -> ${JSON.stringify(after)}`);
+    assert.equal(await isDancing(page), false, "a grip drag is not a scrub");
+    // a drag that starts on the Sala head must not move the widget
+    const pos = await w.boundingBox();
+    await page.evaluate(async () => {
+      const head = document.querySelector("[data-testid=on-the-go-mascot]");
+      const r = head.getBoundingClientRect();
+      const x0 = r.left + r.width / 2, y0 = r.top + r.height / 2;
+      const fire = (type, x, buttons) => head.dispatchEvent(new PointerEvent(type, { pointerId: 11, pointerType: "touch", isPrimary: true, buttons, clientX: x, clientY: y0, bubbles: true, cancelable: true }));
+      fire("pointerdown", x0, 1);
+      for (let i = 1; i <= 5; i += 1) { fire("pointermove", x0 - i * 20, 1); await new Promise((res) => setTimeout(res, 30)); }
+      fire("pointerup", x0 - 100, 0);
+    });
+    const still = await w.boundingBox();
+    assert.ok(Math.abs(still.x - pos.x) < 2 && Math.abs(still.y - pos.y) < 2, "dragging on Sala does not move the widget");
+    await ctx.close();
+  });
+
+  await check("dance: the native speech bridge hands recognised text to the same intent matcher", async () => {
+    const { ctx, page } = await setup(browser);
+    await page.addInitScript(() => { window.__ttsMs = 600000; });
+    await begin(page);
+    await start(page).click();
+    await page.waitForFunction(() => document.querySelector("[data-testid=on-the-go-mascot]")?.style.touchAction === "none", null, { timeout: 15000 });
+    assert.equal(await page.evaluate(() => typeof window.__salaNativeSpeech?.onTranscript), "function");
+    await page.evaluate(() => window.__salaNativeSpeech.onTranscript("hey sala, can you dance for me?"));
+    await page.waitForFunction(() => /sala-dancing/.test(document.querySelector("[data-testid=on-the-go-mascot]").className), null, { timeout: 5000 });
+    await ctx.close();
+  });
+
+  await check("dance: reduced motion gets the gentle bob", async () => {
+    const { ctx, page } = await setup(browser, { device: { viewport: { width: 1280, height: 800 }, reducedMotion: "reduce" } });
+    await page.addInitScript(() => { window.__ttsMs = 600000; });
+    await begin(page);
+    await start(page).click();
+    await page.waitForFunction(() => document.querySelector("[data-testid=on-the-go-mascot]")?.style.touchAction === "none", null, { timeout: 15000 });
+    await page.evaluate(() => window.__salaNativeSpeech.onTranscript("shake shake"));
+    await page.waitForFunction(() => /sala-dancing/.test(document.querySelector("[data-testid=on-the-go-mascot]").className), null, { timeout: 5000 });
+    const anim = await page.evaluate(() => getComputedStyle(document.querySelector("[data-testid=on-the-go-mascot]")).animationName);
+    assert.match(anim, /salaDanceCalm/, `reduced motion uses the calm bob, got ${anim}`);
     await ctx.close();
   });
 } finally {

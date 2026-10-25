@@ -45,3 +45,34 @@ Tests
   - Logic: apps/web/tests/unit/onTheGoCatalog.test.mjs, onTheGoSearch.test.mjs (npm run test:unit); packages/shared/tests/test_audio_search.py,
     services/curriculum/tests/test_audio_search_api.py.
   - Browser (stubbed API, camera detector, speech recognizer and voice): node apps/web/e2e/on-the-go-demo.mjs http://127.0.0.1:3000 /tmp/shots
+
+
+LAYOUT (v0.97.83): one dropdown, one widget
+  Course list: a closed dropdown that shows the current course. Opening it shows about six rows with a type-to-filter box on top
+  (still the pre-translated search: ranked by the voice's language, "Ready in <language>" badges, include-English toggle). The
+  anonymous demo offers 6 curated courses (DEMO_COURSE_IDS in app/lib/onTheGoCatalog.ts); flag on_the_go.demo_full_search opens the
+  whole catalog; signed-in users keep the full catalog. A spoken "search for ..." opens the list with that query.
+  Widget: ONE movable card, top right (OnTheGoPresence.tsx). It holds the golden Sala head (tap = ask or listen, long-press = mute or
+  unmute, data-sala-avatar for giggle and dance), the camera preview with a status dot, the demo timer (anonymous demo only), a
+  minimise button and a three-dot menu. The menu has Microphone on/off, Camera on/off, the narrator voice, Full screen, Privacy
+  choices and the headphones tip. There are no standalone mic, camera, fullscreen or avatar buttons on the page. Full (signed-in)
+  mode keeps a small ? help button in the widget bar because the tutorial promises it; the demo's ? is the tutorial's own.
+  End of the demo: the lesson, microphone and camera stop and a card says "Create or log in to your account" (Create account, Log in,
+  Not now -> the landing page). No price and no payment: nobody without an account can pay.
+
+DANCE EASTER EGG IN THE WIDGET, AND THE NATIVE SPEECH BRIDGE
+  The Sala head in the widget carries data-sala-avatar and the shared module (sala_interactions.js, PR #838) attaches to it: a quick
+  side-to-side scrub (mouse hover, or a finger down on Sala) makes her dance; she also dances while the lesson plays and while the
+  microphone is muted. The module sets touch-action:none on the head only, so a finger scrub does not scroll or zoom the page.
+  Dragging the widget starts ONLY from the grip (the dotted handle and the empty part of the bar), never from the Sala head or the
+  camera preview, so a scrub over Sala cannot move the widget. A long-press on Sala mutes the microphone, but the timer is cancelled
+  as soon as the pointer moves more than 10 px, so a slow scrub does not mute.
+  The module is re-attached after the consent choice (the widget is re-keyed then).
+  Spoken "dance" requests ("please dance", "can you dance for me", "shake shake", ...) come from the browser's SpeechRecognition.
+  iOS WKWebView has none and Android WebView is inconsistent: where speech recognition is unsupported the scrub keeps working and the
+  page shows no extra text (Sala's state is exposed as a tooltip and to screen readers only).
+  Native bridge (no native module is implemented here): an app can pass recognised text to the page with
+      window.__salaNativeSpeech.onTranscript("please dance")
+  (inject it with the WebView's evaluateJavaScript / injectJavaScript). The text goes through the same handler as the browser recognizer:
+  dance requests, "hey sala ..." course commands and questions. It is ignored before the demo can drive or after the demo has ended,
+  and capped at 300 characters. Reduced motion gets the gentle bob (the module's own CSS).

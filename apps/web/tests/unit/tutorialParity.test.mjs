@@ -8,6 +8,7 @@ const read = (rel) => readFileSync(new URL(rel, import.meta.url), "utf8");
 const pages = read("../../app/lib/i18n-pages.ts");
 const onTheGo = read("../../app/components/OnTheGo.tsx");
 const onTheGoAvatar = read("../../app/components/OnTheGoAvatar.tsx");
+const onTheGoWidget = read("../../app/components/OnTheGoPresence.tsx");
 
 // English text of an On the Go tutorial step (the first block in the file is English).
 const step = (n) => {
@@ -35,12 +36,12 @@ test("'Hey Sala' is a wake phrase", () => {
 
 test("the tapped-Sala, tap-anywhere and help-button promises exist in the component", () => {
   assert.match(step(1), /Tap the Sala logo/);
-  assert.ok(onTheGo.includes("<OnTheGoAvatar"), "On the Go renders Sala in every state");
+  assert.ok(onTheGo.includes("<OnTheGoPresence") && onTheGoWidget.includes("<OnTheGoAvatar"), "On the Go renders Sala (inside the one combined widget) in every state");
   assert.ok(onTheGoAvatar.includes("data-testid\": \"on-the-go-mascot\"") && onTheGoAvatar.includes("\"data-sala-avatar\""), "a tappable Sala the dance/giggle module attaches to");
   assert.ok(onTheGo.includes("tapping anywhere else on the page resumes the lesson"), "tap anywhere resumes after an answer");
   assert.match(step(4), /tap anywhere/);
   assert.match(step(5), /\? button/);
-  assert.ok(onTheGo.includes("data-testid=\"on-the-go-help\""), "the ? help button");
+  assert.ok(onTheGoWidget.includes("data-testid=\"on-the-go-help\"") && onTheGo.includes("onHelp:"), "the ? help button lives in the combined widget bar");
 });
 
 test("the dance easter egg is wired into On the Go and is not in the tutorial", () => {
