@@ -23,6 +23,9 @@ export const DEMO_COURSE_IDS: readonly string[] = [
 ];
 
 export const DEMO_PICKER_FLAG = "on_the_go.demo_course_picker";
+/** Demo: search the whole pre-translated catalog instead of the 16 curated courses (default off: sign-in is required beyond the demo). */
+export const DEMO_FULL_SEARCH_FLAG = "on_the_go.demo_full_search";
+export const INCLUDE_ENGLISH_KEY = "salareen.onTheGo.includeEnglish";
 
 /** Keep only the curated courses the catalog actually returned, in curated order. */
 export function curatedRows<T extends { id: string }>(rows: T[], ids: readonly string[] = DEMO_COURSE_IDS): T[] {

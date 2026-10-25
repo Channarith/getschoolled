@@ -1,4 +1,4 @@
-// On the Go (hidden demo): course picker, resume points, spoken course commands, face presence, avatar Q&A, mic mute, camera denied,
+// On the Go (hidden demo): course search (ready-in-language first), avatar states, mic consent, resume points, spoken course commands, face presence, avatar Q&A, mic mute, camera denied,
 // question limits and privacy on a hidden tab. Everything outside the page is stubbed: API, camera detector, speech recognizer, voice.
 //   node apps/web/e2e/on-the-go-demo.mjs http://127.0.0.1:3071 /tmp/shots
 import { createRequire } from "node:module";
@@ -41,6 +41,18 @@ async function setup(browser, opts = {}) {
     return hit
       ? route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(course(hit)) })
       : route.fulfill({ status: 404, contentType: "application/json", body: "{}" });
+  });
+  await page.route(/\/audio\/search(\?.*)?$/, (route) => {
+    const u = new globalThis.URL(route.request().url());
+    const lang = u.searchParams.get("language") || "en";
+    const readyFor = (opts.ready || {})[lang] || [];
+    if (opts.searchFails) return route.fulfill({ status: 503, contentType: "application/json", body: "{}" });
+    const courses = CATALOG.map((r) => ({
+      ...row(r), title_local: readyFor.includes(r[0]) ? (opts.localTitles || {})[r[0]] || "" : "",
+      ready_languages: readyFor.includes(r[0]) ? [lang] : [], ready: lang === "en" || readyFor.includes(r[0]),
+      english_only: !readyFor.includes(r[0]), audio_mode: "live_tts",
+    })).sort((a, b) => Number(b.ready) - Number(a.ready));
+    return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ language: lang, total: courses.length, ready_in_language: courses.filter((c) => c.ready).length, ready_counts: {}, audio_mode: "live_tts", courses }) });
   });
   await page.route(/\/audio\/courses(\?.*)?$/, (route) =>
     route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ total: CATALOG.length, offset: 0, limit: 300, courses: CATALOG.map(row) }) }));
@@ -98,7 +110,12 @@ async function setup(browser, opts = {}) {
       window.__streams.push({ s, video: Boolean(c && c.video) });
       return s;
     };
-  }, { denyCamera: Boolean(opts.denyCamera) });
+    if (o.consent) localStorage.setItem("salareen.onTheGo.consent.v1", o.consent);
+    if (o.locale) localStorage.setItem("aiclassroom.locale.v1", o.locale);
+    window.__gum = 0;
+    const gum = navigator.mediaDevices.getUserMedia;
+    navigator.mediaDevices.getUserMedia = async (c) => { window.__gum += 1; return gum(c); };
+  }, { denyCamera: Boolean(opts.denyCamera), consent: opts.noConsent ? "" : (opts.consent || "mic-camera"), locale: opts.locale || "" });
   return { ctx, page, errors };
 }
 
@@ -111,7 +128,7 @@ async function closeTutorials(page) {
 async function begin(page) {
   await page.goto(URL, { waitUntil: "domcontentloaded" });
   await closeTutorials(page);
-  await page.getByTestId("on-the-go-picker").waitFor({ state: "visible", timeout: 20000 });
+  await page.getByTestId("on-the-go-search").waitFor({ state: "visible", timeout: 20000 });
 }
 const start = (page) => page.getByRole("button", { name: /^(start|.*pause)$/i }).first();
 
@@ -123,6 +140,7 @@ const check = async (name, fn) => {
   try { await fn(); console.log(`PASS ${name}`); } catch (e) {
     failed += 1;
     console.log(`FAIL ${name}: ${String(e.message || e).split("\n")[0].slice(0, 300)}`);
+    if (process.env.DEBUG) console.log(String(e.message || e).split("\n").slice(0, 14).join("\n"));
     if (lastPage) {
       const info = await lastPage.evaluate(() => ({
         spoken: (window.__spoken || []).filter((t) => /course|Playing|Next|lot of|Part \d\./.test(t) === false || /course|Playing|Next/.test(t)).slice(-14).map((t) => t.slice(0, 70)),
@@ -145,11 +163,14 @@ try {
       assert.equal(await page.getByTestId(`otg-course-${id}`).count(), 1, id);
     }
     assert.equal(await page.getByTestId("otg-course-audio-not-in-the-curated-list").count(), 0, "uncurated course must not be offered in the demo");
-    await page.getByRole("searchbox").fill("roman");
+    await page.getByTestId("otg-search-input").fill("roman");
     assert.equal(await page.locator("[data-testid^=otg-course-]").count(), 1);
-    await page.getByRole("searchbox").fill("");
-    await page.getByRole("button", { name: "History", exact: true }).click();
-    assert.equal(await page.locator("[data-testid^=otg-course-]").count(), 2);
+    await page.getByTestId("otg-search-input").fill("romn empyre");   // typos still find it
+    assert.equal(await page.locator("[data-testid^=otg-course-]").count(), 1);
+    await page.getByTestId("otg-search-input").fill("zzzzqq");
+    await page.getByTestId("otg-no-match").waitFor({ state: "visible" });
+    await page.getByTestId("otg-search-input").fill("");
+    assert.equal(await page.locator("[data-testid^=otg-course-]").count(), 5);
     await page.screenshot({ path: `${SHOTS}/otg-1-picker.png` });
     assert.deepEqual(errors, []);
     await ctx.close();
@@ -201,7 +222,7 @@ try {
     assert.ok(saved.courses["audio-cybersecurity-basics"].seg >= 2, JSON.stringify(saved));
     await page.reload({ waitUntil: "domcontentloaded" });
     await closeTutorials(page);
-    await page.getByTestId("on-the-go-picker").waitFor({ state: "visible" });
+    await page.getByTestId("on-the-go-search").waitFor({ state: "visible" });
     assert.match(await page.getByTestId("otg-course-audio-cybersecurity-basics").innerText(), /Resume at part/);
     await ctx.close();
   });
@@ -249,8 +270,11 @@ try {
     await start(page).click();
     await page.waitForFunction(() => window.__spoken.length > 0, null, { timeout: 15000 });
     await page.getByTestId("on-the-go-mascot").click();
-    await page.waitForFunction(() => window.__recs.some((r) => !r.__stopped), null, { timeout: 10000 });
+    // The tap hands the microphone from the always-on recognizer to a one-shot one: wait for that, not just for "some" recognizer.
+    await page.waitForFunction(() => window.__recs.length >= 2 && !window.__recs[window.__recs.length - 1].__stopped && window.__recs.slice(0, -1).every((r) => r.__stopped), null, { timeout: 10000 });
+    if (process.env.DEBUG) console.log("   before say:", JSON.stringify(await page.evaluate(() => ({ recs: window.__recs.map((r) => (r.__stopped ? "s" : "l") + (r.continuous ? "C" : "")), state: document.querySelector("[data-testid=on-the-go-mascot]")?.getAttribute("data-state"), btn: [...document.querySelectorAll("button[aria-label]")].map((b) => b.getAttribute("aria-label")).filter((l) => /start|pause/i.test(l)) }))));
     await say(page, "how does machine learning work in practice");
+    if (process.env.DEBUG) { await page.waitForTimeout(3000); console.log("   after say:", JSON.stringify(await page.evaluate(() => ({ spoken: window.__spoken.slice(-6), recs: window.__recs.map((r) => (r.__stopped ? "s" : "l") + (r.continuous ? "C" : "")), status: [...document.querySelectorAll("[role=status]")].map((e) => e.textContent).filter(Boolean) })))); }
     await page.waitForFunction(() => window.__spoken.some((t) => /explanation about|machine learning part/i.test(t)), null, { timeout: 15000 });
     await page.waitForFunction(() => window.__spoken.some((t) => /back to the course|carry|continu/i.test(t)) || window.__spoken.length > 4, null, { timeout: 20000 });
     await ctx.close();
@@ -334,7 +358,150 @@ try {
     const avatar = await page.getByTestId("on-the-go-mascot").boundingBox();
     assert.ok(widget.x >= 0 && widget.x + widget.width <= vw, "widget inside the screen");
     assert.ok(avatar.x >= 0 && avatar.x + avatar.width <= vw, "avatar inside the screen");
+    const input = await page.getByTestId("otg-search-input").boundingBox();
+    const overlap = !(widget.x + widget.width <= input.x || input.x + input.width <= widget.x || widget.y + widget.height <= input.y || input.y + input.height <= widget.y);
+    assert.equal(overlap, false, `the camera widget must not cover the search box: widget ${JSON.stringify(widget)} input ${JSON.stringify(input)}`);
     await page.screenshot({ path: `${SHOTS}/otg-11-phone.png` });
+    await ctx.close();
+  });
+
+  // 12. Search ranks courses that are ready in the voice's language first, with badges, and can hide English-only courses.
+  await check("search: courses ready in the voice's language first, badges, include-English toggle, empty state", async () => {
+    const ready = { es: ["audio-the-roman-empire", "audio-the-history-of-cinema"], fr: [] };
+    const { ctx, page, errors } = await setup(browser, { locale: "es", ready, localTitles: { "audio-the-roman-empire": "El Imperio Romano", "audio-the-history-of-cinema": "La historia del cine" } });
+    await begin(page);
+    const ids = await page.locator("[data-testid^=otg-course-]").evaluateAll((els) => els.map((e) => e.getAttribute("data-testid").replace("otg-course-", "")));
+    assert.deepEqual(ids.slice(0, 2).sort(), ["audio-the-history-of-cinema", "audio-the-roman-empire"], `ready first: ${ids}`);
+    assert.equal(await page.getByTestId("otg-badge-audio-the-roman-empire").getAttribute("data-kind"), "ready");
+    assert.equal(await page.getByTestId("otg-badge-audio-ancient-egypt").getAttribute("data-kind"), "english-only");
+    assert.match(await page.getByTestId("otg-course-audio-the-roman-empire").innerText(), /El Imperio Romano/);
+    await page.getByTestId("otg-search-input").fill("imperio");
+    assert.equal(await page.locator("[data-testid^=otg-course-]").count(), 1);
+    await page.getByTestId("otg-search-input").fill("");
+    await page.getByTestId("otg-include-english").uncheck();
+    assert.equal(await page.locator("[data-testid^=otg-course-]").count(), 2, "English-only courses hidden");
+    await page.getByTestId("otg-include-english").check();
+    assert.equal(await page.locator("[data-testid^=otg-course-]").count(), 5);
+    await page.screenshot({ path: `${SHOTS}/otg-12-search-es.png` });
+    assert.deepEqual(errors, []);
+    await ctx.close();
+    const fr = await setup(browser, { locale: "fr", ready });
+    await begin(fr.page);
+    await fr.page.getByTestId("otg-empty-language").waitFor({ state: "visible" });
+    assert.equal(await fr.page.locator("[data-testid^=otg-course-]").count(), 5, "English courses still listed");
+    await fr.ctx.close();
+  });
+
+  await check("search: a pre-translated course loads and plays right away; search keeps working if the index is down", async () => {
+    const { ctx, page } = await setup(browser, { locale: "es", ready: { es: ["audio-the-roman-empire"] } });
+    await begin(page);
+    await page.getByTestId("otg-search-input").fill("roman");
+    await page.getByTestId("otg-search-input").press("Enter");   // keyboard pick of the first result
+    await start(page).click();
+    await page.waitForFunction(() => window.__spoken.some((t) => /Roman Empire/.test(t)), null, { timeout: 15000 });
+    await ctx.close();
+    const down = await setup(browser, { searchFails: true });
+    await begin(down.page);
+    assert.equal(await down.page.locator("[data-testid^=otg-course-]").count(), 5, "falls back to the catalog rows");
+    await down.ctx.close();
+  });
+
+  await check("voice: 'search for cinema' filters the list and says so", async () => {
+    const { ctx, page } = await setup(browser);
+    await page.addInitScript(() => { window.__ttsMs = 700; });
+    await begin(page);
+    await start(page).click();
+    await page.waitForFunction(() => window.__recs.some((r) => !r.__stopped), null, { timeout: 15000 });
+    await say(page, "hey sala search for cinema");
+    await page.waitForFunction(() => window.__spoken.some((t) => /Searching for cinema/.test(t)), null, { timeout: 15000 });
+    assert.equal(await page.locator("[data-testid^=otg-course-]").count(), 1);
+    assert.equal(await page.getByTestId("otg-search-input").inputValue(), "cinema");
+    await page.waitForFunction(() => window.__recs.some((r) => !r.__stopped), null, { timeout: 15000 });
+    await say(page, "hey sala clear search");
+    await page.waitForFunction(() => window.__spoken.some((t) => /Showing all courses/.test(t)), null, { timeout: 15000 });
+    assert.equal(await page.locator("[data-testid^=otg-course-]").count(), 5);
+    await ctx.close();
+  });
+
+  // 13. The avatar is on screen in every state and says what the microphone is doing.
+  await check("avatar: visible before a course is picked, listening ring while a lesson plays, muted state, unmute", async () => {
+    const { ctx, page } = await setup(browser);
+    await begin(page);
+    const avatar = page.getByTestId("on-the-go-mascot");
+    assert.ok(await avatar.isVisible(), "visible before Start");
+    assert.equal(await avatar.getAttribute("data-state"), "idle");
+    assert.equal(await avatar.getAttribute("data-sala-avatar"), "", "the dance/giggle module attaches here");
+    assert.match(await page.getByTestId("on-the-go-avatar-label").innerText(), /Tap Sala/);
+    await start(page).click();
+    await page.waitForFunction(() => document.querySelector("[data-testid=on-the-go-mascot]")?.getAttribute("data-state") === "listening", null, { timeout: 15000 });
+    assert.match(await page.getByTestId("on-the-go-avatar-label").innerText(), /Listening: ask me anything/);
+    await page.getByTestId("on-the-go-mic-toggle").click();
+    await page.waitForFunction(() => document.querySelector("[data-testid=on-the-go-mascot]")?.getAttribute("data-state") === "muted", null, { timeout: 5000 });
+    assert.match(await page.getByTestId("on-the-go-avatar-label").innerText(), /Muted/);
+    await avatar.click();   // tapping a muted Sala listens again
+    await page.waitForFunction(() => document.querySelector("[data-testid=on-the-go-mascot]")?.getAttribute("data-state") === "listening", null, { timeout: 10000 });
+    await page.screenshot({ path: `${SHOTS}/otg-13-avatar-listening.png` });
+    await ctx.close();
+  });
+
+  await check("avatar: still there when the course fails to load, and as a sign-in link on the signed-out player", async () => {
+    const { ctx, page } = await setup(browser);
+    await page.route(/\/audio\/courses\/[^/?]+(\?.*)?$/, (route) => route.fulfill({ status: 500, contentType: "application/json", body: "{}" }));
+    await page.goto(URL, { waitUntil: "domcontentloaded" });
+    await closeTutorials(page);
+    await page.getByTestId("on-the-go-mascot").waitFor({ state: "visible", timeout: 20000 });
+    await ctx.close();
+    const out = await setup(browser);
+    await out.page.goto(`${BASE}/drive`, { waitUntil: "domcontentloaded" });
+    const a = out.page.getByTestId("on-the-go-mascot");
+    await a.waitFor({ state: "visible", timeout: 20000 });
+    assert.equal(await a.getAttribute("data-state"), "signin");
+    assert.equal(await a.getAttribute("href"), "/login");
+    await out.ctx.close();
+  });
+
+  await check("barge-in: asking while a lesson plays pauses it and answers", async () => {
+    const { ctx, page } = await setup(browser);
+    await page.addInitScript(() => { window.__ttsMs = 60000; });
+    await begin(page);
+    await start(page).click();
+    await page.waitForFunction(() => window.__recs.some((r) => !r.__stopped), null, { timeout: 15000 });
+    await say(page, "hey sala how does machine learning work");
+    await page.getByRole("button", { name: /^start$/i }).first().waitFor({ state: "visible", timeout: 10000 });   // lesson paused for the question
+    await ctx.close();
+  });
+
+  // 14. One-time consent before the first microphone prompt.
+  await check("consent card comes first: nothing is opened before it, the choice is remembered and can be reopened", async () => {
+    const { ctx, page } = await setup(browser, { noConsent: true });
+    await begin(page);
+    await start(page).click();
+    await page.getByTestId("on-the-go-consent").waitFor({ state: "visible", timeout: 10000 });
+    assert.equal(await page.evaluate(() => window.__gum), 0, "no microphone or camera request before consent");
+    assert.equal(await page.evaluate(() => window.__recs.length), 0, "no recognizer before consent");
+    assert.match(await page.getByTestId("on-the-go-consent").innerText(), /never uploaded or recorded/);
+    await page.getByTestId("otg-consent-mic").click();   // microphone only
+    await page.waitForFunction(() => window.__recs.some((r) => !r.__stopped), null, { timeout: 15000 });
+    await page.waitForTimeout(1200);
+    assert.equal(await cameraLive(page), false, "camera stays off when only the microphone was allowed");
+    assert.equal(await page.evaluate(() => localStorage.getItem("salareen.onTheGo.consent.v1")), "mic");
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await closeTutorials(page);
+    await start(page).click();
+    assert.equal(await page.getByTestId("on-the-go-consent").count(), 0, "not asked again");
+    await page.getByTestId("otg-privacy-choices").click();
+    await page.getByTestId("on-the-go-consent").waitFor({ state: "visible" });
+    await ctx.close();
+  });
+
+  await check("consent 'Not now': lesson plays, microphone stays off, Sala shows muted", async () => {
+    const { ctx, page } = await setup(browser, { noConsent: true });
+    await begin(page);
+    await start(page).click();
+    await page.getByTestId("otg-consent-none").click();
+    await page.waitForFunction(() => window.__spoken.length > 0, null, { timeout: 15000 });
+    assert.equal(await page.evaluate(() => window.__recs.length), 0);
+    assert.equal(await page.getByTestId("on-the-go-mascot").getAttribute("data-state"), "muted");
     await ctx.close();
   });
 } finally {

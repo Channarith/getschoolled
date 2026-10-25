@@ -3,13 +3,28 @@ On the Go demo: courses, avatar, face presence, always-on questions
 Page: /demo/on-the-go (hidden: four quick clicks on the logo). Component: apps/web/app/components/OnTheGo.tsx (mode "demo").
 
 What the learner gets
-  - Course picker: search, category chips, title, length, a "Resume at part N" mark. Demo shows 16 curated courses
-    (apps/web/app/lib/onTheGoCatalog.ts DEMO_COURSE_IDS; every id exists in the audio catalog). Signed-in users keep the full catalog dropdown.
-    Flag on_the_go.demo_course_picker (default on) turns the demo picker off (the demo then plays the single pinned course as before).
+  - Course search (always visible at the top, both demo and signed-in): fuzzy matching (typos, accents, CJK/Thai/Khmer substrings) over title,
+    translated title, category, subject and tags; title, length, a "Resume at part N" mark; arrow keys + Enter; windowed list so the whole catalog stays fast.
+    The VOICE decides the language: courses with a shippable translation in the voice's language come first with a green "Ready in <language>" badge;
+    others say "English only" (or the languages they are ready in). "Include English-only" (remembered) hides them. No translated courses yet for the
+    language -> a short note and the English courses. Say "search for ...", "find me a course on ...", "clear search".
+    Demo searches the 16 curated courses (apps/web/app/lib/onTheGoCatalog.ts DEMO_COURSE_IDS); flag on_the_go.demo_full_search (default OFF) opens the whole
+    catalog to the anonymous demo. Signed-in users search the full catalog. Flag on_the_go.demo_course_picker (default on) turns the demo picker off.
+  - Which translations are listed: GET /audio/search (services/curriculum, packages/shared aoep_shared.audio_search) lists a language for a course only when the
+    library file has the same segments as today's English, is a translation of today's English (provenance sha) and still passes the v2 validator
+    (translation_v2.is_current). Held, stale, partial or wrongly filed files are never listed. Narration is live text-to-speech in the picked voice
+    (audio_mode = live_tts; there are no per-course pre-rendered clips). The server library folder is AOEP_COURSE_TRANSLATION_DIR; an empty folder means every
+    course is English only.
   - Resume: the segment each course was left at is stored on the device (localStorage salareen.onTheGo.progress.v1, last 60 courses).
   - Voice commands (after "Hey Sala", or just spoken while a lesson plays): "play the Roman Empire course", "next course",
     "previous course", "play another course", "what courses are there". Playback commands (pause, faster, repeat) are unchanged.
-  - Sala avatar, bottom left: tap to ask. A green dot shows the always-on microphone is listening.
+  - Sala avatar, bottom left, on screen in EVERY state (loading, before a course, playing, ended, error; a link to sign in on the signed-out player):
+    gold ring pulse + green mic dot + "Listening: ask me anything" while the microphone is on; dimmed with a slashed mic and "Muted. Tap to listen again"
+    when muted; "Tap Sala, then ask me anything" before the first Start. Tap to ask; speaking at any time interrupts the lesson, the answer is spoken, the lesson resumes.
+    data-sala-avatar marks it for the shared giggle/dance module.
+  - One-time consent card before the first microphone prompt (Turn on microphone / Microphone and camera / Not now). It says plainly that the browser's speech
+    recognition turns the voice into text and some browsers send that audio to their provider; the camera is optional, on this device only, never uploaded or
+    recorded. The choice is remembered (salareen.onTheGo.consent.v1); "Privacy choices" reopens it. Nothing is opened before the card is answered.
   - Top-right widget (movable, position remembered): camera preview with a status dot, mic mute, camera on/off.
     Face away for 4 s pauses the lesson; back for 0.7 s resumes it. A pause the learner made themselves is never undone by it.
   - Always-on questions: while a lesson plays the browser recognizer listens (wake word, or a real question that is not the lesson's own audio).
@@ -27,5 +42,6 @@ Privacy and limits
   - Not verified on real phones: needs the Camera check screen / device test checklist.
 
 Tests
-  - Logic: apps/web/tests/unit/onTheGoCatalog.test.mjs (npm run test:unit).
+  - Logic: apps/web/tests/unit/onTheGoCatalog.test.mjs, onTheGoSearch.test.mjs (npm run test:unit); packages/shared/tests/test_audio_search.py,
+    services/curriculum/tests/test_audio_search_api.py.
   - Browser (stubbed API, camera detector, speech recognizer and voice): node apps/web/e2e/on-the-go-demo.mjs http://127.0.0.1:3000 /tmp/shots
