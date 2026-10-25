@@ -45,6 +45,27 @@ def test_translate_cert_slide_round_trip():
     assert translate_cert_slide(key, "zz") is None
 
 
+def test_machine_overlay_is_spoken_and_does_not_replace_khmer(tmp_path, monkeypatch):
+    monkeypatch.setenv("AOEP_CERT_MACHINE_DIR", str(tmp_path))
+    key = next(iter(CURATED["km"]))
+    (tmp_path / "es.json").write_text(
+        '{"language":"es","scaffold":{"examples_heading":"Ejemplos:","examples_lead":"Algunos ejemplos."},'
+        '"slides":{"' + key + '":{"title":"Permiso","body":"Reglas de California.","say":"Reglas de California."}}}',
+        encoding="utf-8",
+    )
+    (tmp_path / "km.json").write_text(
+        '{"slides":{"' + key + '":{"title":"NO","body":"NO","say":"NO"}}}',
+        encoding="utf-8",
+    )
+    es = translate_cert_slide(key, "es")
+    assert es is not None and es.say == "Reglas de California."
+    assert translate_cert_slide(key, "km").title == CURATED["km"][key].title
+    course = build_cert_course(lesson_id="ca-dmv-basics", language="es")
+    spoken = [s for s in course.slides if s.spoken_language == "es"]
+    assert spoken and spoken[0].narration
+    assert course.profile_adaptations["translation_source"] == "machine"
+
+
 def test_build_cert_course_km_has_spoken_language_and_khmer_titles():
     course = build_cert_course(lesson_id="ca-dmv-basics", language="km")
     assert course.language == "km"
