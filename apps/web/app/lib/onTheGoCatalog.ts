@@ -7,23 +7,13 @@ export const DEMO_COURSE_IDS: readonly string[] = [
   "audio-intro-to-machine-learning",
   "audio-what-is-artificial-intelligence",
   "audio-cybersecurity-basics",
-  "audio-what-is-blockchain",
-  "audio-how-smartphones-work",
   "audio-the-roman-empire",
-  "audio-ancient-egypt",
-  "audio-the-silk-road",
-  "audio-the-space-race",
-  "audio-the-theory-of-evolution",
   "audio-climate-and-weather",
-  "audio-quantum-physics-for-beginners",
-  "audio-the-art-of-focus",
   "audio-understanding-classical-music",
-  "audio-the-history-of-cinema",
-  "audio-understanding-mental-health",
 ];
 
 export const DEMO_PICKER_FLAG = "on_the_go.demo_course_picker";
-/** Demo: search the whole pre-translated catalog instead of the 16 curated courses (default off: sign-in is required beyond the demo). */
+/** Demo: search the whole pre-translated catalog instead of the 6 curated courses (default off: sign-in is required beyond the demo). */
 export const DEMO_FULL_SEARCH_FLAG = "on_the_go.demo_full_search";
 export const INCLUDE_ENGLISH_KEY = "salareen.onTheGo.includeEnglish";
 

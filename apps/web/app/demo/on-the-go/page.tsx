@@ -26,8 +26,7 @@ export default function OnTheGoDemoPage() {
           "Tap the ? button any time to see this again.",
         ]}
       />
-      <p><DemoVoiceSelect /></p>
-      <OnTheGo mode="demo" />
+      <OnTheGo mode="demo" voiceSlot={<DemoVoiceSelect />} />
     </main>
   );
 }

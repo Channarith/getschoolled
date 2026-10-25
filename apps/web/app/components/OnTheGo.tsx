@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   getAdPlan,
@@ -20,6 +20,7 @@ import OnTheGoPresence from "./OnTheGoPresence";
 import OnTheGoCourseSearch from "./OnTheGoCourseSearch";
 import OnTheGoAvatar, { type AvatarState } from "./OnTheGoAvatar";
 import OnTheGoConsent, { type ConsentChoice } from "./OnTheGoConsent";
+import OnTheGoTrialEnd from "./OnTheGoTrialEnd";
 import { CAMERA_PREF_KEY } from "../lib/facePresence";
 import SignInToUse from "./SignInToUse";
 import VideoAdBreak from "./VideoAdBreak";
@@ -61,11 +62,11 @@ import { languageFamily } from "../lib/voiceLanguage";
 // narration with an autoplay queue so learners keep their eyes on the road.
 const CONSENT_KEY = "salareen.onTheGo.consent.v1";
 
-export default function OnTheGo({ mode = "full" }: { mode?: OnTheGoMode }) {
+export default function OnTheGo({ mode = "full", voiceSlot }: { mode?: OnTheGoMode; voiceSlot?: ReactNode }) {
   const { t } = useT();
   return (
     <Suspense fallback={<main className="container"><p className="muted">{t("drive.loading")}</p></main>}>
-      <OnTheGoInner mode={mode} />
+      <OnTheGoInner mode={mode} voiceSlot={voiceSlot} />
     </Suspense>
   );
 }
@@ -76,7 +77,7 @@ function audibleCourse<T extends { segments: { text?: string }[] }>(course: T): 
   return { ...course, segments };
 }
 
-function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
+function OnTheGoInner({ mode, voiceSlot }: { mode: OnTheGoMode; voiceSlot?: ReactNode }) {
   const curatedFlag = useFlag<boolean>(DEMO_PICKER_FLAG, true);
   const experience = onTheGoExperience(mode, { curatedPicker: curatedFlag });
   const { t, locale } = useT();
@@ -963,6 +964,23 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
     }
   }
 
+  // Native apps (iOS WKWebView has no SpeechRecognition, Android WebView is inconsistent) can hand recognised text to the page:
+  //   window.__salaNativeSpeech.onTranscript("please dance")
+  // It goes through the same handler as the browser recognizer, so "dance" requests, course commands and questions all work.
+  const spokenInputRef = useRef<(raw: string, wake: boolean) => void>(() => {});
+  const canDriveRef = useRef(false);
+  useEffect(() => {
+    const bridge = {
+      onTranscript(text: unknown) {
+        if (!canDriveRef.current || demoEndedRef.current) return;
+        const clean = String(text ?? "").trim().slice(0, 300);
+        if (clean) spokenInputRef.current(clean, false);
+      },
+    };
+    (window as unknown as { __salaNativeSpeech?: typeof bridge }).__salaNativeSpeech = bridge;
+    return () => { delete (window as unknown as { __salaNativeSpeech?: typeof bridge }).__salaNativeSpeech; };
+  }, []);
+
   function handleSpokenInput(raw: string, _expectWakeWord: boolean) {
     stopVoiceRecognition();
     const text = raw.trim();
@@ -1213,6 +1231,8 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
 
   const paid = accountReady && loggedIn && tier !== "free";
   const canDrive = experience.showTimer || paid;
+  canDriveRef.current = canDrive;
+  spokenInputRef.current = handleSpokenInput;
   // Sala is always on screen; her state says what the microphone is doing.
   const avatarState: AvatarState = !canDrive ? "signin" : demoEnded ? "ended" : !speechOk ? "unsupported" : micDenied ? "blocked"
     : !autoListen ? "muted" : listening || playing ? "listening" : "idle";
@@ -1242,7 +1262,7 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
       } catch { /* the shared module is optional */ }
     })();
     return () => { cancelled = true; salaDanceRef.current = null; handle?.dispose(); };
-  }, [Boolean(course), canDrive]);
+  }, [Boolean(course), canDrive, consent]);   // the widget is re-keyed after the consent choice: attach to the new Sala node
 
   // After the mascot is tapped, tapping anywhere else on the page resumes the lesson.
   useEffect(() => {
@@ -1266,6 +1286,10 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
       demoEndedRef.current = true;
       setDemoEnded(true);
       pause();
+      stopVoiceRecognition();
+      stopAmbientListening();
+      setAutoListen(false);
+      setCameraActive(false);
       return;
     }
     const id = window.setTimeout(() => setSecondsLeft((n) => n - 1), 1000);
@@ -1298,11 +1322,8 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
       onDoubleClick={onStageDoubleClick}
     >
       {/* On a phone the camera widget would sit on top of the search box: leave room for it while it is showing. */}
-      <style>{`@media (max-width: 640px) { .otg-stage[data-presence=on] { padding-top: 220px !important; } }`}</style>
+      <style>{`@media (max-width: 640px) { .otg-stage[data-presence=on] { padding-top: 190px !important; } }`}</style>
       <div className="otg-bar">
-        {canFullscreen || !fill ? (
-          <button type="button" data-testid="on-the-go-fullscreen" aria-label={t("drive.fullscreen")} title={t("drive.fullscreen")} onClick={() => (canFullscreen ? toggleFullscreen() : setFill(true))}>⛶</button>
-        ) : null}
         {fill ? (
           <button type="button" data-testid="on-the-go-exit" aria-label={t("drive.leave")} title={t("drive.leave")} onClick={leaveStage}>✕</button>
         ) : null}
@@ -1311,25 +1332,6 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
       <p className="muted">{t("drive.pageIntro", { total: Math.max(searchRows.length, rows.length) || 200 })}</p>
       <p className="muted" style={{ fontSize: 14 }}>{t("drive.languageFollowsVoice", { lang: langLabel })}</p>
       {error && <div className="card" style={{ borderColor: "#ff6b6b" }}><div className="muted">{friendlyError(error, t("error.offline"))}</div></div>}
-
-      {experience.showTimer && (
-        <div
-          data-testid="on-the-go-timer"
-          role="timer"
-          aria-live="polite"
-          aria-atomic="true"
-          aria-label={demoEnded ? t("drive.demoEnded") : t("drive.freeDemo")}
-          style={{
-            position: "fixed", top: 12, left: 14, zIndex: 6,
-            color: demoEnded ? "#fca5a5" : "rgba(255,255,255,.55)",
-            fontSize: 14, fontWeight: 600, lineHeight: 1,
-            fontVariantNumeric: "tabular-nums",
-            background: "transparent",
-          }}
-        >
-          {timerLabel(secondsLeft)}
-        </div>
-      )}
 
       {!accountReady && !experience.showTimer && <p className="muted">{t("drive.loading")}</p>}
 
@@ -1486,32 +1488,12 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
         </div>
       )}
 
-      <div style={{ position: "fixed", left: 18, bottom: 72, zIndex: 50, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8 }}>
+      <div style={{ position: "fixed", left: 18, bottom: 18, zIndex: 50, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8, pointerEvents: "none" }}>
         {canDrive && assistantOpen && assistantStatus && (
           <div role="status" aria-live="polite" style={{ maxWidth: 240, padding: "8px 12px", borderRadius: 12, background: "#0b1020", color: "#e8ecf6", fontSize: 14, boxShadow: "0 6px 18px rgba(0,0,0,.35)" }}>
             {assistantStatus}
           </div>
         )}
-        {canDrive && experience.mode !== "demo" && (
-          <button
-            type="button"
-            data-testid="on-the-go-help"
-            aria-label={t("drive.helpButton")}
-            title={t("drive.helpButton")}
-            onClick={() => setHelpOpen(true)}
-            style={{ width: 36, height: 36, borderRadius: "50%", border: "2px solid #d4af37", background: "#0b1020", color: "#fde047", fontWeight: 800, cursor: "pointer" }}
-          >?</button>
-        )}
-        <OnTheGoAvatar
-          state={avatarState}
-          label={avatarLabel}
-          ariaLabel={t("drive.askSala")}
-          signInHref="/login"
-          onActivate={() => {
-            if (avatarState === "muted") { toggleMic(); return; }
-            if (!oneShotActiveRef.current) void startVoiceRecognition(false);
-          }}
-        />
       </div>
       {canDrive && consentOpen && (
         <OnTheGoConsent
@@ -1521,12 +1503,6 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
           }}
           onChoose={chooseConsent}
         />
-      )}
-      {canDrive && consent && !consentOpen && (
-        <button
-          type="button" data-testid="otg-privacy-choices" onClick={reopenConsent}
-          style={{ position: "fixed", right: 14, bottom: 14, zIndex: 40, background: "transparent", border: 0, color: "#9fbac2", fontSize: 12, textDecoration: "underline", cursor: "pointer" }}
-        >{t("drive.consent.reset")}</button>
       )}
       {canDrive && (
         <OnTheGoPresence
@@ -1538,8 +1514,35 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
           onToggleMic={toggleMic}
           onAway={handleAway}
           onBack={handleBack}
+          salaState={avatarState}
+          salaLabel={avatarLabel}
+          salaAriaLabel={t("drive.askSala")}
+          signInHref="/login"
+          onSalaActivate={() => {
+            if (avatarState === "muted") { toggleMic(); return; }
+            if (!oneShotActiveRef.current) void startVoiceRecognition(false);
+          }}
+          timer={experience.showTimer ? { label: timerLabel(secondsLeft), ended: demoEnded, ariaLabel: demoEnded ? t("drive.demoEnded") : t("drive.freeDemo") } : undefined}
+          menu={{
+            voiceSlot,
+            onFullscreen: canFullscreen || !fill ? () => (canFullscreen ? toggleFullscreen() : setFill(true)) : undefined,
+            onHelp: experience.mode !== "demo" ? () => setHelpOpen(true) : undefined,
+            onPrivacy: consent && !consentOpen ? reopenConsent : undefined,
+            headphoneHint: t("drive.useHeadphones"),
+            labels: {
+              menu: "Settings", minimize: "Minimise", expand: "Expand", mic: "Microphone", micOn: "On", micMuted: "Muted", camera: "Camera",
+              cameraOn: "On", cameraOff: "Off", fullscreen: t("drive.fullscreen"), help: t("drive.helpButton"), privacy: t("drive.consent.reset"),
+            },
+          }}
         />
       )}
+      {!canDrive && (
+        // Signed out on the full player: no camera or microphone, just Sala as the sign-in link.
+        <div style={{ position: "fixed", right: 14, top: 62, zIndex: 55 }}>
+          <OnTheGoAvatar state="signin" label={avatarLabel} ariaLabel={t("drive.askSala")} signInHref="/login" onActivate={() => {}} size={56} showLabel={false} />
+        </div>
+      )}
+      {experience.showTimer && demoEnded && <OnTheGoTrialEnd />}
     </main>
   );
 }
