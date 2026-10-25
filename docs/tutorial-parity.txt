@@ -1,0 +1,61 @@
+TUTORIAL PARITY: what the tutorials promise and what the product does (2026-10-25)
+=====================================================================================
+Rule: a tutorial may not promise a gesture or command that is not implemented. Three automated checks keep them in step:
+  subrepos/theodore_course_studio/tests/test_tutorial_parity.py   studio tutorial steps -> handlers in the page (+ node unit tests)
+  subrepos/theodore_children_webcam_lab/tests/test_game_tutorial_controls.py   each game's how-to buttons -> that game's controls
+  apps/web/tests/unit/tutorialParity.test.mjs                      On the Go tutorial phrases -> the playback parser, tap targets
+Browser check of the gestures (mouse + touch + reduced motion + cooldown + voice): node subrepos/theodore_course_studio/tests/sala_interactions_browser.mjs
+
+STUDIO TUTORIAL (demo, full course, clean full course)
+promise                                   implemented   touch    keyboard / other way        note
+----------------------------------------  ------------  -------  --------------------------  ------------------------------------------
+Tap the lesson: it moves ahead            yes           yes      Enter/Space on the stage    280 ms wait so a double-tap is not two taps
+Double-tap the lesson: full screen        yes           FIXED    voice "full screen"         was dblclick-only: iOS Safari/WebViews never fire it for touch; a double-tap is now recognised and fires it
+Tap Sala: she giggles                     FIXED         yes      -                           animation only existed in one page mode and had no sound: now every mode, soft two-note chirp (not over narration)
+Tap Sala again: listening on or off       yes           yes      mic pill, voice "mute my mic"
+Sala can dance                            WAS MISSING   -        -                           no behaviour anywhere. Owner decision: easter egg, removed from the tutorial (see below)
+Voice chips: pause next back repeat       yes           -        -                           all parsed (test)
+  captions on / full screen / speak Spanish
+Voice chips: louder, mute                 FIXED         -        -                           only worked in demo mode; the full course tutorial lists them. Now every mode
+Drag the panel, tuck away, three dots     yes           yes      arrow keys move the panel   clean full course
+Yellow ? button shows this again          yes           yes      Help in the panel menu
+"Captions stay off until you ask"         yes           -        voice "captions on"
+Menu "language" (clean tutorial copy)     COPY FIXED    -        -                           the language selector is being replaced by the voice picker; copy no longer names it
+
+THE DANCE EASTER EGG (not in the tutorial; the tutorial only says "Sala has a few secrets...")
+  scrub:  quick side-to-side motion across Sala: >= 4 swings (3 reversals) in 1.2 s, each >= 40% of her width. Mouse hover or a finger
+          down on her (touch-action: none on the avatar only). Not triggered by a tap, a slow drag, small jitter, scrolling, or dragging
+          the widget handle. The click that ends a finger scrub is swallowed so it does not toggle the mic.
+  voice:  short imperatives only: "dance", "please dance", "can you dance for me", "do a dance", "shake shake", "shake it", "show me your
+          moves", "boogie", "let's dance", "get down", "bust a move", with fuzzy matches ("dans", "daance"). Checked BEFORE the question path:
+          no paid call. A question about dancing ("what is the history of dance") still goes to Q&A. Other UI languages: es fr de it pt vi zh
+          yue ja ko th km (MACHINE-DRAFTED: a native speaker should review); English always works.
+  dance:  ~4.8 s sway/bounce/spin with sparkles on the golden Sala cutout; reduced motion = gentle bob; 10 s cooldown; any tap/click or a
+          "sala:attention" event stops it. Sound (soft arpeggio) only when narration is not playing, the mic is not listening and sound is
+          on; On the Go is visual only (its mic is always on). No line of speech yet: a pre-rendered cheerful clip can be hooked in `onDance`.
+  menu:   "Make Sala dance" entry exists behind the flag localStorage aoep.flag.sala_dance_menu = "1" (default OFF).
+  where:  studio demo/full course/clean course (any #theodore-avatar-wrap or [data-sala-avatar] element, now or added later), On the Go
+          (the Sala button), and anything else carrying data-sala-avatar. Source: voice_static/sala_interactions.js (one module; On the Go
+          imports it from /api/studio/voice-overlay/). NOTE for the Driver's Ed flow work: give the new Sala element data-sala-avatar.
+
+ON THE GO TUTORIAL
+  Tap the Sala logo or say "Hey Sala" to pause and ask      yes   (button + wake phrase)
+  pause / resume / next / go back / repeat that             yes   (parsePlaybackCommand, tested)
+  faster / slower / speed 1.5 / start over                  yes   (tested)
+  After an answer, tap anywhere to resume                   yes
+  Tap the ? button any time                                 yes
+
+PLAY LAB GAMES (42 games, each with a how-to)
+  Every button a how-to names (Check, Hear it, Undo, Play, the microphone) is shown by that game: 0 mismatches (test).
+  Not verifiable without a camera on a real phone: the hand/face gestures themselves (heart, idea, fist bump, wink ...), see
+  docs/mobile-vision-device-test.txt. Pop Quiz Toss left/right hand mapping is covered by the mobile vision checks.
+
+MOBILE APP
+  The native app has no gesture tutorial of its own (one hint: "Tap a term, then its match"). Lessons, games and demos run as the hosted
+  pages inside the web view, so every fix above applies there. Needs a real phone: double-tap and finger scrub inside the Android and
+  iOS web views (touch-action, pointer events), and sound policy.
+
+NEEDS A REAL DEVICE / OWNER
+  - iOS Safari/WKWebView double-tap and finger scrub (the code path for missing dblclick is tested with synthetic events only).
+  - Non-English dance phrases need a native-speaker pass.
+  - tutorial-dance.webp is no longer referenced (left in place; delete when convenient).

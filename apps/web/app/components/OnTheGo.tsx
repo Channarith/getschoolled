@@ -120,6 +120,9 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
   const demoEndedRef = useRef(false);
   const queue = useRef<AudioCourseRow[]>([]);
   const recognitionRef = useRef<any>(null);
+  // Sala's easter egg (scrub or say "dance"): loaded from the studio's shared module; absent means no easter egg, nothing breaks.
+  const salaModRef = useRef<any>(null);
+  const salaDanceRef = useRef<null | (() => void)>(null);
   const pauseSubmitTimerRef = useRef<number | null>(null);
   const pendingTranscriptRef = useRef("");
   const submittedRef = useRef(false);
@@ -894,6 +897,12 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
       startVoiceRecognition(false);
       return;
     }
+    // Easter egg: a short "dance" request is a playful reaction, not a question (no model call).
+    if (salaModRef.current?.matchDanceIntent?.(cleaned, voiceLocaleRef.current || "en")) {
+      salaDanceRef.current?.();
+      startVoiceRecognition(false);
+      return;
+    }
     handleAssistantQuestion(cleaned);
   }
 
@@ -1106,6 +1115,29 @@ function OnTheGoInner({ mode }: { mode: OnTheGoMode }) {
     if (!course) return;
     try { if (!localStorage.getItem(HELP_KEY)) setHelpOpen(true); } catch { /* private mode */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [Boolean(course)]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let handle: { dispose: () => void; dance: (why?: string) => boolean } | null = null;
+    (async () => {
+      try {
+        const url = "/api/studio/voice-overlay/sala_interactions.js";   // same-origin studio asset: a variable keeps the bundler out of it
+        const mod: any = await import(/* webpackIgnore: true */ url);
+        if (cancelled) return;
+        salaModRef.current = mod;
+        const node = document.querySelector<HTMLElement>("[data-testid='on-the-go-mascot']");
+        if (!node) return;
+        handle = mod.attachSalaInteractions(node, {
+          ignoreSelector: "a, input, select, textarea",   // the mascot itself is a button
+          isNarrating: () => Boolean(currentNarrationRef.current),
+          isMicListening: () => true,                       // the always-on mic would hear the music: visual only here
+          isMuted: () => false,
+        });
+        salaDanceRef.current = () => { handle?.dance("voice"); };
+      } catch { /* the shared module is optional */ }
+    })();
+    return () => { cancelled = true; salaDanceRef.current = null; handle?.dispose(); };
   }, [Boolean(course)]);
 
   // After the mascot is tapped, tapping anywhere else on the page resumes the lesson.
