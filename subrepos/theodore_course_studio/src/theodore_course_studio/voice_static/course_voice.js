@@ -518,6 +518,17 @@ export function initCourseVoiceOverlay(opts = {}) {
   }
 
   function handleUtterance(transcript) {
+    // A learning check is open: what was said is an answer first. It is never sent to the course as a question; if it does not
+    // match an option, the page shows what it heard and asks again, and the usual voice commands (pause, mute...) still work.
+    const activity = window.salaActivity;
+    if (options.demo && activity && typeof activity.open === "function" && activity.open()) {
+      let handled = false;
+      try { handled = activity.handle(transcript) === true; } catch { handled = false; }
+      if (handled) return;
+      const command = parseDemoCommand(transcript);
+      if (command) dispatchDemoCommand(command);
+      return;
+    }
     // Easter egg: a short "dance" request never reaches Q&A (no paid call).
     if (matchDanceIntent(transcript, options.locale)) { danceNow(); return; }
     // Sound, volume and camera commands work in every mode (the tutorial lists "louder" and "mute").
@@ -571,6 +582,19 @@ export function initCourseVoiceOverlay(opts = {}) {
     recognizer = null;
     listening = false;
   }
+
+  // The "Speak your answer" button listens with its own recogniser: this one steps aside meanwhile (one at a time).
+  let recognitionPaused = false;
+  window.addEventListener("sala:pause-recognition", () => {
+    if (!recognizer) return;
+    recognitionPaused = true;
+    stopRecognizer();
+  });
+  window.addEventListener("sala:resume-recognition", () => {
+    if (!recognitionPaused) return;
+    recognitionPaused = false;
+    if (consented && !muted) startRecognizer();
+  });
 
   function setMuted(value) {
     muted = Boolean(value);
@@ -1112,11 +1136,15 @@ export function initCourseVoiceOverlay(opts = {}) {
   }
   function wireSalaInteractions() {
     observeAvatars((node) => {
-      salaHandles.set(node, attachSalaInteractions(node, {
+      const own = {
         isNarrating: () => document.body.classList.contains("is-speaking"),
         isMicListening: () => Boolean(listening && !muted),
         isMuted: () => audioGain === 0,
-      }));
+      };
+      // The demo's Sala is itself a <button> (keyboard and screen-reader friendly): the shared module would skip pointer movement
+      // over any button, so for her the ignore-list is only the avatar's own handles.
+      if (node.classList && node.classList.contains("sala-mascot")) own.ignoreSelector = ".avatar-handle, .avatar-grip";
+      salaHandles.set(node, attachSalaInteractions(node, own));
     });
     const stage = document.querySelector(options.stageSelector);
     if (stage) attachTouchDoubleTap(stage);
@@ -1131,6 +1159,7 @@ export function initCourseVoiceOverlay(opts = {}) {
       const wrap = event.target.closest && event.target.closest("#theodore-avatar-wrap");
       if (!wrap) return;
       event.stopPropagation();
+      salaHandles.get(wrap)?.giggle();
       onSalaTap();
     }, true);
     setInterval(syncMascot, 400);
@@ -1455,7 +1484,7 @@ export function initCourseVoiceOverlay(opts = {}) {
     if (params.get("voicefirst") === "0") return;
     const stage = document.getElementById("teach-stage");
     if (!stage) return;
-    initCourseVoiceOverlay({
+    window.salaVoice = initCourseVoiceOverlay({
       typeToAsk: params.get("typemode") === "1",
       locale: params.get("lang") || "en-US",
       demo: params.get("demo") === "1",

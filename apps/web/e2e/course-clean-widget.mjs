@@ -150,7 +150,7 @@ for (const [name, engine, opts] of MATRIX) {
     await page.reload({ waitUntil: "networkidle" });
     await page.waitForTimeout(800);
     const stage = await page.locator("#teach-stage").boundingBox();
-    await page.mouse.click(stage.x + stage.width * 0.6, stage.y + stage.height * 0.5);
+    await page.mouse.click(stage.x + stage.width * 0.55, stage.y + stage.height * 0.72);
     await page.waitForTimeout(600);
     const hint = await page.evaluate(() => window.localStorage.getItem("aoep.courseWidget.hint.v1"));
     assert.equal(hint, "1", `${name}: first tap handled`);

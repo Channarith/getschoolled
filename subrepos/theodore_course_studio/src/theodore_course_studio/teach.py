@@ -10,6 +10,7 @@ from typing import Any
 from aoep_shared.course_studio_access import (
     COURSE_PRICE_CENTS,
     COURSE_PRICE_LABEL,
+    SAMPLE_COOLDOWN_MINUTES,
     SAMPLE_ENDED,
     SAMPLE_MINUTES,
     SAMPLE_PREVIEW,
@@ -329,6 +330,14 @@ def _program_progress(course: Any, session: TeachSession) -> dict[str, Any]:
     }
 
 
+class SampleTrialExpired(Exception):
+    """The anonymous 10-minute demo of this learner is over; it is not offered again until the cooldown has passed."""
+
+    def __init__(self, message: str = SAMPLE_ENDED) -> None:
+        super().__init__(message)
+        self.message = message
+
+
 class TeachEngine:
     def __init__(
         self,
@@ -433,6 +442,14 @@ class TeachEngine:
             ]
             if earlier:
                 started_at = min([started_at, *earlier])
+        if sample_only and learner_id != "learner-demo":
+            now_ms = int(time.time() * 1000)
+            used_ms = now_ms - started_at
+            if used_ms >= SAMPLE_MINUTES * 60_000:
+                if used_ms < SAMPLE_COOLDOWN_MINUTES * 60_000:
+                    # Over, and refused: no lesson content, no new session. A reload, Back or another language cannot reopen it.
+                    raise SampleTrialExpired()
+                started_at = now_ms   # a day later the same browser may have a fresh demo
         program = bool((course.profile_adaptations or {}).get("program"))
         if program:
             # The full program stays one path, even when the learner still has gaps.

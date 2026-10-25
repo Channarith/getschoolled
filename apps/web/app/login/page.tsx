@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { safeReturnPath } from "../lib/safeRedirect";
 import {
   getOAuthProviderStatus,
   getOnboardingStatus,
@@ -34,7 +35,9 @@ export default function LoginPage() {
   const router = useRouter();
   async function continueSignedIn() {
     const status = await getOnboardingStatus().catch(() => null);
-    router.push(status && !status.completed ? "/onboarding" : "/");
+    // ?next=/learn/drivers-ed (from the end of the demo) brings the learner back to the course; only same-site paths count.
+    const back = safeReturnPath(new URLSearchParams(window.location.search).get("next"), "/");
+    router.push(status && !status.completed ? "/onboarding" : back);
   }
   const signupsOpen = useFlag<boolean>("ops.new_signups", true);
   const demoOnly = useFlag<boolean>(SALES_DEMO_FLAGS.exclusive, false);

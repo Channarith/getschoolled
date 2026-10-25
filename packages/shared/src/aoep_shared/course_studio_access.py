@@ -49,16 +49,15 @@ PUBLIC_STUDIO_COURSES = (
 )
 
 SAMPLE_PREVIEW = (
-    "This free trial is 10 minutes. "
-    f"The full course is {COURSE_PRICE_LABEL}. "
-    "Pay for the course when you want the full class."
+    "This free demo is 10 minutes. "
+    "Create an account or log in to keep learning."
 )
 SAMPLE_ENDED = (
-    "Your free 10-minute trial has ended. "
-    "Thanks for spending time with the lesson. "
-    f"The full course is {COURSE_PRICE_LABEL}. "
-    "Pay for the course when you want to keep going."
+    "Your free 10-minute demo has ended. "
+    "Create an account or log in to your account to keep learning."
 )
+# After the demo ends, the same browser (learner) gets a new demo only after this long.
+SAMPLE_COOLDOWN_MINUTES = 24 * 60
 
 
 def full_class_allowed(

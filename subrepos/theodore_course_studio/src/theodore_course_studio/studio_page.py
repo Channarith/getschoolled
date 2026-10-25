@@ -563,6 +563,33 @@ STUDIO_CSS = """
     body.demo-clean:not(.sala-captions) #lesson-caption {
       position:absolute !important; width:1px !important; height:1px !important; margin:0 !important; padding:0 !important; border:0 !important;
       overflow:hidden !important; clip:rect(0 0 0 0) !important; clip-path:inset(50%) !important; white-space:nowrap !important; }
+    /* Learning checks in the demo: the card is ABOVE the lesson stage (the stage grid used to cover it and swallow every click),
+       centred, scrollable, with big touch targets and visible picked / correct / wrong states. */
+    body.demo-clean #quiz-box:not([style*="none"]), body.demo-clean #game-box:not([style*="none"]) {
+      position:absolute !important; z-index:20; left:50%; top:50%; transform:translate(-50%,-50%); margin:0 !important;
+      width:min(720px, calc(100% - 32px)); max-height:calc(100% - 32px); overflow:auto; box-sizing:border-box;
+      box-shadow:0 18px 50px rgba(0,0,0,.45); }
+    body.demo-clean #quiz-box button[data-sync-choice], body.demo-clean #quiz-box .mic-btn { min-height:48px; }
+    #quiz-box button.is-correct { background:#d9ffe8 !important; border-color:#16a34a !important; color:#14532d !important; }
+    #quiz-box button.is-wrong { background:#fee2e2 !important; border-color:#dc2626 !important; color:#7f1d1d !important; }
+    #quiz-box button.is-picked { outline:3px solid #1e3a5f; outline-offset:1px; }
+    #quiz-box .quiz-feedback { margin:10px 0 6px; font-weight:700; min-height:1.3em; }
+    #quiz-box [hidden] { display:none !important; }
+    /* End of the anonymous demo: nothing else is usable behind the card. */
+    body.trial-ended > *:not(#trial-end) { visibility:hidden !important; pointer-events:none !important; }
+    #trial-end { position:fixed; inset:0; z-index:2147483600; display:grid; place-items:center; padding:16px; background:#0b1020; }
+    #trial-end[hidden] { display:none; }
+    #trial-end .trial-card { box-sizing:border-box; width:min(100%, 440px); padding:24px 22px 18px; border-radius:20px; text-align:center;
+      background:linear-gradient(160deg,#1e1b4b,#0f172a); border:2px solid rgba(212,175,55,.8); color:#f1f5f9;
+      box-shadow:0 20px 60px rgba(0,0,0,.6); font:500 16px/1.45 system-ui,"Avenir Next","Segoe UI",sans-serif; }
+    #trial-end h2 { margin:0 0 10px; font:800 22px/1.2 system-ui,sans-serif; color:#fde68a; }
+    #trial-end p { margin:0 0 16px; }
+    #trial-end .row { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+    #trial-end button { min-height:46px; padding:0 20px; border-radius:99px; border:2px solid rgba(255,255,255,.5); background:transparent; color:#f1f5f9;
+      font:800 15px/1 system-ui,sans-serif; cursor:pointer; }
+    #trial-end button.primary { background:#fde047; border-color:#fde047; color:#1e1b4b; }
+    #trial-end button.quiet { margin-top:12px; border-color:transparent; font-weight:600; opacity:.8; text-decoration:underline; }
+    #trial-end button:focus-visible { outline:3px solid #fde047; outline-offset:2px; }
     /* Camera consent card: shown once, before the browser's own permission prompt. */
     .sala-cam-consent { position:fixed; inset:0; z-index:2147483300; display:grid; place-items:center; padding:14px; background:rgba(2,6,23,.62); }
     .sala-cam-consent .card { box-sizing:border-box; width:min(calc(100vw - 28px), 420px); padding:20px 20px 16px; border-radius:20px; text-align:center;
@@ -848,8 +875,9 @@ STUDIO_CSS = """
     body.phone-embed .teach-stage:not(.captions-off) #teach-examples,
     body.phone-embed .teach-stage:not(.captions-off) .visual-layer.kind-title,
     body.phone-embed .teach-stage:not(.captions-off) .visual-layer.kind-text { display:none !important; }
-    body.phone-embed .teach-stage.captions-off #quiz-box,
-    body.phone-embed .teach-stage.captions-off #game-box,
+    /* Not in the demo: there a learning check MUST show on a phone too (it blocks the lesson until answered). */
+    body.phone-embed:not(.demo-clean) .teach-stage.captions-off #quiz-box,
+    body.phone-embed:not(.demo-clean) .teach-stage.captions-off #game-box,
     body.audio-only .teach-stage.captions-off #quiz-box,
     body.audio-only .teach-stage.captions-off #game-box { display:none !important; }
     body.phone-embed .teach-stage.captions-off .visual-timeline-stage.layout-compare .visual-layer.kind-picture,
@@ -1375,7 +1403,7 @@ STUDIO_JS = """
         is_admin: adminFlag,
       };
     }
-    const TRIAL_ENDED = 'Your free 10-minute trial has ended. Thanks for spending time with the lesson. Pay for the course when you want to keep going.';
+    const TRIAL_ENDED = 'Your free 10-minute demo has ended. Create an account or log in to your account to keep learning.';
     let sampleTimer = 0;
     let sampleTick = 0;
     function sampleIsComplete() {
@@ -1402,7 +1430,10 @@ STUDIO_JS = """
       if (sampleTimer) { clearTimeout(sampleTimer); sampleTimer = 0; }
       if (sampleTick) { clearInterval(sampleTick); sampleTick = 0; }
     }
+    let trialEnded = false;
     function endSampleTrial(payload) {
+      if (trialEnded) return;
+      trialEnded = true;
       stopSampleClock();
       const base = payload || lastTeachPayload || {};
       lastTeachPayload = base;
@@ -1413,13 +1444,47 @@ STUDIO_JS = """
         minutes: (base.sample && base.sample.minutes) || 10,
         message: trialEndedMessage(base),
       });
+      // The demo is over: nothing keeps running. Narration, the mic and the webcam stream are released.
       lecturePaused = true;
-      if ($('btn-pause')) setPauseButton(true);
-      stopSpeech();
-      window.TheodoreLiveAudio?.pauseRecognition();
-      paintSampleBanner(base);
-      openPayScreen();
+      try { if ($('btn-pause')) setPauseButton(true); } catch (_) { /* page already tearing down */ }
+      try { stopSpeech(); } catch (_) { /* nothing playing */ }
+      try { stopStudentMic(); } catch (_) { /* no mic */ }
+      try { window.TheodoreLiveAudio?.pauseRecognition?.(); } catch (_) { /* optional */ }
+      try { window.TheodoreLiveAudio?.stop?.(); } catch (_) { /* optional */ }
+      try { window.salaCamera?.stop?.(); } catch (_) { /* optional */ }
+      try { stopStudentCamera(); } catch (_) { /* optional */ }
+      try { window.salaVoice?.dispose?.(); } catch (_) { /* optional */ }
+      document.body.classList.add('trial-ended');
+      showTrialEnd(base);
+      try { window.parent.postMessage({ type: 'sala-trial-ended' }, window.location.origin); } catch (_) { /* standalone */ }
     }
+    // End-of-demo card: no price and no payment (an anonymous visitor cannot pay without an account). The lesson cannot be
+    // used behind it, and "Not now" leaves for the two-button front page; Back cannot return to the demo.
+    function leaveTo(path) {
+      let target = window;
+      try { if (window.top && window.top.location.origin === window.location.origin) target = window.top; } catch (_) { target = window; }
+      target.location.replace(path);
+    }
+    function showTrialEnd(payload) {
+      let card = $('trial-end');
+      if (!card) return;
+      if (card.parentElement !== document.body) document.body.appendChild(card);
+      const msg = $('trial-end-copy');
+      if (msg) msg.textContent = trialEndedMessage(payload);
+      card.hidden = false;
+      const course = encodeURIComponent('/learn/' + (pinnedCourse || 'drivers-ed'));
+      $('trial-create').onclick = () => leaveTo('/login?mode=signup&next=' + course);
+      $('trial-login').onclick = () => leaveTo('/login?next=' + course);
+      $('trial-notnow').onclick = () => leaveTo('/');
+      const first = $('trial-create');
+      if (first && first.focus) first.focus({ preventScroll: true });
+    }
+    // Sleep/wake and background tabs: the clock is the server's start time, so check again whenever the page is back.
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState !== 'visible' || trialEnded || !lastTeachPayload) return;
+      const left = sampleRemainMs(lastTeachPayload);
+      if (left != null && left <= 0 && lastTeachPayload.access_mode === 'sample') endSampleTrial(lastTeachPayload);
+    });
     let payBusy = false;
     function openPayScreen() {
       const screen = $('pay-screen');
@@ -1540,7 +1605,7 @@ STUDIO_JS = """
       const priceBtn = $('course-price');
       if (priceBtn) {
         if (priceBtn.parentElement !== document.body) document.body.appendChild(priceBtn);
-        priceBtn.hidden = mode !== 'sample';
+        priceBtn.hidden = true;   // no price in the demo: the end-of-demo card asks for an account, not a payment
       }
     }
     function resolveLearnerId() {
@@ -4481,23 +4546,30 @@ STUDIO_JS = """
       lecturePaused = false;
       if ($('btn-pause')) setPauseButton(false);
       teachLanguage = $('teach-lang').value || 'en';
-      const data = await api('/api/studio/teach/start', {
-        method:'POST', headers:{
-          'content-type':'application/json',
-          ...(localStorage.getItem('aoep_token')
-            ? {'authorization':'Bearer ' + localStorage.getItem('aoep_token')}
-            : {})
-        },
-        body: JSON.stringify({
-          session_id: teachSession, course_id: selectedCourse, profile: profileFromForm(),
-          learner_id: learnerId,
-          focus_gaps: !!(opts && opts.focusGaps === false) ? false : true, known_objective_ids: [],
-          language: teachLanguage, use_voice_agent: true,
-          voice_gender: courseVoiceGender,
-          resume: opts.resume !== false,
-          ...teachAccessFields()
-        })
-      });
+      let data;
+      try {
+        data = await api('/api/studio/teach/start', {
+          method:'POST', headers:{
+            'content-type':'application/json',
+            ...(localStorage.getItem('aoep_token')
+              ? {'authorization':'Bearer ' + localStorage.getItem('aoep_token')}
+              : {})
+          },
+          body: JSON.stringify({
+            session_id: teachSession, course_id: selectedCourse, profile: profileFromForm(),
+            learner_id: learnerId,
+            focus_gaps: !!(opts && opts.focusGaps === false) ? false : true, known_objective_ids: [],
+            language: teachLanguage, use_voice_agent: true,
+            voice_gender: courseVoiceGender,
+            resume: opts.resume !== false,
+            ...teachAccessFields()
+          })
+        });
+      } catch (error) {
+        // The server refuses an anonymous demo that is over (a reload, Back or another language cannot reopen it).
+        if (/^trial_expired/.test(String((error && error.message) || ''))) { endSampleTrial(null); return; }
+        throw error;
+      }
       renderTeach(data);
       if (data.resume_message) toast(data.resume_message);
       else if (data.bookmark_available) toast('Saved place found — use Resume saved to continue');
@@ -4723,6 +4795,8 @@ STUDIO_JS = """
       if (!ok) return;
       stopSpeech();
       stopStudentMic();
+      // One recogniser at a time: the course's own always-on listener steps aside while this button listens.
+      try { window.dispatchEvent(new CustomEvent('sala:pause-recognition')); } catch (_) { /* old browser */ }
       const rec = new Ctor();
       studentRec = rec;
       rec.lang = recognitionLang();
@@ -4749,6 +4823,7 @@ STUDIO_JS = """
         if (heard) onText(heard, isFinal && !!finalText);
       };
       const finishRec = () => {
+        try { window.dispatchEvent(new CustomEvent('sala:resume-recognition')); } catch (_) { /* old browser */ }
         if (button) {
           button.classList.remove('is-listening');
           if (button.dataset.label) button.textContent = button.dataset.label;
@@ -4774,38 +4849,64 @@ STUDIO_JS = """
     }
 
     function spokenWords(text) {
-      return String(text || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\\s+/g, ' ').trim();
+      // Any language: letters and numbers of every script stay, accents are folded, everything else becomes a space.
+      return String(text || '').toLowerCase().normalize('NFKD').replace(/[\\u0300-\\u036f]/g, '')
+        .replace(/[^\\p{L}\\p{N} ]/gu, ' ').replace(/\\s+/g, ' ').trim();
     }
+
+    const CHOICE_LETTERS = { a:0, b:1, c:2, d:3, e:4, f:5 };
+    // First..sixth and one..six in the languages of the demo (accents folded), plus the CJK digits.
+    const CHOICE_ORDINALS = {
+      one:0, first:0, two:1, second:1, three:2, third:2, four:3, fourth:3, five:4, fifth:4, six:5, sixth:5,
+      uno:0, primero:0, primera:0, dos:1, segundo:1, segunda:1, tres:2, tercero:2, tercera:2, cuatro:3, cuarto:3, cuarta:3, cinco:4, quinto:4, seis:5, sexto:5,
+      un:0, premier:0, premiere:0, deux:1, deuxieme:1, trois:2, troisieme:2, quatre:3, quatrieme:3, cinq:4, cinquieme:4, six_fr:5,
+      eins:0, erste:0, ersten:0, zwei:1, zweite:1, zweiten:1, drei:2, dritte:2, dritten:2, vier:3, vierte:3, vierten:3, funf:4, funfte:4, sechs:5,
+      um:0, dois:1, segunda_pt:1, tres_pt:2, terceiro:2, quatro:3, quarto:3, sexto_pt:5,
+      due:1, tre:2, quattro:3, secondo:1, terzo:2, quarto_it:3,
+      '一':0, '二':1, '三':2, '四':3, '五':4, '六':5, '第一':0, '第二':1, '第三':2, '第四':3, '第五':4, '第六':5,
+      'ក្រោយ':-1
+    };
+    const CHOICE_FILLERS = new Set(['the','number','option','choice','answer','please','its','it','is','one','letter','opcion','respuesta','numero','la','el','reponse','choix','antwort','nummer']);
+    const CHOICE_STOP = new Set(['the','and','for','you','are','with','that','this','from','have','not','but','was','all','can','will','your','del','las','los','una','por','con','que','une','des','les','und','der','die','das']);
 
     function matchSpokenChoice(spoken, choices) {
       const said = spokenWords(spoken);
       if (!said) return -1;
-      const letters = { a:0, b:1, c:2, d:3, e:4, f:5 };
-      const ordinals = {
-        one:0, first:0, two:1, second:1, three:2, third:2,
-        four:3, fourth:3, five:4, fifth:4, six:5, sixth:5
-      };
-      if (Object.prototype.hasOwnProperty.call(letters, said) && letters[said] < choices.length) return letters[said];
-      if (Object.prototype.hasOwnProperty.call(ordinals, said) && ordinals[said] < choices.length) return ordinals[said];
-      const fillers = { the:1, number:1, option:1, choice:1, answer:1, please:1, its:1, it:1, is:1 };
-      const tokens = said.split(' ').filter((word) => word && !fillers[word]);
-      if (tokens.length === 1 && Object.prototype.hasOwnProperty.call(ordinals, tokens[0]) && ordinals[tokens[0]] < choices.length) {
-        return ordinals[tokens[0]];
-      }
-      if (tokens.length === 1 && Object.prototype.hasOwnProperty.call(letters, tokens[0]) && letters[tokens[0]] < choices.length) {
-        return letters[tokens[0]];
+      const count = choices.length;
+      const ordinal = (word) => (Object.prototype.hasOwnProperty.call(CHOICE_ORDINALS, word) && CHOICE_ORDINALS[word] >= 0 && CHOICE_ORDINALS[word] < count) ? CHOICE_ORDINALS[word] : -1;
+      if (Object.prototype.hasOwnProperty.call(CHOICE_LETTERS, said) && CHOICE_LETTERS[said] < count) return CHOICE_LETTERS[said];
+      const whole = ordinal(said);
+      if (whole >= 0) return whole;
+      const tokens = said.split(' ').filter(Boolean);
+      const content = tokens.filter((word) => !CHOICE_FILLERS.has(word) || ordinal(word) >= 0);
+      // "C", "option c", "letter b", "the third one", "number 2", "option three": a short phrase that names ONE position.
+      if (tokens.length <= 4) {
+        const picks = new Set();
+        for (const word of tokens) {
+          if (Object.prototype.hasOwnProperty.call(CHOICE_LETTERS, word) && CHOICE_LETTERS[word] < count && tokens.length > 1 && tokens.some((t) => ['option','choice','letter','answer','opcion','choix'].includes(t))) picks.add(CHOICE_LETTERS[word]);
+          const o = ordinal(word);
+          if (o >= 0 && word !== 'one' && word !== 'un' && word !== 'um' && word !== 'uno') picks.add(o);
+          if (/^\\d+$/.test(word)) { const n = parseInt(word, 10); if (n >= 1 && n <= count) picks.add(n - 1); }
+        }
+        if (picks.size === 1) return [...picks][0];
+        if (picks.size === 0 && tokens.length === 2 && tokens[1] === 'one') { const o = ordinal(tokens[0]); if (o >= 0) return o; }
       }
       const numbered = said.match(/^(?:number|option|choice|answer)?\\s*(\\d+)$/);
       const num = numbered ? parseInt(numbered[1], 10) : parseInt(said, 10);
-      if (num >= 1 && num <= choices.length && String(num) === said.replace(/\\D/g, '')) return num - 1;
-      let best = -1;
-      let bestScore = 0;
-      choices.forEach((choice, index) => {
-        const words = spokenWords(choice).split(' ').filter((word) => word.length > 2);
-        const score = words.filter((word) => said.includes(word)).length;
-        if (score > bestScore) { bestScore = score; best = index; }
-      });
-      return bestScore > 0 ? best : -1;
+      if (num >= 1 && num <= count && String(num) === said.replace(/\\D/g, '')) return num - 1;
+      // The words of an option: share of its meaningful words that were said; the best option wins if it is clearly ahead.
+      const saidWords = new Set(content);
+      const scored = choices.map((choice, index) => {
+        const words = spokenWords(choice).split(' ').filter((word) => word.length > 2 && !CHOICE_STOP.has(word));
+        const hit = words.filter((word) => saidWords.has(word) || said.includes(word)).length;
+        return { index, hit, share: words.length ? hit / words.length : 0 };
+      }).sort((x, y) => (y.share - x.share) || (y.hit - x.hit));
+      const best = scored[0];
+      const next = scored[1];
+      if (!best || best.hit === 0) return -1;
+      if (best.share >= 0.5 && (!next || best.share > next.share || best.hit > next.hit)) return best.index;
+      if (best.hit >= 2 && (!next || best.hit > next.hit)) return best.index;
+      return -1;
     }
 
     let spokenActivity = null;
@@ -4830,6 +4931,12 @@ STUDIO_JS = """
       if (heard) heard.textContent = 'Heard: ' + text;
       return spokenActivity(text) === true;
     }
+    // The demo listens with its own recogniser (course_voice.js). While a learning check is open it hands what it hears to this
+    // handler first, so an answer is never taken for a question to the course.
+    window.salaActivity = {
+      open: () => typeof spokenActivity === 'function',
+      handle: (text) => applySpokenActivity(text, 'user'),
+    };
     function saidCheck(text) {
       const said = spokenWords(text);
       return said === 'check' || said === 'done' || said === 'submit' || said === 'finished' ||
@@ -5139,6 +5246,9 @@ STUDIO_JS = """
         return true;
       }, prompt + ' Left: ' + (compare.left || '') + '. Right: ' + (compare.right || ''));
     }
+
+    // Test hook (only with ?e2e=1 in the page address): lets the browser tests open a learning check without waiting for a lesson.
+    if (studioQuery.get('e2e') === '1') window.__salaStudio = { present: (checkpoint) => presentActivityCheckpoint(checkpoint) };
 
     function presentActivityCheckpoint(checkpoint) {
       if (checkpoint && checkpoint.activity === 'compare' && checkpoint.compare) {
@@ -5778,14 +5888,16 @@ STUDIO_JS = """
     async function summaryQuizInteractive() {
       stopSpeech();
       theodoreAvatar?.setState('ask');
+      const box = $('quiz-box');
+      // Show the card at once (no empty dark stage while the questions load).
+      box.style.display = 'block';
+      box.innerHTML = '<p role="status">Getting your question…</p>';
       const quiz = await api('/api/studio/teach/summary-quiz', {
         method:'POST', headers:{'content-type':'application/json'},
         body: JSON.stringify({ session_id: teachSession })
       });
       const questions = quiz.questions || [];
       const answers = {};
-      const box = $('quiz-box');
-      box.style.display = 'block';
       if (!questions.length) {
         box.style.display = 'none';
         continueAfterActivity();
@@ -5837,17 +5949,55 @@ STUDIO_JS = """
         const choices = q.choices || [];
         box.innerHTML = `<div class="quiz-progress">Question ${at + 1} of ${questions.length}</div>
           <strong>${esc(q.prompt)}</strong>` +
-          choices.map((choice, i) => `<button type="button" data-sync-choice="${i}">${esc(choice)}</button>`).join('') +
+          choices.map((choice, i) => `<button type="button" data-sync-choice="${i}" aria-label="${String.fromCharCode(65 + i)}. ${esc(choice)}">${esc(choice)}</button>`).join('') +
           `<button type="button" class="secondary mic-btn" id="summary-sync-mic">Speak your answer</button>
-          <p class="heard" id="summary-sync-heard"></p>`;
+          <p class="heard" id="summary-sync-heard" role="status" aria-live="polite"></p>
+          <p class="quiz-feedback" id="summary-sync-feedback" role="status" aria-live="polite"></p>
+          <button type="button" class="primary" id="summary-sync-next" hidden>Next question</button>`;
         const spokenQuestion = q.prompt + '. ' +
           choices.map((choice, i) => `Option ${i + 1}: ${choice}`).join('. ');
         speakText(spokenQuestion, null, true, 'checkpoint');
+        let locked = false;
+        let advanced = false;
+        let timer = 0;
+        const noMatch = (text) => {
+          const heard = box.querySelector('#summary-sync-heard');
+          if (heard) heard.textContent = 'I heard “' + text + '”. Say A, B, C or D, a number, or the answer — or tap it.';
+        };
         const choose = (index) => {
+          if (locked) return;
+          locked = true;
           answers[q.question_id] = index;
-          at += 1;
-          if (at >= questions.length) finish();
-          else show();
+          clearSpokenActivity();
+          stopSpeech();
+          const right = Number.isInteger(q.correct_index) ? q.correct_index : -1;
+          box.querySelectorAll('button[data-sync-choice]').forEach((button) => {
+            const i = +button.dataset.syncChoice;
+            button.disabled = true;
+            if (i === index) button.classList.add('is-picked');
+            if (right >= 0 && i === right) button.classList.add('is-correct');
+            else if (right >= 0 && i === index) button.classList.add('is-wrong');
+          });
+          const correct = right < 0 ? null : index === right;
+          const feedback = box.querySelector('#summary-sync-feedback');
+          if (feedback) feedback.textContent = correct === null ? 'Got it.' : correct ? 'Correct!' : 'Not quite. The answer is: ' + (choices[right] || '');
+          const lastOne = at + 1 >= questions.length;
+          const next = box.querySelector('#summary-sync-next');
+          const go = () => {
+            if (advanced) return;
+            advanced = true;
+            window.clearTimeout(timer);
+            at += 1;
+            if (at >= questions.length) finish();
+            else show();
+          };
+          if (next) {
+            next.hidden = false;
+            next.textContent = lastOne ? 'See my results' : 'Next question';
+            next.onclick = go;
+            next.focus({ preventScroll: true });
+          }
+          timer = window.setTimeout(go, correct === false ? 3400 : 1700);
         };
         box.querySelectorAll('button[data-sync-choice]').forEach((button) => {
           button.onclick = () => choose(+button.dataset.syncChoice);
@@ -5858,13 +6008,13 @@ STUDIO_JS = """
             if (heard) heard.textContent = 'Heard: ' + text;
             if (!isFinal) return;
             const index = matchSpokenChoice(text, choices);
-            if (index < 0) return toast('Say the choice, or a number.');
+            if (index < 0) return noMatch(text);
             choose(index);
           }, box.querySelector('#summary-sync-mic'));
         };
         armSpokenActivity((text) => {
           const index = matchSpokenChoice(text, choices);
-          if (index < 0) return false;
+          if (index < 0) { noMatch(text); return false; }
           choose(index);
           return true;
         }, q.prompt + '. Choices: ' + choices.join(', '));
@@ -7888,6 +8038,17 @@ def render_studio_page() -> str:
       <p id="pay-status" role="status"></p>
       <button id="pay-close" class="secondary" type="button">Not now</button>
     </form>
+  </div>
+  <div id="trial-end" hidden role="dialog" aria-modal="true" aria-labelledby="trial-end-title" data-testid="trial-end">
+    <div class="trial-card">
+      <h2 id="trial-end-title">Create or log in to your account</h2>
+      <p id="trial-end-copy">Your free 10-minute demo has ended. Create an account or log in to your account to keep learning.</p>
+      <div class="row">
+        <button id="trial-create" type="button" class="primary">Create account</button>
+        <button id="trial-login" type="button">Log in</button>
+      </div>
+      <button id="trial-notnow" type="button" class="quiet">Not now</button>
+    </div>
   </div>
   <div class="toast" id="toast"></div>
   <script>"""
