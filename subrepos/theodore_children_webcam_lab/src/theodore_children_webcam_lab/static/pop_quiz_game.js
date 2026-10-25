@@ -298,6 +298,7 @@ export function createPopQuizGame(d) {
     if (!el) return;
     el.querySelector(".pq-pts").textContent = String(pq.points);
     el.querySelector(".pq-bar i").style.width = `${Math.min(100, (pq.points / Q.GOAL_POINTS) * 100)}%`;
+    window.dispatchEvent(new CustomEvent("lab:progress", {detail: {percent: Math.min(100, (pq.points / Q.GOAL_POINTS) * 100), game: "pop-quiz-toss"}}));
     el.querySelector(".pq-bar").setAttribute("aria-valuenow", String(pq.points));
     const streak = el.querySelector(".pq-streak");
     streak.querySelector("b").textContent = String(pq.streak);
@@ -629,7 +630,15 @@ export function createPopQuizGame(d) {
       paintArt(el.querySelector(".pq-art"), `target-${theme}`, ART[theme]);
       el.querySelector(".pq-label").textContent = answer;
       spriteLayer.append(el);
-      return {answer, el};
+      const item = {answer, el};
+      // By touch (or the pointer demo) the player just touches the answer. No throw, no drag.
+      el.addEventListener("pointerdown", (event) => {
+        if (!d.isScreenTouch?.()) return;
+        event.preventDefault();
+        event.stopPropagation();
+        tapTarget(item);
+      });
+      return item;
     });
     placeTargets();
   }
@@ -639,8 +648,9 @@ export function createPopQuizGame(d) {
   function placeTargets() {
     if (!pq.targets.length || !pq.hud) return;
     const st = stage.getBoundingClientRect();
-    const q = pq.hud.querySelector(".pq-question")?.getBoundingClientRect();
-    const bar = pq.hud.querySelector(".pq-top")?.getBoundingClientRect();
+    const visible = (rect) => (rect && rect.width > 0 && rect.height > 0 ? rect : null);
+    const q = visible(pq.hud.querySelector(".pq-question")?.getBoundingClientRect());
+    const bar = visible(pq.hud.querySelector(".pq-top")?.getBoundingClientRect());
     const top = (q ? q.bottom - st.top : 0) + 10;
     const bottom = (bar ? bar.top - st.top : st.height) - 10;
     const labelH = 46;
@@ -651,6 +661,16 @@ export function createPopQuizGame(d) {
       item.el.style.setProperty("--pq-art", `${Math.round(art)}px`);
       item.el.style.top = `${Math.round(center)}px`;
     }
+  }
+
+  function tapTarget(item) {
+    if (!pq.active || pq.phase !== "play" || !pq.round || pq.flying || pq.resolving || pq.thrown || state.roundDone) return;
+    const index = pq.targets.indexOf(item);
+    const center = targetCenters()[index];
+    if (!center) return;
+    clearAim();
+    pq.activeSide = null;
+    landed({target: item, side: index === 0 ? "left" : "right", perfect: false, accuracy: 1, assisted: false}, {x: center.x, y: center.y});
   }
 
   function targetCenters() {
