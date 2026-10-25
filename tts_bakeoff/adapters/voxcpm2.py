@@ -25,7 +25,11 @@ from .base import Adapter, write_wav
 
 class VoxCPM2Adapter(Adapter):
     name = "voxcpm2"
-    languages = {"en", "es", "zh", "yue", "vi", "th", "km", "sw", "hi"}  # yue: listed under "Chinese Dialect" on the model card; text written in Cantonese, no language tag
+    # The model card (huggingface.co/openbmb/VoxCPM2, read 2026-10-25) lists 30 languages and "no language tag needed": ar, my (Burmese), zh, da, nl, en,
+    # fi, fr, de, el, he, hi, id, it, ja, km, ko, lo, ms, no (our code nb), pl, pt, ru, es, sw, sv, tl (our code fil), th, tr, vi; plus Chinese dialects
+    # incl. Cantonese (yue). Quality varies with each language's training data (the card says so), so judge each one by ear.
+    languages = {"ar", "my", "zh", "da", "nl", "en", "fi", "fr", "de", "el", "he", "hi", "id", "it", "ja", "km", "ko", "lo", "ms", "nb", "pl", "pt", "ru",
+                 "es", "sw", "sv", "fil", "th", "tr", "vi", "yue"}
     requires = ("voxcpm",)
 
     def load(self):

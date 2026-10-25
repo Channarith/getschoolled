@@ -33,6 +33,7 @@ import argparse
 import json
 import os
 import sys
+import threading
 import wave
 from dataclasses import dataclass
 from pathlib import Path
@@ -169,6 +170,10 @@ def decide_ref_mode(ref: Reference, target_lang: str, requested: str = "auto") -
     return "continue" if same and ref.exact and ref.seconds <= 20 else "reference"
 
 
+MODEL_CACHE: dict[str, object] = {}   # model name -> the loaded model, shared by every speaker's adapter in this process (one load per process)
+GPU_LOCK = threading.RLock()          # one synthesis at a time on the GPU; the CPU stage of a clip (scoring, cleaning) runs outside it
+
+
 class ProfileAdapter:
     """Wraps a cloning adapter and, before every synthesis, points it at the best reference sample for that sentence's language.
 
@@ -176,11 +181,14 @@ class ProfileAdapter:
     render use it exactly like the adapter they had before.
     """
 
-    def __init__(self, inner, speaker: str, base: Path | None = None, ref_mode: str = "auto"):
+    def __init__(self, inner, speaker: str, base: Path | None = None, ref_mode: str = "auto", cache_key: str | None = None):
         if ref_mode not in REF_MODES:
             raise ValueError(f"ref_mode must be one of {REF_MODES}")
         self.inner, self.speaker, self.base, self.ref_mode = inner, speaker, base, ref_mode
         self.last_reference: Reference | None = None
+        self.cache_key = cache_key
+        if cache_key and MODEL_CACHE.get(cache_key) is not None:
+            self.inner._model = MODEL_CACHE[cache_key]   # already loaded for another speaker
 
     def __getattr__(self, name):
         return getattr(self.inner, name)
@@ -193,8 +201,12 @@ class ProfileAdapter:
         return ref
 
     def synthesize(self, text, lang, out_wav, *args, **kwargs):
-        self.use(lang)
-        return self.inner.synthesize(text, lang, out_wav, *args, **kwargs)
+        with GPU_LOCK:   # use() rewrites the inner adapter's options: reference and synthesis must stay together
+            self.use(lang)
+            row = self.inner.synthesize(text, lang, out_wav, *args, **kwargs)
+            if self.cache_key and getattr(self.inner, "_model", None) is not None:
+                MODEL_CACHE.setdefault(self.cache_key, self.inner._model)
+        return row
 
 
 REF_MIN_S, REF_MAX_S, REF_TARGET_S = 5.0, 20.0, 11.0
