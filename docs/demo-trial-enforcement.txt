@@ -1,0 +1,36 @@
+DEMO TRIAL AND FULL-COURSE ACCESS: WHAT THE SERVER ENFORCES (audit 2026-10-25)
+
+Where the 10 minutes lives
+  The clock is server-side: TeachEngine keeps started_at_ms per (learner_id, course_id) in the checkpoint store and
+  _sample_expired() is checked on goto/advance/cover_topic/resume. A second tab, a reload and "start over" keep the same trial.
+  Editing the sample payload in the browser only changes the on-screen clock; the next server call is refused. System clock
+  changes, sleep/wake and a throttled background tab do not matter: the server uses its own time.
+
+What is NOT enforced (confirmed in code and by a test against the real endpoint)
+  1. The caller's identity is chosen by the browser.
+       - An anonymous visitor's learner_id is "browser-<uuid>" in localStorage["studio_learner_id"]. Clearing storage, a private
+         window or another browser is a new learner_id and therefore a fresh 10 minutes.
+       - The page also accepts ?student=<anything> and ?account=<anything> and uses them as the id.
+  2. teach/start and teach/trial-run trust is_admin, registered, enrollment_status and access from the request body.
+       - POST /api/studio/teach/start {"access":"full","is_admin":true} returns a full (not sample) session to an anonymous caller.
+       - An empty "access" means "authoring studio" and resolves to full.
+       - The public proxy (/api/studio/*) forwards these straight to the studio service; nothing checks the bearer token.
+       - A paid check is by the client-supplied learner_id, so naming another learner's acct:<id> reads their paid status.
+  Money is NOT affected: pay/confirm asks the payment provider, and mark_paid replays are idempotent (tests added).
+
+What this change does
+  caller_claims.py + STUDIO_VERIFY_CLAIMS=1 (default OFF, so nothing changes until you turn it on):
+    - is_admin, registered, paid and an empty "access" from the body are ignored;
+    - the bearer token is sent to the identity service (GET {IDENTITY_URL}/auth/me, 3 s timeout, cached 60 s, misses 10 s);
+    - no token / bad token / identity unreachable = anonymous = the 10-minute sample (fails closed);
+    - a verified admin keeps the authoring default; a verified account can use its paid courses.
+  Before turning it on, on the studio service check: IDENTITY_URL is set and reachable, AUTH_SIGNING_KEY matches the identity
+  service, the web app sends Authorization: Bearer on /api/studio/teach/start (studio_page.py already does), and the authoring
+  studio at /studio is used by a signed-in admin. Turn it on in staging first.
+
+Still open after turning it on (owner decision)
+  - The anonymous trial can still be restarted by clearing storage (new learner_id). Options: a server-set HttpOnly signed trial
+    cookie that stores the start time (clearing cookies still resets it), plus a per-IP daily cap on new sample sessions.
+    Neither stops a determined user; both stop casual repeats. Not built: it needs a product decision on shared networks.
+  - ?account=<id> / ?student=<id> still choose the id for paid lookups when a caller is verified; bind paid courses to the
+    verified account id on the server (acct:<sub>) in a follow-up.

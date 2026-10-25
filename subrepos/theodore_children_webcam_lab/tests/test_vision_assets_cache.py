@@ -30,3 +30,17 @@ def test_missing_file_is_404_without_a_cache_policy(tmp_path):
     r = _client(tmp_path).get("/vendor/vision/nope.task")
     assert r.status_code == 404
     assert "max-age=86400" not in r.headers.get("cache-control", "")
+
+
+def test_the_folder_urls_are_a_plain_404_not_a_redirect_loop(tmp_path, monkeypatch):
+    from theodore_children_webcam_lab import main as m
+
+    (tmp_path / "tasks-vision.mjs").write_text("export{}", encoding="utf-8")
+    monkeypatch.setattr(m, "VISION_ASSET_DIR", tmp_path)
+    app = FastAPI()
+    app.add_api_route("/vendor/vision", lambda: m.Response(status_code=404), include_in_schema=False)
+    app.mount("/vendor/vision", VisionStaticFiles(directory=tmp_path), name="v")
+    c = TestClient(app, follow_redirects=False)
+    assert c.get("/vendor/vision").status_code == 404
+    assert c.get("/vendor/vision/").status_code == 404
+    assert c.get("/vendor/vision/tasks-vision.mjs").status_code == 200
