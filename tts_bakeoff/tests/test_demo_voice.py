@@ -179,4 +179,6 @@ def test_repo_voices_json_has_a_gender_for_every_voice():
     import json
     from tts_bakeoff.demo_voice.manifest import VOICES
     voices = json.loads(VOICES.read_text(encoding="utf-8"))["voices"]
-    assert {v["id"]: v.get("gender") for v in voices} == {"channarith": "male", "wei-miao": "female", "wei": "female"}
+    people = {v["id"]: v.get("gender") for v in voices if v.get("kind") != "stock"}
+    assert people == {"channarith": "male", "wei-miao": "female", "wei": "female"}
+    assert all(v.get("gender") in ("male", "female") for v in voices)   # stock voices too: the pages fall back to an edge voice of this gender

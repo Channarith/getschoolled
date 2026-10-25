@@ -96,18 +96,21 @@ def test_refresh_offline_merges_translations_and_voices_idempotently(tdir, tmp_p
     a = mf.refresh_offline(base)
     base.write_text(json.dumps(a), encoding="utf-8")
     b = mf.refresh_offline(base)
-    assert a == b and a["languages"] == ["en", "yue"] and [v["id"] for v in a["voices"]] == ["channarith", "wei-miao", "wei"]
+    assert a == b and a["languages"] == ["en", "yue"] and [v["id"] for v in a["voices"] if v.get("kind") != "stock"] == ["channarith", "wei-miao", "wei"]
     yue = [c for c in a["clips"] if c["lang"] == "yue"]
     assert sorted(c["text"] for c in yue) == ["乙", "甲"] and all(c["hash"] == clip_hash("yue", c["text"]) for c in yue)   # stale 'old' clip dropped
 
 
 def test_committed_manifest_has_three_voices_each_with_its_own_language_and_cantonese_lines():
     m = json.loads(mf.MANIFEST.read_text(encoding="utf-8"))
-    by = {v["id"]: v for v in m["voices"]}
+    people = [v for v in m["voices"] if v.get("kind") != "stock"]
+    by = {v["id"]: v for v in people}
     assert list(by) == ["channarith", "wei-miao", "wei"]
+    assert all(v.get("gender") in ("male", "female") for v in m["voices"])   # publish() reads this list: no gender here means no same-gender fallback
+    assert all(v["active"] is False for v in m["voices"] if v.get("kind") == "stock")
     assert (by["channarith"]["primary_lang"], by["wei-miao"]["primary_lang"], by["wei"]["primary_lang"]) == ("en", "en", "yue")
     assert by["wei"]["speaker"] == "wei" and by["wei-miao"]["speaker"] == "wei-miao" and all(v["model"] == "voxcpm2" for v in m["voices"])
-    assert len({v["speaker"] for v in m["voices"]}) == 3                      # three people/ids, never merged
+    assert len({v["speaker"] for v in people}) == 3                      # three people/ids, never merged
     assert "yue" in m["languages"] and len([c for c in m["clips"] if c["lang"] == "yue" and c["demo"] == "vision_play"]) >= 300
     assert all(c["status"] in tr.IN_MANIFEST for c in m["clips"] if c["lang"] == "yue" and c["demo"] == "vision_play")
 
