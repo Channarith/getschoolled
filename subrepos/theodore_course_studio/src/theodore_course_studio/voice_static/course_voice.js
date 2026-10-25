@@ -16,6 +16,8 @@
 // apps/web/app/lib/courseVoiceIntent.ts and apps/mobile/src/courseVoiceIntent.ts
 // A parity test imports courseVoiceIntentCatalog() and compares the three.
 
+import { attachSalaInteractions, attachTouchDoubleTap, matchDanceIntent, observeAvatars, salaDanceMenuEnabled } from "./sala_interactions.js";
+
 const CONSENT_KEY = "aoep_course_voice_consent_v1";
 const MISS_WINDOW_MS = 15000;
 const MISS_LIMIT = 3;
@@ -516,10 +518,11 @@ export function initCourseVoiceOverlay(opts = {}) {
   }
 
   function handleUtterance(transcript) {
-    if (options.demo) {
-      const demoCmd = parseDemoCommand(transcript);
-      if (demoCmd) { dispatchDemoCommand(demoCmd); return; }
-    }
+    // Easter egg: a short "dance" request never reaches Q&A (no paid call).
+    if (matchDanceIntent(transcript, options.locale)) { danceNow(); return; }
+    // Sound, volume and camera commands work in every mode (the tutorial lists "louder" and "mute").
+    const demoCmd = parseDemoCommand(transcript);
+    if (demoCmd) { dispatchDemoCommand(demoCmd); return; }
     const intent = parseCourseVoiceIntent(transcript);
     if (!intent) { if (!options.demo) recordMiss(transcript); return; }
     if (intent.kind === "mute_mic") { setMuted(true); return; }
@@ -951,12 +954,7 @@ export function initCourseVoiceOverlay(opts = {}) {
       title: "Tap Sala",
       alt: "Tap Sala. Sala giggles.",
       portrait: true,
-      lines: ["Tap Sala to start. Sala giggles. Tap again to turn listening on or off."],
-    },
-    {
-      image: "/api/studio/voice-overlay/tutorial-dance.webp",
-      title: "Sala can dance",
-      alt: "Sala can dance.",
+      lines: ["Tap Sala to start. Sala giggles. Tap again to turn listening on or off.", "Sala has a few secrets…"],
     },
   ];
   const SAY_IT = {
@@ -979,7 +977,7 @@ export function initCourseVoiceOverlay(opts = {}) {
     {
       icon: "🎛️", title: "Your little panel",
       lines: ["One small panel has your camera and Sala's voice. Drag it anywhere. Tap the dash to tuck it away."],
-      after: ["Tap the three dots for Help, Progress, language, captions and Exit lesson."],
+      after: ["Tap the three dots for Help, Progress, captions and Exit lesson."],
     },
     { ...SAY_IT, after: ["Or ask any question about the lesson. Open the three dots and tap Help to see this again."] },
   ];
@@ -1069,10 +1067,7 @@ export function initCourseVoiceOverlay(opts = {}) {
   // start the lesson / ask a question; tap again to mute or unmute the mic.
   function onSalaTap() {
     if (!mascotNode) return;
-    mascotNode.classList.remove("sala-giggle");
-    void mascotNode.offsetWidth;
-    mascotNode.classList.add("sala-giggle");
-    window.setTimeout(() => mascotNode && mascotNode.classList.remove("sala-giggle"), 720);
+    salaHandles.get(mascotNode)?.giggle();
     if (introNeedsTap) {
       introNeedsTap = false;
       syncMascot();
@@ -1096,7 +1091,7 @@ export function initCourseVoiceOverlay(opts = {}) {
   function buildMascot() {
     if (mascotNode || document.querySelector(".sala-mascot")) return;
     mascotNode = el("button", {
-      type: "button", class: "sala-mascot", "data-testid": "sala-mascot", "data-listen": "off",
+      type: "button", class: "sala-mascot", "data-testid": "sala-mascot", "data-sala-avatar": "", "data-listen": "off",
       "aria-label": "Ask Sala a question. Tap to start, or to mute and unmute the mic.", title: "Ask Sala",
     }, [
       el("span", { class: "sala-art", "aria-hidden": "true" }),
@@ -1108,10 +1103,30 @@ export function initCourseVoiceOverlay(opts = {}) {
     syncMascot();
   }
 
+  // Sala's giggle and the dance easter egg (see sala_interactions.js). One handle per avatar element, found now or when it appears.
+  const salaHandles = new Map();
+  function danceNow() {
+    const handle = salaHandles.values().next().value;
+    if (handle) handle.dance("voice");
+    else announce("Ta-da!");
+  }
+  function wireSalaInteractions() {
+    observeAvatars((node) => {
+      salaHandles.set(node, attachSalaInteractions(node, {
+        isNarrating: () => document.body.classList.contains("is-speaking"),
+        isMicListening: () => Boolean(listening && !muted),
+        isMuted: () => audioGain === 0,
+      }));
+    });
+    const stage = document.querySelector(options.stageSelector);
+    if (stage) attachTouchDoubleTap(stage);
+  }
+
   function wireAvatarGesture() {
     buildCourseWidget();
     wireDemoHelp();
     buildMascot();
+    wireSalaInteractions();
     document.addEventListener("click", (event) => {
       const wrap = event.target.closest && event.target.closest("#theodore-avatar-wrap");
       if (!wrap) return;
@@ -1322,6 +1337,7 @@ export function initCourseVoiceOverlay(opts = {}) {
     const buildMenu = () => {
       menu.textContent = "";
       menu.appendChild(item("Help", () => showDemoTutorial(false)));
+      if (salaDanceMenuEnabled()) menu.appendChild(item("Make Sala dance", () => danceNow()));
       const percent = document.getElementById("course-map-percent")?.textContent?.trim();
       menu.appendChild(el("div", { class: "cw-info", role: "presentation" }, [`Progress: ${percent || "0%"}`]));
       const plan = document.getElementById("course-price")?.textContent?.trim();

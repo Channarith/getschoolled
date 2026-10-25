@@ -48,7 +48,18 @@ _REG = ("rect", "#ffffff", "#111827", "#111827")
 _STOP = ("octagon", "#b91c1c", "#ffffff", "#7f1d1d")
 _YIELD = ("yield", "#ffffff", "#b91c1c", "#b91c1c")
 _WARN = ("diamond", "#facc15", "#111827", "#111827")
-_SCHOOL = ("pentagon", "#d9f99d", "#14532d", "#14532d")
+# MUTCD 7B.07: school warning signs are yellow, or fluorescent yellow-green (FYG), with a BLACK legend and border.
+# FYG is a fluorescent pigment; #c7f000 is the closest screen colour that stays readable.
+FYG = "#c7f000"
+INK = "#111827"
+_SCHOOL = ("pentagon", FYG, INK, INK)  # S1-1 school, S1-5 school crossing: the 5-sided school sign
+_SCHOOL_WARN = ("diamond", FYG, INK, INK)  # S3-1 school bus stop ahead: a diamond warning sign
+_SCHOOL_SPEED = ("school-speed", "#ffffff", INK, INK)  # S5-1: FYG SCHOOL panel over a white speed-limit panel
+_ALLWAY = ("plaque", "#b91c1c", "#ffffff", "#ffffff")  # R1-3P ALL WAY: white legend and border on red, a rectangle
+_DNE = ("do-not-enter", "#b91c1c", "#ffffff", "#ffffff")  # R5-1: red disc with a white bar
+_WRONG = ("wrong-way", "#b91c1c", "#ffffff", "#ffffff")  # R5-1a: white legend on a red rectangle
+_PLAQUE_Y = ("plaque", "#facc15", INK, INK)  # W14-1 DEAD END, W14-2 NO OUTLET: yellow rectangles
+_LANE = ("lane", "#ffffff", INK, INK)  # R3-5 lane control: arrows plus ONLY
 _GUIDE = ("rect", "#166534", "#ffffff", "#14532d")
 _BLUE = ("rect", "#1d4ed8", "#ffffff", "#1e3a8a")
 _WORK = ("diamond", "#fb923c", "#111827", "#9a3412")
@@ -72,11 +83,11 @@ SIGN_LESSONS: tuple[SignLessonSpec, ...] = (
         "Stop, yield, do-not-enter, one-way, and access signs.",
         (
             _r("Stop", "STOP", _STOP, "A red octagon means a complete stop behind the limit line or crosswalk. Go only when the way is clear.", "ca-dmv-sign.stop"),
-            _r("All Way", "ALL WAY", _STOP, "The ALL WAY plaque under a stop sign means every approach stops. The first vehicle to stop goes first; if two stop together, yield to the driver on your right.", "ca-dmv-sign.all-way"),
+            _r("All Way", "ALL WAY", _ALLWAY, "The ALL WAY plaque under a stop sign means every approach stops. The first vehicle to stop goes first; if two stop together, yield to the driver on your right.", "ca-dmv-sign.all-way"),
             _r("Yield", "YIELD", _YIELD, "A downward triangle means slow down and give the right-of-way. Stop if you cannot merge or cross safely.", "ca-dmv-sign.yield"),
             _r("Yield to pedestrians", "YIELD TO PEDESTRIANS", _YIELD, "Drivers must let people in the crosswalk go first. Stop if they are in or about to enter your half of the road.", "ca-dmv-sign.yield-pedestrians"),
-            _r("Do Not Enter", "DO NOT ENTER", _BAN, "A red circle with a white bar means this road is closed to your direction. Do not drive past it.", "ca-dmv-sign.do-not-enter"),
-            _r("Wrong Way", "WRONG WAY", _BAN, "You are facing oncoming traffic. Stop and turn around only when it is safe. Do not continue.", "ca-dmv-sign.wrong-way"),
+            _r("Do Not Enter", "DO NOT ENTER", _DNE, "A red circle with a white bar means this road is closed to your direction. Do not drive past it.", "ca-dmv-sign.do-not-enter"),
+            _r("Wrong Way", "WRONG WAY", _WRONG, "You are facing oncoming traffic. Stop and turn around only when it is safe. Do not continue.", "ca-dmv-sign.wrong-way"),
             _r("One Way right", "ONE WAY", _REG, "Traffic on this street moves only in the direction of the arrow. Do not enter against it.", "ca-dmv-sign.one-way-right"),
             _r("One Way left", "ONE WAY", _REG, "The arrow points left. Enter only if you will travel that direction.", "ca-dmv-sign.one-way-left"),
             _r("Keep Right", "KEEP RIGHT", _REG, "A divider or obstruction is ahead. Pass it on the right side.", "ca-dmv-sign.keep-right"),
@@ -85,8 +96,8 @@ SIGN_LESSONS: tuple[SignLessonSpec, ...] = (
             _r("Divided highway ends", "DIVIDED HIGHWAY ENDS", _WARN, "The median ends and opposing traffic is no longer separated. Watch for oncoming vehicles.", "ca-dmv-sign.divided-highway-ends"),
             _r("Two-way traffic", "TWO WAY TRAFFIC", _WARN, "You are leaving a one-way road. Traffic now comes toward you. Stay in your lane.", "ca-dmv-sign.two-way"),
             _r("Road closed", "ROAD CLOSED", _REG, "This road is closed to through traffic. Follow the posted detour. Do not drive around the barricade.", "ca-dmv-sign.road-closed"),
-            _r("No outlet", "NO OUTLET", _REG, "The street does not connect through. You will have to turn around to leave.", "ca-dmv-sign.no-outlet"),
-            _r("Dead end", "DEAD END", _WARN, "The road ends ahead. Slow down and plan your turnaround before the end.", "ca-dmv-sign.dead-end"),
+            _r("No outlet", "NO OUTLET", _PLAQUE_Y, "The street does not connect through. You will have to turn around to leave.", "ca-dmv-sign.no-outlet"),
+            _r("Dead end", "DEAD END", _PLAQUE_Y, "The road ends ahead. Slow down and plan your turnaround before the end.", "ca-dmv-sign.dead-end"),
             _r("Stop here for pedestrians", "STOP HERE FOR PEDESTRIANS", _REG, "Stop at this line, not in the crosswalk, when people are crossing.", "ca-dmv-sign.stop-here-ped"),
             _r("Stop here on red", "STOP HERE ON RED", _REG, "When the signal is red, stop at this line so you do not block the intersection or sensors.", "ca-dmv-sign.stop-here-red"),
             _r("Emergency stop", "EMERGENCY STOPPING ONLY", _REG, "Use this shoulder or area only for a real emergency, not for parking, calls, or rest.", "ca-dmv-sign.emergency-stop"),
@@ -104,17 +115,17 @@ SIGN_LESSONS: tuple[SignLessonSpec, ...] = (
             _r("No turns", "NO TURNS", _BAN, "Neither left nor right turns are allowed. Stay in the through lane.", "ca-dmv-sign.no-turns"),
             _r("No left turn on red", "NO LEFT TURN ON RED", _BAN, "A left turn on a red light is forbidden here, including from a one-way street.", "ca-dmv-sign.no-left-on-red"),
             _r("No right turn on red", "NO RIGHT TURN ON RED", _BAN, "California's usual right-on-red rule does not apply here. Wait for a green light.", "ca-dmv-sign.no-right-on-red"),
-            _r("Left turn only", "LEFT TURN ONLY", _REG, "This lane may only turn left. Get into it before the intersection if you need that turn.", "ca-dmv-sign.left-only"),
-            _r("Right turn only", "RIGHT TURN ONLY", _REG, "This lane must turn right. Do not go straight from it.", "ca-dmv-sign.right-only"),
-            _r("Straight only", "ONLY", _REG, "This lane must continue straight. Do not turn from it.", "ca-dmv-sign.straight-only"),
-            _r("Left or straight", "ONLY", _REG, "From this lane you may turn left or go straight. You may not turn right.", "ca-dmv-sign.left-or-straight"),
-            _r("Right or straight", "ONLY", _REG, "From this lane you may turn right or go straight. You may not turn left.", "ca-dmv-sign.right-or-straight"),
-            _r("Left or right", "ONLY", _REG, "This lane must turn. You may turn left or right, but you may not go straight.", "ca-dmv-sign.left-or-right"),
+            _r("Left turn only", "LEFT TURN ONLY", _LANE, "This lane may only turn left. Get into it before the intersection if you need that turn.", "ca-dmv-sign.left-only"),
+            _r("Right turn only", "RIGHT TURN ONLY", _LANE, "This lane must turn right. Do not go straight from it.", "ca-dmv-sign.right-only"),
+            _r("Straight only", "ONLY", _LANE, "This lane must continue straight. Do not turn from it.", "ca-dmv-sign.straight-only"),
+            _r("Left or straight", "ONLY", _LANE, "From this lane you may turn left or go straight. You may not turn right.", "ca-dmv-sign.left-or-straight"),
+            _r("Right or straight", "ONLY", _LANE, "From this lane you may turn right or go straight. You may not turn left.", "ca-dmv-sign.right-or-straight"),
+            _r("Left or right", "ONLY", _LANE, "This lane must turn. You may turn left or right, but you may not go straight.", "ca-dmv-sign.left-or-right"),
             _r("Center left-turn lane", "CENTER LANE LEFT TURN ONLY", _REG, "The shared center lane is only for left turns from either direction. Do not use it to pass or to travel through.", "ca-dmv-sign.center-left"),
             _r("U-turn yield", "U-TURN YIELD TO RIGHT TURN", _REG, "You may U-turn, but you must yield to vehicles turning right on the green arrow or light.", "ca-dmv-sign.u-turn-yield"),
             _r("Left turn yield on green", "LEFT TURN YIELD ON GREEN", _REG, "A green ball lets you turn left only after you yield to oncoming traffic and pedestrians.", "ca-dmv-sign.left-yield-green"),
             _r("Begin right turn lane", "BEGIN RIGHT TURN LANE", _WARN, "A right-turn lane is opening. Move into it only if you are turning right.", "ca-dmv-sign.begin-right-lane"),
-            _r("Must turn right", "MUST TURN RIGHT", _REG, "Every vehicle in this lane has to turn right at the upcoming intersection.", "ca-dmv-sign.must-turn-right"),
+            _r("Must turn right", "MUST TURN RIGHT", _LANE, "Every vehicle in this lane has to turn right at the upcoming intersection.", "ca-dmv-sign.must-turn-right"),
             _r("Two-way left turn", "TWO WAY LEFT TURN", _REG, "The center lane is a two-way left-turn lane. Enter it close to your turn and leave it promptly.", "ca-dmv-sign.two-way-left"),
             _r("No straight through", "NO STRAIGHT THROUGH", _BAN, "You cannot continue ahead. Turn in an allowed direction.", "ca-dmv-sign.no-straight"),
             _r("Turn left with care", "LEFT TURN MUST YIELD", _REG, "The turn is allowed, but oncoming cars and people in the crosswalk still have the right-of-way.", "ca-dmv-sign.left-must-yield"),
@@ -133,8 +144,8 @@ SIGN_LESSONS: tuple[SignLessonSpec, ...] = (
             _r("Speed limit 70", "SPEED LIMIT 70", _REG, "Where posted, 70 mph is the maximum. Trucks and vehicles towing may have a lower limit on the same road.", "ca-dmv-sign.speed-70"),
             _r("Reduced speed ahead", "REDUCED SPEED AHEAD", _WARN, "The limit drops soon. Start slowing before you reach the lower sign.", "ca-dmv-sign.reduced-speed"),
             _r("Minimum speed", "MINIMUM SPEED 45", _REG, "If you cannot keep at least this speed in normal conditions, use another road. You may go slower when traffic or weather requires it.", "ca-dmv-sign.minimum-speed"),
-            _r("School speed limit", "SCHOOL SPEED LIMIT 25 WHEN FLASHING", _SCHOOL, "When the beacons flash, the school-zone limit is in force. Watch for children even if the lights are off.", "ca-dmv-sign.school-speed"),
-            _r("End school zone", "END SCHOOL ZONE", _SCHOOL, "The special school limit ends. Return to the next posted speed and keep watching for children nearby.", "ca-dmv-sign.end-school-zone"),
+            _r("School speed limit", "SCHOOL SPEED LIMIT 25 WHEN FLASHING", _SCHOOL_SPEED, "When the beacons flash, the school-zone limit is in force. Watch for children even if the lights are off.", "ca-dmv-sign.school-speed"),
+            _r("End school zone", "END SCHOOL ZONE", _REG, "The special school limit ends. Return to the next posted speed and keep watching for children nearby.", "ca-dmv-sign.end-school-zone"),
             _r("No parking", "NO PARKING", _BAN, "You may stop briefly to load or unload where allowed, but you may not leave the vehicle parked.", "ca-dmv-sign.no-parking"),
             _r("No stopping", "NO STOPPING", _BAN, "Do not stop here at all, except to avoid a crash or to obey a signal or officer.", "ca-dmv-sign.no-stopping"),
             _r("No standing", "NO STANDING", _BAN, "You may not wait at the curb with or without a driver, except a brief passenger pickup where local rules allow.", "ca-dmv-sign.no-standing"),
@@ -191,7 +202,7 @@ SIGN_LESSONS: tuple[SignLessonSpec, ...] = (
             _r("Bicycle crossing", "BIKE XING", _WARN, "Bikes may cross or ride through here. Look before turning across a bike lane.", "ca-dmv-sign.bike-xing"),
             _r("School crossing", "SCHOOL CROSSING", _SCHOOL, "A marked school crosswalk is ahead. Stop for children and crossing guards. The pentagon shape means school.", "ca-dmv-sign.school-crossing"),
             _r("School", "SCHOOL", _SCHOOL, "You are entering a school area. Expect children on foot and on bikes at odd hours, not only at the bell.", "ca-dmv-sign.school"),
-            _r("School bus stop ahead", "SCHOOL BUS STOP AHEAD", _SCHOOL, "A bus may be stopped around the curve or over the hill. Be ready to stop for flashing red lights.", "ca-dmv-sign.school-bus-ahead"),
+            _r("School bus stop ahead", "SCHOOL BUS STOP AHEAD", _SCHOOL_WARN, "A yellow-green diamond warns that a school bus may be stopped around the curve or over the hill. Be ready to stop for flashing red lights.", "ca-dmv-sign.school-bus-ahead"),
             _r("Deer crossing", "DEER CROSSING", _WARN, "Animals cross this road. Scan the shoulders at dawn and dusk and slow if you see movement.", "ca-dmv-sign.deer"),
             _r("Cattle crossing", "CATTLE CROSSING", _WARN, "Livestock may be on the roadway. Stop if a herd or a rider is crossing. Do not honk at animals.", "ca-dmv-sign.cattle"),
             _r("Farm machinery", "FARM MACHINERY", _WARN, "Slow tractors and equipment may enter the road. Pass only when you can see far enough ahead.", "ca-dmv-sign.farm"),
@@ -208,19 +219,19 @@ SIGN_LESSONS: tuple[SignLessonSpec, ...] = (
         (
             _r("Railroad advance", "RR", _ROUND, "A yellow circular advance sign means tracks are ahead. Slow, look both ways, and listen. Be ready to stop.", "ca-dmv-sign.rr-advance"),
             _r("Railroad crossbuck", "RAILROAD CROSSING", _RR, "The white X-shaped crossbuck marks the crossing itself. Treat it as a yield to trains. Never try to beat a train.", "ca-dmv-sign.crossbuck"),
-            _r("Two tracks", "2 TRACKS", _RR, "More than one track crosses the road. A train on the near track can hide a second train. Wait until you can see both ways.", "ca-dmv-sign.two-tracks"),
-            _r("Three tracks", "3 TRACKS", _RR, "Three tracks cross here. Count them. Do not start across until every track is clear.", "ca-dmv-sign.three-tracks"),
-            _r("Exempt crossing", "EXEMPT", _RR, "An EXEMPT plaque means the crossing is not used by regular trains and some special vehicles need not stop. Other drivers still look and listen.", "ca-dmv-sign.exempt"),
+            _r("Two tracks", "2 TRACKS", _REG, "More than one track crosses the road. A train on the near track can hide a second train. Wait until you can see both ways.", "ca-dmv-sign.two-tracks"),
+            _r("Three tracks", "3 TRACKS", _REG, "Three tracks cross here. Count them. Do not start across until every track is clear.", "ca-dmv-sign.three-tracks"),
+            _r("Exempt crossing", "EXEMPT", _REG, "An EXEMPT plaque means the crossing is not used by regular trains and some special vehicles need not stop. Other drivers still look and listen.", "ca-dmv-sign.exempt"),
             _r("Low ground clearance", "LOW GROUND CLEARANCE", _WARN, "A low car, trailer, or truck can get stuck on a raised crossing. Do not enter if your vehicle might hang up.", "ca-dmv-sign.low-ground"),
             _r("Skewed crossing", "SKEWED CROSSING", _WARN, "The tracks cross the road at an angle. Look farther down the rails because a train is harder to see.", "ca-dmv-sign.skewed"),
             _r("Do not stop on tracks", "DO NOT STOP ON TRACKS", _REG, "Never wait on the rails in a traffic queue. Stop before the tracks until there is room for your whole vehicle on the other side.", "ca-dmv-sign.do-not-stop-tracks"),
             _r("Stop at railroad", "STOP", _STOP, "When a stop sign is posted at a crossing, stop, look, and listen, then go only if no train is coming.", "ca-dmv-sign.rr-stop"),
-            _r("Number of tracks plaque", "4 TRACKS", _RR, "The small plaque under the crossbuck tells how many tracks you must clear. Do not assume the first train is the only one.", "ca-dmv-sign.four-tracks"),
+            _r("Number of tracks plaque", "4 TRACKS", _REG, "The small plaque under the crossbuck tells how many tracks you must clear. Do not assume the first train is the only one.", "ca-dmv-sign.four-tracks"),
             _r("Parallel railroad", "RAILROAD PARALLEL", _WARN, "Tracks run beside the road and then cross a side street. Watch for a train as you turn.", "ca-dmv-sign.rr-parallel"),
             _r("Light rail crossing", "LIGHT RAIL CROSSING", _WARN, "Trains or trolleys may run in or beside the street. Obey the signals and never drive on the tracks to pass.", "ca-dmv-sign.light-rail"),
             _r("No train horn", "NO TRAIN HORN", _WARN, "Trains do not routinely sound the horn at this quiet-zone crossing. Do not rely on hearing a whistle.", "ca-dmv-sign.no-horn"),
-            _r("High speed trains", "TRAINS MAY EXCEED 80 MPH", _RR, "Trains here are faster than they look. If lights flash or gates move, the train is closer than you think.", "ca-dmv-sign.high-speed-train"),
-            _r("Gate crossing", "GATES DOWN MEANS STOP", _RR, "When lights flash or gates lower, stop at least 15 feet from the nearest rail. Do not drive around a lowered gate.", "ca-dmv-sign.gates"),
+            _r("High speed trains", "TRAINS MAY EXCEED 80 MPH", _REG, "Trains here are faster than they look. If lights flash or gates move, the train is closer than you think.", "ca-dmv-sign.high-speed-train"),
+            _r("Gate crossing", "GATES DOWN MEANS STOP", _REG, "When lights flash or gates lower, stop at least 15 feet from the nearest rail. Do not drive around a lowered gate.", "ca-dmv-sign.gates"),
             _r("Emergency notification", "REPORT EMERGENCY 1-800", _BLUE, "The blue sign shows who to call if a vehicle is stuck or a signal is broken. Note the crossing number, then get clear of the tracks.", "ca-dmv-sign.rr-emergency"),
             _r("Storage space", "STORAGE SPACE", _WARN, "There may not be room to clear the tracks if traffic is stopped beyond them. Wait until the far side has space for your vehicle.", "ca-dmv-sign.storage-space"),
             _r("Pavement RXR", "RXR", _WARN, "White RXR letters on the pavement repeat the railroad warning. They are not the place to stop. Stop at the line or at least 15 feet from the rail.", "ca-dmv-sign.rxr"),
@@ -275,61 +286,191 @@ def sign_for_title(title: str) -> RoadSign | None:
     return _BY_NAME.get(title)
 
 
-def _lines(legend: str) -> list[str]:
+import itertools
+import math
+
+# Advance widths (em) of Arial Bold capitals, digits and punctuation. Close enough to size a legend so it fits its shape.
+_ADV = {" ": .28, "I": .28, "J": .56, "L": .61, "T": .61, "F": .61, "E": .67, "Z": .61, "S": .67, "Y": .67, "V": .67,
+        "X": .67, "P": .67, "B": .72, "R": .72, "K": .72, "W": .94, "M": .83, "-": .33, ".": .28, ",": .28, "/": .28,
+        "+": .58, "1": .56, "2": .56, "3": .56, "4": .56, "5": .56, "6": .56, "7": .56, "8": .56, "9": .56, "0": .56}
+
+
+def _text_width(text: str, size: float) -> float:
+    return sum(_ADV.get(ch, .72) for ch in text) * size * 1.04
+
+
+def _layouts(legend: str):
     words = legend.split()
-    if len(legend) <= 12 or len(words) == 1:
-        return [legend]
-    if len(words) == 2:
-        return words
-    mid = max(1, len(words) // 2)
-    return [" ".join(words[:mid]), " ".join(words[mid:])]
+    for n_lines in (1, 2, 3):
+        if n_lines > len(words):
+            break
+        for cuts in itertools.combinations(range(1, len(words)), n_lines - 1):
+            bounds = (0, *cuts, len(words))
+            yield [" ".join(words[a:b]) for a, b in zip(bounds, bounds[1:])]
+
+
+def _lines(legend: str) -> list[str]:
+    """Kept for callers that only need a sensible split; the real fit is _fit_legend."""
+    return _fit_legend(legend, 210, 120, 34)[0]
+
+
+def _fit_legend(legend: str, max_w: float, max_h: float, max_size: float, min_size: float = 10, gap: float = .16,
+                width_at=None):
+    """Pick the line split and font size that keep the whole legend inside max_w x max_h. width_at(dy) (optional) is the
+    usable width of the sign at distance dy from the text block's centre, for shapes that narrow (a diamond's tips).
+    Never returns a size that overflows unless even min_size does not fit: then textLength squeezes the glyphs."""
+    best = None
+    for lines in _layouts(legend):
+        size = max_size
+        while True:
+            block = size * (len(lines) + gap * (len(lines) - 1))
+            ok = block <= max_h
+            for i, line in enumerate(lines):
+                top = -block / 2 + i * size * (1 + gap)
+                limit = max_w if width_at is None else min(max_w, width_at(max(abs(top), abs(top + size))))
+                ok = ok and _text_width(line, size) <= limit
+            if ok or size <= min_size:
+                break
+            size -= .5
+        score = (ok, size, -len(lines))
+        if best is None or score > best[0]:
+            best = (score, lines, size)
+    return best[1], best[2]
+
+
+def _legend_text(legend: str, cx: float, cy: float, max_w: float, max_h: float, ink: str, max_size: float = 36,
+                 weight: int = 700, lines: list[str] | None = None, size: float | None = None, width_at=None) -> str:
+    if lines is None:
+        lines, size = _fit_legend(legend, max_w, max_h, max_size, width_at=width_at)
+    gap = .16
+    block = size * (len(lines) + gap * (len(lines) - 1))
+    out = []
+    for i, line in enumerate(lines):
+        top = -block / 2 + i * size * (1 + gap)  # line's top edge relative to the block centre
+        limit = max_w if width_at is None else min(max_w, width_at(max(abs(top), abs(top + size))))
+        base = cy + top + size * 0.82
+        width = min(_text_width(line, size), limit)
+        out.append(
+            f'<text x="{cx:.1f}" y="{base:.1f}" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" '
+            f'font-weight="{weight}" font-size="{size:.1f}" fill="{ink}" textLength="{width:.1f}" '
+            f'lengthAdjust="spacingAndGlyphs">{html.escape(line)}</text>'
+        )
+    return "".join(out)
+
+
+def _regular_polygon(cx: float, cy: float, flat_radius: float, sides: int, rotation: float) -> str:
+    r = flat_radius / math.cos(math.pi / sides)
+    pts = [(cx + r * math.cos(rotation + 2 * math.pi * k / sides), cy + r * math.sin(rotation + 2 * math.pi * k / sides)) for k in range(sides)]
+    return " ".join(f"{x:.1f},{y:.1f}" for x, y in pts)
+
+
+_ARROWS = {
+    "Straight only": ("up",), "Left or straight": ("up", "left"), "Right or straight": ("up", "right"),
+    "Left or right": ("left", "right"), "Left turn only": ("left-turn",), "Right turn only": ("right-turn",),
+    "Must turn right": ("right-turn",),
+}
+
+
+def _arrow_markup(kinds: tuple[str, ...], ink: str) -> str:
+    st = f'stroke="{ink}" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" fill="none"'
+    head = f'fill="{ink}"'
+    out = []
+    if "up" in kinds:
+        out.append(f'<line x1="400" y1="205" x2="400" y2="135" {st}/><polygon points="400,100 372,140 428,140" {head}/>')
+        if "left" in kinds:
+            out.append(f'<path d="M400 172 H352" {st}/><polygon points="322,172 356,150 356,194" {head}/>')
+        if "right" in kinds:
+            out.append(f'<path d="M400 172 H448" {st}/><polygon points="478,172 444,150 444,194" {head}/>')
+    elif "left" in kinds and "right" in kinds:
+        out.append(f'<path d="M400 205 V172 M400 172 H352" {st}/><polygon points="322,172 356,150 356,194" {head}/>')
+        out.append(f'<path d="M400 172 H448" {st}/><polygon points="478,172 444,150 444,194" {head}/>')
+    elif "left-turn" in kinds:
+        out.append(f'<path d="M420 205 V160 H370" {st}/><polygon points="338,160 372,138 372,182" {head}/>')
+    elif "right-turn" in kinds:
+        out.append(f'<path d="M380 205 V160 H430" {st}/><polygon points="462,160 428,138 428,182" {head}/>')
+    return "".join(out)
 
 
 def _shape_markup(sign: RoadSign) -> str:
-    face = html.escape(sign.face)
-    border = html.escape(sign.border)
-    ink = html.escape(sign.ink)
-    common = f'fill="{face}" stroke="{border}" stroke-width="12" stroke-linejoin="round"'
-    if sign.shape == "octagon":
-        body = f'<polygon points="400,78 470,78 522,130 522,210 470,262 400,262 348,210 348,130" {common}/>'
-    elif sign.shape == "yield":
-        body = f'<polygon points="400,70 520,250 280,250" {common}/>'
-    elif sign.shape == "diamond":
-        body = f'<polygon points="400,62 512,180 400,298 288,180" {common}/>'
-    elif sign.shape == "pentagon":
-        body = f'<polygon points="400,68 512,150 470,270 330,270 288,150" {common}/>'
-    elif sign.shape == "prohibit":
+    """Draw one sign face centred on (400, 175). Every legend is measured and fitted into its shape's safe box."""
+    face, border, ink = html.escape(sign.face), html.escape(sign.border), html.escape(sign.ink)
+    common = f'fill="{face}" stroke="{border}" stroke-width="10" stroke-linejoin="round"'
+    shape = sign.shape
+    if shape == "octagon":
+        body = f'<polygon points="{_regular_polygon(400, 175, 100, 8, math.pi / 8)}" {common}/>'
+        return body + _legend_text(sign.legend, 400, 175, 150, 80, ink, max_size=44, weight=800)
+    if shape == "yield":  # points DOWN: apex at the bottom
+        body = f'<polygon points="280,88 520,88 400,296" fill="#ffffff" stroke="{border}" stroke-width="12" stroke-linejoin="round"/>'
+        return body + _legend_text(sign.legend, 400, 140, 130, 56, ink, max_size=30, weight=800)
+    if shape == "diamond":
+        body = f'<polygon points="400,57 518,175 400,293 282,175" {common}/>'
+        return body + _legend_text(sign.legend, 400, 175, 160, 96, ink, max_size=32, width_at=lambda dy: 2 * 118 * (1 - dy / 118) - 16)
+    if shape == "pentagon":
+        body = f'<polygon points="400,62 520,148 474,288 326,288 280,148" {common}/>'
+        return body + _legend_text(sign.legend, 400, 196, 138, 80, ink, max_size=32)
+    if shape == "school-speed":  # S5-1: FYG SCHOOL panel above a white SPEED LIMIT panel
         body = (
-            f'<rect x="300" y="90" width="200" height="170" rx="16" {common}/>'
-            f'<circle cx="400" cy="175" r="62" fill="none" stroke="#b91c1c" stroke-width="12"/>'
-            f'<line x1="356" y1="131" x2="444" y2="219" stroke="#b91c1c" stroke-width="12"/>'
+            f'<rect x="312" y="45" width="176" height="260" rx="10" fill="#ffffff" stroke="{border}" stroke-width="8"/>'
+            f'<rect x="316" y="49" width="168" height="62" rx="6" fill="{FYG}" stroke="{border}" stroke-width="3"/>'
         )
-    elif sign.shape == "crossbuck":
+        body += _legend_text("SCHOOL", 400, 80, 150, 44, ink, max_size=40, weight=800)
+        body += _legend_text("SPEED LIMIT", 400, 140, 150, 30, ink, max_size=30, weight=800)
+        number = next((w for w in sign.legend.split() if w.isdigit()), "25")
+        body += _legend_text(number, 400, 200, 110, 70, ink, max_size=70, weight=800)
+        tail = sign.legend.split(number, 1)[-1].strip() or "WHEN FLASHING"
+        return body + _legend_text(tail, 400, 266, 150, 40, ink, max_size=26, weight=800)
+    if shape == "prohibit":
         body = (
-            '<g>'
-            f'<rect x="318" y="78" width="164" height="36" rx="4" transform="rotate(35 400 175)" {common}/>'
-            f'<rect x="318" y="78" width="164" height="36" rx="4" transform="rotate(-35 400 175)" {common}/>'
-            "</g>"
+            f'<rect x="290" y="62" width="220" height="238" rx="14" {common}/>'
+            f'<circle cx="400" cy="147" r="58" fill="none" stroke="#b91c1c" stroke-width="12"/>'
+            f'<line x1="359" y1="106" x2="441" y2="188" stroke="#b91c1c" stroke-width="12"/>'
         )
-    elif sign.shape == "pennant":
-        body = f'<polygon points="300,110 520,175 300,240" {common}/>'
-    elif sign.shape == "shield":
+        return body + _legend_text(sign.legend, 400, 250, 190, 62, ink, max_size=26)
+    if shape == "do-not-enter":
         body = (
-            f'<path d="M330,80 h140 v90 c0,50 -70,90 -70,90 s-70,-40 -70,-90 z" {common}/>'
+            f'<rect x="290" y="62" width="220" height="228" rx="12" fill="#ffffff" stroke="{INK}" stroke-width="6"/>'
+            '<circle cx="400" cy="176" r="96" fill="#b91c1c"/>'
+            '<rect x="322" y="152" width="156" height="48" fill="#ffffff"/>'
         )
-    elif sign.shape == "circle":
-        body = f'<circle cx="400" cy="175" r="100" {common}/>'
-    else:
-        body = f'<rect x="285" y="95" width="230" height="155" rx="10" {common}/>'
-    lines = _lines(sign.legend)
-    size = 34 if max(len(line) for line in lines) <= 10 else 24
-    start = 175 - (len(lines) - 1) * (size * 0.55)
-    text = [f'<text x="400" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700" font-size="{size}" fill="{ink}">']
-    for i, line in enumerate(lines):
-        y = start + i * (size + 4)
-        text.append(f'<tspan x="400" y="{y:.0f}">{html.escape(line)}</tspan>')
-    text.append("</text>")
-    return body + "".join(text)
+        return body  # R5-1 is a red disc with a white bar; the sign's name is captioned by the slide
+    if shape == "wrong-way":
+        body = f'<rect x="270" y="120" width="260" height="110" rx="12" {common}/>'
+        return body + _legend_text(sign.legend, 400, 175, 220, 78, ink, max_size=38, weight=800)
+    if shape == "plaque":
+        body = f'<rect x="270" y="130" width="260" height="90" rx="10" {common}/>'
+        return body + _legend_text(sign.legend, 400, 175, 230, 64, ink, max_size=40, weight=800)
+    if shape == "lane":
+        body = f'<rect x="290" y="64" width="220" height="222" rx="10" {common}/>' + _arrow_markup(_ARROWS.get(sign.name, ("up",)), ink)
+        return body + _legend_text(sign.legend, 400, 250, 190, 52, ink, max_size=34, weight=800)
+    if shape == "crossbuck":
+        bars = (
+            f'<g transform="rotate(35 400 175)"><rect x="262" y="152" width="276" height="46" rx="4" {common}/></g>'
+            f'<g transform="rotate(-35 400 175)"><rect x="262" y="152" width="276" height="46" rx="4" {common}/></g>'
+        )
+        words = sign.legend.split()
+        if len(words) == 2:  # RAILROAD and CROSSING each sit on the outer half of their own bar, clear of the crossing
+            for word, ang, offset in ((words[0], 35, 70), (words[1], -35, -70)):
+                size = min(22.0, 112 / _text_width(word, 1))
+                bars += f'<g transform="rotate({ang} 400 175)">{_legend_text(word, 400 + offset, 175, 112, 34, ink, lines=[word], size=size, weight=800)}</g>'
+            return bars
+        return bars + _legend_text(sign.legend, 400, 175, 120, 60, ink, max_size=22)
+    if shape == "pennant":
+        body = f'<polygon points="290,100 530,175 290,250" {common}/>'
+        return body + _legend_text(sign.legend, 375, 175, 120, 70, ink, max_size=24)
+    if shape == "shield":
+        path = "M326 78 h148 v96 c0 52 -74 96 -74 96 s-74 -44 -74 -96 z"
+        body = (
+            f'<defs><clipPath id="tsh"><path d="{path}"/></clipPath></defs>'
+            f'<path d="{path}" {common}/>'
+            f'<rect x="326" y="78" width="148" height="34" fill="#b91c1c" clip-path="url(#tsh)"/>'
+            f'<path d="{path}" fill="none" stroke="#ffffff" stroke-width="5" stroke-linejoin="round"/>'
+        )
+        return body + _legend_text(sign.legend, 400, 168, 112, 60, ink, max_size=24)
+    if shape == "circle":
+        body = f'<circle cx="400" cy="175" r="102" {common}/>'
+        return body + _legend_text(sign.legend, 400, 175, 140, 80, ink, max_size=64, weight=800)
+    body = f'<rect x="272" y="92" width="256" height="166" rx="10" {common}/>'
+    return body + _legend_text(sign.legend, 400, 175, 226, 126, ink, max_size=38)
 
 
 def sign_svg(sign: RoadSign, *, animated: bool) -> str:
@@ -362,3 +503,31 @@ def sign_media_urls(title: str) -> tuple[str, str] | None:
     if sign is None:
         return None
     return _data_url(sign_svg(sign, animated=False)), _data_url(sign_svg(sign, animated=True))
+
+
+def gallery_html() -> str:
+    """One self-contained review page with every sign face, for eyeballing colours, shapes and text fit."""
+    cells = []
+    for sg in iter_signs():
+        svg = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="220 40 360 270" width="190" height="142">{_shape_markup(sg)}</svg>'
+        cells.append(
+            f'<figure><div class="f">{svg}</div><figcaption>{html.escape(sg.name)}<br>'
+            f'<small>{html.escape(sg.shape)} {html.escape(sg.face)} / {html.escape(sg.legend)}</small></figcaption></figure>'
+        )
+    return (
+        "<!doctype html><meta charset=utf-8><title>Driver Ed sign gallery</title>"
+        "<style>body{font:13px Arial;background:#e5e7eb;margin:12px}figure{display:inline-block;margin:6px;width:200px;"
+        "vertical-align:top;background:#fff;border-radius:8px;padding:4px;text-align:center}.f{background:#dbe7f3;"
+        "border-radius:6px}small{color:#555}</style>"
+        f"<h2>Driver Ed sign gallery: {len(cells)} signs</h2><p>Colors and shapes follow MUTCD 2003r1 Part 2 and 7B and the CA DMV "
+        "Driver Handbook; see docs/driver-ed-signs-and-facts-audit.txt.</p>" + "".join(cells)
+    )
+
+
+if __name__ == "__main__":  # python -m theodore_course_studio.traffic_signs gallery.html
+    import sys
+
+    out = sys.argv[1] if len(sys.argv) > 1 else "driver-ed-sign-gallery.html"
+    with open(out, "w", encoding="utf-8") as fh:
+        fh.write(gallery_html())
+    print(f"wrote {out}")

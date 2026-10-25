@@ -93,7 +93,7 @@ _KITS: dict[str, SegmentKit] = {
     ),
     "California learner's permit": _kit(
         (
-            "You are 16, finish the application steps, pass vision and knowledge tests.",
+            "You are at least 15½, finish the application steps, pass vision and knowledge tests.",
             "You confirm age and education rules on dmv.ca.gov before you go.",
             "You bring required ID documents — not just a phone screenshot of grades.",
         ),
@@ -106,7 +106,7 @@ _KITS: dict[str, SegmentKit] = {
         ),
         0,
         "Confirm current DMV rules — they can change.",
-        game_steps=("Check dmv.ca.gov requirements", "Pass vision and knowledge tests", "Complete the application steps"),
+        game_steps=("Check dmv.ca.gov requirements", "Complete the application steps", "Pass vision and knowledge tests"),
         game_kind="order_steps",
         game_prompt="Order the usual permit path",
     ),
@@ -196,7 +196,7 @@ _KITS: dict[str, SegmentKit] = {
     "School buses in California": _kit(
         (
             "Undivided road, bus has red lights + stop arm — traffic both ways stops.",
-            "Divided highway — only same-direction traffic must stop.",
+            "Divided highway, or two or more lanes each way — only same-direction traffic must stop.",
             "Lights stop and arm withdraws — you proceed when safe.",
         ),
         "On an undivided roadway, who must stop for a school bus with flashing red lights and stop arm?",
@@ -207,7 +207,7 @@ _KITS: dict[str, SegmentKit] = {
             "Nobody if you are late for work",
         ),
         0,
-        "On divided highways, only same-direction traffic must stop.",
+        "On a divided highway, or one with two or more lanes in each direction, only same-direction traffic must stop.",
     ),
     "Seat belts and phones": _kit(
         (

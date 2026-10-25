@@ -549,7 +549,6 @@ STUDIO_CSS = """
       filter:drop-shadow(0 8px 14px rgba(0,0,0,.45)); transition:transform .18s ease; transform-origin:50% 100%; }
     .sala-mascot:hover .sala-art, .sala-mascot:focus-visible .sala-art { transform:scale(1.05); }
     .sala-mascot:focus-visible { outline:3px solid #fde047; outline-offset:2px; border-radius:14px; }
-    .sala-mascot.sala-giggle .sala-art { animation:salaGiggle .72s ease; }
     .sala-mascot .sala-dot { position:absolute; right:-2px; top:6px; width:12px; height:12px; border-radius:50%; background:#eab308; box-shadow:0 0 0 2px rgba(11,16,32,.8); }
     .sala-mascot[data-listen="on"] .sala-dot { background:#22c55e; box-shadow:0 0 0 2px rgba(11,16,32,.8), 0 0 10px #22c55e; }
     .sala-mascot[data-listen="muted"] .sala-dot { background:#f87171; }

@@ -1,0 +1,82 @@
+DRIVER ED: SIGN ART AND FACT AUDIT (2026-10-25)
+===============================================
+
+Trigger: the owner saw the "School Bus Stop Ahead" sign drawn pale green, with dark-green text spilling outside the shape,
+and asked whether it should be red. It should not: no school sign is red. Red is for STOP, YIELD, DO NOT ENTER, WRONG WAY and
+prohibitions. School signs are yellow-green or yellow with a BLACK legend and border.
+
+Review gallery (all 140 signs): docs/driver-ed-sign-gallery.html (regenerate: python -m theodore_course_studio.traffic_signs OUT.html)
+Before/after of the slide: docs/driver-ed-signs/school-bus-slide-before.png and ...-after.png
+Tests: subrepos/theodore_course_studio/tests/test_traffic_sign_art.py (colour/shape rules, centring, no-overflow for all 140 signs,
+golden SVGs for 14 key signs: UPDATE_GOLDEN=1 regenerates them after a reviewed change).
+
+SOURCES (what was actually read)
+  S1  MUTCD 2003 Edition rev 1, Part 7B (FHWA): s7B.07 "School warning signs shall have a yellow background with a black legend and
+      border unless otherwise stated", fluorescent yellow-green (FYG) allowed for S1-1 and S4-5; s7B.10 School Bus Stop Ahead (S3-1)
+      placement. https://mutcd.fhwa.dot.gov/htm/2003r1/part7/part7b.htm  (later editions renumber S3-1 as s7B.13 and allow FYG for it)
+  S2  MUTCD R1-3P ALL WAY plaque: white legend and border on a red background, s2B.07 (Figure 2B-1). https://mutcd.fhwa.dot.gov/htm/2009/part2/fig2b_01_longdesc.htm
+  S3  CA DMV Driver Handbook, Laws and Rules of the Road, traffic signs: stop = red octagon; yield = red triangle; warning = diamond;
+      school zone = "5-sided" sign; school crossings may have yellow crosswalk lines.
+      https://www.dmv.ca.gov/portal/handbook/california-driver-handbook/laws-and-rules-of-the-road/
+  S4  CA DMV, Teen drivers (instruction permit, provisional licence): permit applicants "at least 15 1/2 years old but under 18", parent
+      signature, vision exam, knowledge test; hold the permit "at least six months", "50 hours" of practice "including 10 hours of night
+      driving", supervising driver "25 years old or older". https://www.dmv.ca.gov/portal/driver-licenses-identification-cards/teen-drivers/
+  S5  CA Vehicle Code 22454 / DMV School Buses section: stop for a school bus with flashing red lights and stop arm from either direction on
+      an undivided road; no need to stop for a bus on the other side of a divided highway or a road with two or more lanes in each direction;
+      amber lights mean slow down and prepare to stop. (read via search summaries of the DMV commercial handbook s10 and the statute text)
+  S6  CA Vehicle Code 42010 (work-zone fine doubling): applies in marked safety-enhancement or construction zones with workers present.
+  S7  MUTCD S5-1 School Speed Limit: vertical rectangle, FYG SCHOOL panel above a white speed-limit panel (retailer and MoDOT EPG summaries).
+
+SIGN FINDINGS (all fixed in code unless noted)
+  1  School Bus Stop Ahead   WRONG: pentagon, pale green #d9f99d, dark-green text, text wider than the shape.
+                             NOW: diamond (S3-1 is a warning sign), fluorescent yellow-green #c7f000, black legend and border.      [S1,S3]
+  2  School, School crossing WRONG colours (same pale green/dark green). NOW: pentagon, FYG, black legend.                          [S1,S3]
+  3  School speed limit      WRONG shape (pentagon). NOW: S5-1 rectangle: FYG "SCHOOL" panel over a white SPEED LIMIT 25 WHEN FLASHING panel. [S7]
+  4  End school zone         WRONG (pentagon). NOW: white rectangle with black legend. UNVERIFIED colour: sources found give size only.
+  5  Yield                   WRONG: the triangle pointed UP in both renderers (traffic_signs.py and art.py), contradicting its own caption
+                             "a downward triangle". NOW: apex down.                                                                     [S3]
+  6  Stop                    WRONG: studio octagon was off-centre (legend 35 px left of the shape); art.py octagon was rotated half a step
+                             (vertex up). NOW: regular, flat-topped, centred.                                                          [S3]
+  7  Do Not Enter / Wrong Way WRONG: both drawn as a prohibition circle-slash. NOW: DO NOT ENTER = red disc with a white bar; WRONG WAY = white
+                             legend on a red rectangle.
+  8  ALL WAY plaque          WRONG: octagon. NOW: red rectangle, white legend and border.                                              [S2]
+  9  No outlet, Dead end     were white / yellow diamond; now yellow rectangles (W14-2, W14-1). From MUTCD knowledge, not re-fetched.
+ 10  Lane-control signs      five faces all read just "ONLY". NOW: arrows (straight, left, right, left+straight, right+straight, left+right).
+ 11  Railroad crossbuck      legend overlapped itself. NOW: RAILROAD and CROSSING each on its own bar. Plaques (2/3/4 TRACKS, EXEMPT, ...)
+                             are rectangles, not crossbucks.
+ 12  Interstate shield       now has the red top band.
+ 13  Text fit                root cause: font size chosen by "34 px if the longest line is <= 10 characters", so "SCHOOL BUS" overflowed.
+                             NOW: every legend is measured (Arial Bold advance widths), split over 1-3 lines, and sized to the shape's safe box;
+                             diamonds use the width at each line's height; textLength guarantees it never exceeds the box. Test: 140/140 fit.
+ 14  Sprites (art.py)        warning signs were yellow TRIANGLES (not a US warning shape): now diamonds; sign-school was a triangle with an
+                             emoji: now an FYG pentagon with two pedestrians.
+ 15  Bus scene stop arm      was a dark-red hexagon. NOW: red octagon with STOP.
+ 16  Scenes checked OK       curb colours (red no stopping, yellow loading, white passenger, green limited, blue disabled), 3-second gap,
+                             15 ft rail stop, HOV double-white lines, traffic-light order, four-way stop lines.
+ Known simplifications (not changed): no-turn signs show a circle-slash with words instead of the turn arrow symbol.
+ UNVERIFIED, for the owner: ONE WAY colours (MUTCD shows white legend on black for R6-1), YIELD TO PEDESTRIANS (CA uses a white rectangle),
+   FINES DOUBLE sign colour, HOV lane ahead (regulatory vs warning), EXEMPT plaque colour.
+
+FACT FINDINGS (slide text and quiz answers)
+  claim                                                                  source   result
+  Permit applicant is "16"                                               S4       WRONG -> "at least 15 1/2". Fixed (slide bullet).
+  Permit path order: tests, then application steps                       S4       WRONG order -> check requirements, complete application, then vision and knowledge tests. Fixed (game).
+  School bus: undivided road, both directions stop                       S5       OK
+  School bus: divided highway, only same direction stops                 S5       INCOMPLETE -> also roads with two or more lanes each way. Fixed (bullet and explanation).
+  Stop until lights stop / arm withdraws; amber = slow down              S5       OK
+  Pentagon = school; diamond = warning; octagon = stop; yield triangle   S3       OK (art now matches)
+  In work zones, fines often double                                      S6       OK ("often" is a fair hedge: needs a marked zone with workers present)
+  Permit held 6 months, 50 hours incl. 10 night, supervising driver 25+  S4       OK where mentioned (the course says only "practice hours", no figures)
+  BAC 0.08 for 21+; zero tolerance under 21; commercial lower            recall   UNVERIFIED in this pass (matches handbook as I know it)
+  25 mph in business/residential districts; basic speed law              recall   UNVERIFIED in this pass
+  Stop at least 15 ft from the nearest rail                              recall   UNVERIFIED in this pass
+  Three-second following gap; headlights 30 min after sunset             recall   UNVERIFIED in this pass
+  Right on red after a full stop; left on red only one-way to one-way    recall   UNVERIFIED in this pass
+  Handheld phone use restricted, hands-free allowed                      recall   UNVERIFIED in this pass (under 18: no phone use at all is not mentioned)
+  Right of way at a tied four-way stop goes to the driver on the right   recall   UNVERIFIED in this pass
+  Disclaimers ("typically", "confirm on dmv.ca.gov") are short and stay.
+
+FOLLOW-UP FOR THE OWNER
+  - The changed strings (permit bullet, school-bus bullet and explanation) change their narration hashes: regenerate the demo voice manifest and
+    re-render those few lines (python3 -m tts_bakeoff.demo_voice ... as in docs/demo-voice.txt); until then those lines fall back to the same-gender edge voice.
+  - Have someone who knows the handbook confirm the UNVERIFIED rows (a quick read of the handbook chapters).
