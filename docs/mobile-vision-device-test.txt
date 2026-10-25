@@ -1,0 +1,119 @@
+MOBILE MACHINE VISION: DEVICE TEST CHECKLIST (Android first, then iPhone)
+
+Why this exists: the camera games (Vision Play, Pop Quiz Toss, the Driver's Ed widget) run in a WebView inside the
+app. Emulation in a browser can prove the code, the files and the geometry. It cannot prove the camera permission
+prompt, the phone's GPU, memory pressure or heat. Those need a real phone, and this is how to test one and what to
+send back. Nothing here records pictures or audio. Every report is text: numbers, error names and timings.
+
+WHAT IS ALREADY CHECKED WITHOUT A PHONE (scripts/mobile_vision_check.mjs)
+  Run: scripts/mobile_vision_fixtures.sh   (once; needs ffmpeg)
+       node scripts/mobile_vision_check.mjs [--base https://salareen.com]
+  It drives Chromium with Pixel 7 and iPhone 14 profiles and a fake camera, plus WebKit (the iPhone engine), and checks:
+    - the MediaPipe files are served with the right type and a cache lifetime
+    - the library, wasm and models load and find a face and two hands (WebKit and Chromium)
+    - face and hands are found from the fake camera on both phone profiles
+    - overlays line up with the video at four phone sizes, portrait and landscape, mirrored (landmark mapping error in px,
+      plus the overlay centre against the face found in a screenshot)
+    - Pop Quiz Toss: the hand on the left of the screen throws at the left answer, the right hand at the right
+    - the page's own camera check reports a healthy phone and a blocked camera correctly
+    - /diag/vision runs end to end and its report has no tokens or emails
+    - cold and warm model load on throttled 4G with a 4x slower CPU (the second visit must download nothing)
+  Limits: emulation uses software graphics, so speeds are not phone speeds. WebKit cannot take a fake camera, so the iPhone
+  engine is tested at library level on a photo, not on a live camera.
+
+ANDROID (the first target)
+
+A. Before you start
+  1. Install the build:   adb install -r salareen-<version>-<code>-release.apk
+     Check the version: Settings > About (bottom of the app). It must match the build you were sent.
+  2. Note the device: adb shell getprop ro.product.model ; adb shell getprop ro.build.version.release
+  3. Note the WebView in use (this decides which Chrome engine runs the games):
+       adb shell dumpsys webviewupdate | head -20
+  4. Clear the log so the test starts clean:   adb logcat -c   and   adb logcat -b events -c
+  5. Optional, to test the "camera blocked" path later:
+       adb shell pm revoke com.aiclassroom.app android.permission.CAMERA     (undo with: pm grant ... CAMERA)
+
+B. The in-app camera check (do this first, 1 minute)
+  1. Settings > Camera check > Run camera check. (Or open any camera game and tap "Camera check" at the top right.)
+  2. Tap Start the check. Tap Allow if the phone asks. Keep your face and one open hand in view for about 12 seconds.
+  3. Read the result at the top: "Looks good", "Works, with warnings" or "Problem found", with advice lines.
+  4. Tap Share report (top of the screen) and send it to us. The report is text only. You can read it first.
+     If you prefer, tap Send to Salareen: it opens Report a bug with the camera diagnostics ready, and a Preview
+     button shows exactly what would be sent. Nothing is sent until you tap Send.
+  What the report contains: device and WebView version, cores and memory, graphics chip, permissions, camera size and
+  fps, how long each model took to load and whether the GPU or the CPU was used (and why it fell back), detection
+  counts and speed (median and 95th percentile per frame), and the last 200 log lines.
+
+C. Game checks (about 5 minutes)
+  Vision Play (Machine vision):
+    1. Open Vision Play. The tutorial must appear first. Tap Allow for the camera. Status says "Face + two hands ready".
+    2. Hold up one hand, then two. The readout shows Hands: 1, then Hands: 2. The face contour follows your face.
+    3. Turn the phone to landscape and back. The overlay stays on your face and hands (no offset, no mirror flip).
+    4. Gold body outline: step back so your shoulders show. A soft gold line follows your body.
+  Pop Quiz Toss:
+    1. Start the game, read the tutorial. Hold your LEFT hand up on the left, grab the ball (close the fist), release.
+       It must go to the LEFT answer. Repeat with the RIGHT hand: it must go to the RIGHT answer.
+    2. Try holding the phone with the camera low. Both hands must still be found when you stand back a little.
+    3. A wrong throw never curves. Each question allows at least 10 seconds.
+  Driver's Ed demo (/demo/drivers-ed in the app):
+    1. The tutorial shows first, then the intro video. One small movable panel sits at the top right: status dot,
+       camera preview, mic, minimize, menu. A signed-in learner sees no countdown timer.
+    2. The face outline in the panel sits on your face.
+    3. Pick a voice in the account menu. The narration uses that voice.
+  Stress (optional): leave a game running for 5 minutes. Note whether the phone gets hot or the game slows.
+
+D. If something looks wrong, collect this (all text, no images)
+  Run these on the computer with the phone connected by USB (enable Developer options and USB debugging first):
+    adb devices
+    adb logcat -v time chromium:V cr_*:V *:S                                  (live Chromium and WebView messages)
+    adb logcat -v time | grep -iE "camera|webview|chromium|mediapipe|OOM|lowmemory|ANR"
+    adb logcat -b events -d | grep -iE "am_kill|am_low_memory|am_proc_died"    (was the app killed for memory?)
+    adb shell dumpsys media.camera | head -80                                 (is another app holding the camera?)
+    adb shell dumpsys meminfo com.aiclassroom.app                             (run while the game is open)
+    adb shell dumpsys gfxinfo com.aiclassroom.app                             (frame timing and janky frames)
+    adb shell dumpsys package com.aiclassroom.app | grep -iE "permission|CAMERA|RECORD_AUDIO"
+    adb shell dumpsys thermalservice | head -30 ; adb shell dumpsys battery   (heat and charge)
+    adb bugreport salareen-bugreport.zip                                      (everything; large; only if we ask)
+  Screen recording (shows what you see, including the camera picture of you; only send it if you are comfortable):
+    adb shell screenrecord --time-limit 60 /sdcard/salareen-test.mp4 ; adb pull /sdcard/salareen-test.mp4
+
+E. Looking inside the WebView from a computer (chrome://inspect)
+  1. In the app: Settings > About, tap the version line 7 quick times. A message says Debug mode is on.
+     (Tap it 7 times again to turn it off. Debug mode also logs more detail.)
+  2. Phone connected by USB with USB debugging on. On the computer open Chrome and go to chrome://inspect/#devices.
+  3. Find "Salareen" under your phone and click inspect on the page. Use the Console and Network tabs.
+  4. In the Console, type   __gsDiag.text()   to print the same report the app shares, or   __gsDiag.report()   for the data.
+     __gsVision.getVisionDiag() shows which delegate (GPU or CPU) each model loaded with.
+
+F. What to send back
+  - The shared report text (B.4), the phone model and Android version, and the app version.
+  - Which step failed (for example "Pop Quiz Toss, step 1: right hand threw left") and what you saw.
+  - If the app closed or the screen went blank: the "am_kill" lines from D and the dumpsys meminfo output.
+  - Do not send pictures of other people. Do not send your password or account details; the report redacts tokens and emails,
+    but read it before you send it.
+
+IPHONE
+
+A. Before you start
+  - Install the TestFlight or ad hoc build. Note the iOS version (Settings > General > About) and the model.
+  - Settings > Salareen: Camera and Microphone must be on. If you tapped Don't Allow earlier, turn them on here.
+B. In-app camera check: same as Android B (Settings > Camera check). Tap Share report: the iOS share sheet opens;
+   choose Mail or Messages, or Copy.
+C. Game checks: same as Android C. Extra for iPhone:
+    - The first time, iOS asks for the camera once. The page should not ask a second time.
+    - The video must stay inline (not jump to full screen).
+    - Low Power Mode lowers the camera frame rate: note whether Low Power Mode was on.
+D. Looking inside from a Mac (Safari Web Inspector)
+    1. iPhone: Settings > Safari > Advanced > Web Inspector on. In the app turn on Debug mode (tap the version 7 times).
+    2. Mac: Safari > Settings > Advanced > Show Develop menu. Connect the phone by cable.
+    3. Safari > Develop > [your iPhone] > the Salareen page. Console: __gsDiag.text()
+E. What to send back: as Android F. If the page went white and came back, the report shows
+   "WebView content process terminated; reloading": that means iOS ran the page out of memory.
+
+KNOWN LIMITS AND WHAT A DEVICE TEST CONFIRMS THAT EMULATION CANNOT
+  - The camera permission prompt and the in-app WebView grant (Android WebChromeClient, iOS WKWebView).
+  - Real GPU speed. The check falls back to the CPU if the GPU model cannot start, and says so.
+  - Memory pressure on phones with 2 to 4 GB. Phones with 2 GB or less skip the optional gold body outline to protect the page.
+  - Heat and battery during long play.
+  - The model files (about 21 MB) are stored on the phone after the first load (Cache Storage, then IndexedDB). The first game
+    launch on mobile data downloads them once; later launches download nothing.
