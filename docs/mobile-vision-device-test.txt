@@ -117,3 +117,24 @@ KNOWN LIMITS AND WHAT A DEVICE TEST CONFIRMS THAT EMULATION CANNOT
   - Heat and battery during long play.
   - The model files (about 21 MB) are stored on the phone after the first load (Cache Storage, then IndexedDB). The first game
     launch on mobile data downloads them once; later launches download nothing.
+
+
+HAND TEST AND THE SHARED DETECTOR (added with the minimal Vision Play shell)
+------------------------------------------------------------------------------
+The games and /diag/vision now build their face and hand detectors with ONE module (static/vision_detectors.js), so the camera check
+is a faithful test of the game. Each model has a ladder of "recipes": delegate (GPU/CPU), confidence thresholds, face blendshapes on/off,
+and how frames are fed (the video, or a canvas copy). The game starts with the first recipe and walks down the ladder only when a model
+throws repeatedly or stays blind while a person is plainly in front of the camera (the face works, but no hand is ever seen).
+
+On the phone (Chrome is fine; no app build needed):
+ 1. Open https://salareen.com/diag/vision and press "Start the check". Keep your face and ONE open hand in view for the whole check.
+ 2. If it still says hands 0, press "Hand test". Hold ONE open hand, palm toward the screen, about an arm's length away, face in view.
+    It takes about 40 seconds and tries every face and hand setting.
+ 3. Press "Copy report" and paste it back. The section "== Hand / face setting test" lists, per setting, how many frames saw a face/hand,
+    and "winner: face X, hands Y" names the setting that works on this phone.
+In the game itself the triage log (Settings > Camera check > Share report, or Report a bug) records "detector variant", "detector found"
+(which variant first saw a face / hand) and "detector touch fallback" lines.
+
+Proven with emulation only (fake camera, desktop Chromium): the ladder logic, the shared builder options, the failure handling, the hand
+test runner (with fake models), and that the diag page fails gracefully. NOT proven: that any recipe sees a hand on the owner's Adreno phone.
+Only the report above can show that.

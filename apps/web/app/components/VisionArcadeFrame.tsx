@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Status = "checking" | "ready" | "down";
 
@@ -20,6 +20,23 @@ type Status = "checking" | "ready" | "down";
 export function VisionArcadeFrame({ src, title }: { src: string; title: string }) {
   const sameOrigin = src.startsWith("/");
   const [status, setStatus] = useState<Status>(sameOrigin ? "checking" : "ready");
+  const frameRef = useRef<HTMLIFrameElement | null>(null);
+
+  // The game's own widget menu has Exit and Camera check; it asks us (its parent page) to act.
+  useEffect(() => {
+    function onMessage(event: MessageEvent) {
+      if (event.source !== frameRef.current?.contentWindow) return;
+      const type = (event.data as { type?: string } | null)?.type;
+      if (type === "salareen-exit") {
+        if (window.history.length > 1) window.history.back();
+        else window.location.assign("/");
+      } else if (type === "salareen-camera-check") {
+        window.open("/diag/vision", "_blank", "noopener");
+      }
+    }
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
 
   useEffect(() => {
     if (!sameOrigin) return;
@@ -99,6 +116,7 @@ export function VisionArcadeFrame({ src, title }: { src: string; title: string }
 
   return (
     <iframe
+      ref={frameRef}
       title={title}
       src={src}
       allow="camera; microphone; fullscreen"

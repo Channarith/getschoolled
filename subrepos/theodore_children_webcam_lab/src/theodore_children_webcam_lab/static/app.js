@@ -21,8 +21,14 @@ import {createGameTutorial} from "./game_tutorial.js";
 import {cloneClipUrl, mountVoiceSelect} from "./clone_voice.js";
 import {diag as trace} from "./vision_diag.js";
 import {loadVisionAssets} from "./vision_assets.js";
+import {createDetectHealth} from "./detect_health.js";
+import {FACE_VARIANTS, HAND_VARIANTS, createFace, createHands, createFeeder, createFirstWorking, variantOf} from "./vision_detectors.js";
 
 const $ = (id) => document.getElementById(id);
+// Does the phone's detector really work? Decides when to rebuild on the CPU, when to play by touch, and when "you left the camera" may be said.
+const health = createDetectHealth({variants: {face: FACE_VARIANTS.length, hands: HAND_VARIANTS.length}});
+const frameFor = createFeeder();
+const labEmit = (type, detail) => { try { window.dispatchEvent(new CustomEvent(`lab:${type}`, {detail})); } catch (_) {} };
 
 // Static files reload from disk but the HTML shell is rendered by the running
 // Python process, so a dev server started before an update serves NEW script
@@ -144,7 +150,7 @@ const state = {
   touchMode:"air", touchLatch:{key:"",until:0}, lastTouchTips:[],
   crayon:null, ink:[], inkDown:false, screenDown:false, screenPointerId:null,
   voiceAway:false, heldPrompt:"", missingFaceAt:0, chaseLeft:false, bopDir:0, flapDir:0,
-  presenceNoteUntil:0, presenceCueUntil:0, pace:"patient", lastDetectAt:0,
+  presenceNoteUntil:0, presenceCueUntil:0, pace:"patient", lastDetectAt:0, faceVariantIdx:0, handVariantIdx:0,
   glanceNote:false, poseOpen:false, standBase:null, sitLow:null,
   
   playStartedAt:0, playEndsAt:0, playTick:0, playEnded:false,
@@ -175,6 +181,19 @@ const target = $("target");
 // live rect there forced dozens of synchronous layouts per frame. The observer
 // already tells us when it changed, so measure once and reuse.
 let stageRect = {w:0,h:0};
+// Small, read-mostly surface for the shared minimal shell (lab_shell.js) and for tests.
+window.labShellApi = {
+  cameraOn: () => !state.camOff,
+  hasCamera: () => Boolean(state.stream),
+  setCamera(on) {
+    state.camOff = !on;
+    const track = state.stream?.getVideoTracks?.()[0];
+    if (track) track.enabled = Boolean(on);
+    if (video) video.style.visibility = on ? "" : "hidden";
+    labEmit("camera", {on: Boolean(on)});
+  },
+  health: () => health.summary(),
+};
 trace.expose({getState: () => state, getVisionDiag: () => state.visionDiag ? {...state.visionDiag, face: state.visionDiag.face, hands: state.visionDiag.hands, segment: state.visionDiag.segment} : null, getVideo: () => video, getCanvas: () => canvas});
 function stageBox() { return stageRect; }
 
@@ -199,7 +218,7 @@ function setPrompt(title, copy, speakText="") {
   setText("prompt-copy", copy);
   state.spokenPrompt = speakText || `${title}. ${copy}`;
 }
-function setStatus(text) { setText("vision-status", text); }
+function setStatus(text) { setText("vision-status", text); labEmit("status", {text}); }
 function clamp01(value) { return Math.max(0, Math.min(1, Number(value) || 0)); }
 function randomOf(items) {
   if (!items || !items.length) return undefined;
@@ -337,6 +356,13 @@ function armPlayClock() {
   state.playTick = setInterval(tickPlayClock, 1000);
 }
 
+function armFrameGate() {
+  if (!video?.requestVideoFrameCallback || state.frameGateOn) return;
+  state.frameGateOn = true; state.frameReady = false; state.lastFrameCbAt = performance.now();
+  const tick = () => { state.frameReady = true; state.lastFrameCbAt = performance.now(); video.requestVideoFrameCallback(tick); };
+  video.requestVideoFrameCallback(tick);
+}
+
 async function start(camera=true) {
   seedPlayAge();
   state.theme = $("theme")?.value || "mix";
@@ -377,6 +403,7 @@ async function start(camera=true) {
         // autoplay + muted + playsinline normally start it; a rejected play() must not
         // throw the whole camera away.
         try { await video.play(); } catch (_) {}
+        armFrameGate();
       }
       setStatus("Camera live · loading face & hands…");
       await initVision();
@@ -447,52 +474,56 @@ async function initVision() {
       endWasm();
       const modelBase = (key, path, delegate) => assets?.models?.[key] ? {modelAssetBuffer: assets.models[key].slice(), delegate} : {modelAssetPath: path, delegate};
       state.face = null; state.hands = null;
+      state.visionCtx = {vision, files, modelBase, source};
       diag.face = "pending"; diag.hands = "pending";
-      for (const delegate of ["GPU", "CPU"]) {
-        const endFace = trace.begin(`face model ${delegate}`);
-        try {
-          state.face = await vision.FaceLandmarker.createFromOptions(files, {
-            baseOptions: modelBase("face", source.face, delegate),
-            runningMode:"VIDEO",numFaces:1,outputFaceBlendshapes:true
-          });
-          diag.face = `ready (${delegate})`;
-          endFace({ok: true, delegate});
-          break;
-        } catch (error) { note(`face ${delegate}`, error); endFace({ok: false, delegate, reason: String(error?.message || error).slice(0, 160)}); }
+      // The same builder /diag/vision uses (vision_detectors.js): one recipe ladder per model, so the diagnostic page is a faithful harness.
+      const detectors = state.visionCtx;
+      const endFace = trace.begin("face model");
+      const faceRun = await createFirstWorking(FACE_VARIANTS, (variant) => createFace(detectors, variant), {note: (variant, error) => note(`face ${variant.id}`, error)});
+      endFace({ok: Boolean(faceRun.model), variant: faceRun.variant?.id || "", reason: faceRun.errors.slice(-1)[0] || ""});
+      if (faceRun.model) {
+        state.face = faceRun.model; state.faceVariantIdx = faceRun.index;
+        diag.face = `ready (${faceRun.variant.id})`;
+        health.register("face", faceRun.variant.delegate, faceRun.index, faceRun.variant.id);
       }
-      if (!state.face) diag.face = "failed";
-      for (const delegate of ["GPU", "CPU"]) {
-        const endHands = trace.begin(`hand model ${delegate}`);
-        try {
-          state.hands = await vision.HandLandmarker.createFromOptions(files, {
-            baseOptions: modelBase("hand", source.hand, delegate),
-            runningMode:"VIDEO",numHands:2
-          });
-          state.handConnections = (vision.HandLandmarker.HAND_CONNECTIONS || []).map((c) => (
-            Array.isArray(c) ? [c[0], c[1]] : [c.start, c.end]
-          )).filter((pair) => Number.isFinite(pair[0]) && Number.isFinite(pair[1]));
-          diag.hands = `ready (${delegate})`;
-          endHands({ok: true, delegate});
-          break;
-        } catch (error) { note(`hands ${delegate}`, error); endHands({ok: false, delegate, reason: String(error?.message || error).slice(0, 160)}); }
+      if (!state.face) { diag.face = "failed"; health.fail("face", diag.errors.slice(-1)[0] || "model unavailable"); trace.stage("detector load failed", {model: "face", reason: diag.errors.slice(-1)[0] || ""}); }
+      const endHands = trace.begin("hand model");
+      const handRun = await createFirstWorking(HAND_VARIANTS, (variant) => createHands(detectors, variant), {note: (variant, error) => note(`hands ${variant.id}`, error)});
+      endHands({ok: Boolean(handRun.model), variant: handRun.variant?.id || "", reason: handRun.errors.slice(-1)[0] || ""});
+      if (handRun.model) {
+        state.hands = handRun.model; state.handVariantIdx = handRun.index;
+        state.handConnections = (vision.HandLandmarker.HAND_CONNECTIONS || []).map((c) => (
+          Array.isArray(c) ? [c[0], c[1]] : [c.start, c.end]
+        )).filter((pair) => Number.isFinite(pair[0]) && Number.isFinite(pair[1]));
+        diag.hands = `ready (${handRun.variant.id})`;
+        health.register("hands", handRun.variant.delegate, handRun.index, handRun.variant.id);
       }
-      if (!state.hands) diag.hands = "failed";
+      if (!state.hands) { diag.hands = "failed"; health.fail("hands", diag.errors.slice(-1)[0] || "model unavailable"); trace.stage("detector load failed", {model: "hands", reason: diag.errors.slice(-1)[0] || ""}); }
       if (lowMemory && !state.segmenter) { diag.segment = "off (low memory)"; trace.stage("outline skipped", {deviceMemory: navigator.deviceMemory}); }
       if (!state.segmenter && source.segment && !lowMemory) {
-        diag.segment = "pending";
-        for (const delegate of ["GPU", "CPU"]) {
-          const endSeg = trace.begin(`outline model ${delegate}`);
-          try {
-            state.segmenter = await vision.ImageSegmenter.createFromOptions(files, {
-              baseOptions: modelBase("segment", source.segment, delegate),
-              runningMode: "VIDEO", outputCategoryMask: true, outputConfidenceMasks: false,
-            });
-            diag.segment = `ready (${delegate})`;
-            endSeg({ok: true, delegate});
-            break;
-          } catch (error) { note(`outline ${delegate}`, error); endSeg({ok: false, delegate, reason: String(error?.message || error).slice(0, 160)}); }
-        }
-        if (!state.segmenter) diag.segment = "off";
+        diag.segment = "waiting";
+        // The body outline is optional. It loads AFTER face and hands have seen a person, so three graphics contexts never
+        // compete while the game is starting (a likely cause of silent failures on phones).
+        state.loadOutline = async () => {
+          if (state.segmenter || state.segmenterLoading) return;
+          state.segmenterLoading = true;
+          diag.segment = "pending";
+          for (const delegate of ["GPU", "CPU"]) {
+            const endSeg = trace.begin(`outline model ${delegate}`);
+            try {
+              state.segmenter = await vision.ImageSegmenter.createFromOptions(files, {
+                baseOptions: modelBase("segment", source.segment, delegate),
+                runningMode: "VIDEO", outputCategoryMask: true, outputConfidenceMasks: false,
+              });
+              diag.segment = `ready (${delegate})`;
+              endSeg({ok: true, delegate});
+              break;
+            } catch (error) { note(`outline ${delegate}`, error); endSeg({ok: false, delegate, reason: String(error?.message || error).slice(0, 160)}); }
+          }
+          if (!state.segmenter) diag.segment = "off";
+          state.segmenterLoading = false;
+        };
+        state.loadOutlineWhenSeen = true;
       }
       if (state.face && state.hands) break;
     } catch (error) {
@@ -501,6 +532,10 @@ async function initVision() {
       console.warn("[children-lab] vision source failed", source.name, error);
     }
   }
+  // Every source was tried. Anything still missing is a recorded failure (a library that never imported never reached the per-model code).
+  const lastReason = diag.errors.slice(-1)[0] || "model unavailable";
+  if (!state.face) { health.fail("face", lastReason); trace.stage("detector load failed", {model: "face", reason: lastReason}); }
+  if (!state.hands) { health.fail("hands", lastReason); trace.stage("detector load failed", {model: "hands", reason: lastReason}); }
   if (state.face && state.hands) {
     setStatus("Face + two hands ready");
   } else if (state.face || state.hands) {
@@ -659,7 +694,12 @@ function handToFaceFaces(hand, face) {
 }
 
 function detectFrame() {
-  if ((!state.face && !state.hands) || !video || video.readyState<2) return;
+  if ((!state.face && !state.hands) || !video || video.readyState<2 || !video.videoWidth) return;
+  // One detection per NEW camera frame, like /diag/vision. (A web view that never calls back falls back to the timer loop.)
+  if (state.frameGateOn) {
+    if (!state.frameReady && performance.now() - state.lastFrameCbAt <= 600) return;
+    state.frameReady = false;
+  }
   // A phone WebView often freezes video.currentTime at 0 for a camera stream.
   // Keep sampling on a clock so the finger, the trail, and a fist still move.
   const nowMs = performance.now();
@@ -673,24 +713,28 @@ function detectFrame() {
   try {
     if (state.face) {
       const t0 = performance.now();
-      const result=state.face.detectForVideo(video,now);
+      const result=state.face.detectForVideo(frameFor(video, variantOf(FACE_VARIANTS, state.faceVariantIdx)),now);
       const points=result.faceLandmarks?.[0];
       state.faceData=faceMetrics(points,blendshapeMap(result));
       sample.faceMs = performance.now() - t0; sample.face = Boolean(points);
+      health.run("face", {ok: true, found: Boolean(points)});
+      if (points) noteFound("face");
     }
-  } catch (error) { console.warn("[children-lab] face frame skipped",error); }
+  } catch (error) { console.warn("[children-lab] face frame skipped",error); health.run("face", {ok: false, error: error?.message || error}); noteDetectError("face", error); }
   try {
-    if (state.hands && (!screenTouch() || state.game === "ninja-weave")) {
+    if (state.hands && (!screenTouch() || state.autoScreen || state.game === "ninja-weave")) {
       const t1 = performance.now();
-      const result=state.hands.detectForVideo(video,now);
+      const result=state.hands.detectForVideo(frameFor(video, variantOf(HAND_VARIANTS, state.handVariantIdx)),now);
       sample.handsMs = performance.now() - t1;
       const labels=(result.handedness||[]).map(row=>row?.[0]?.categoryName||"");
       const previous=state.handData.map(hand=>hand.tip);
       state.handData=(result.landmarks||[]).map((points,i)=>handMetrics(points,labels[i])).filter(Boolean);
       state.handMotion=state.handData.reduce((max,hand,i)=>Math.max(max,previous[i]?distance(hand.tip,previous[i]):0),0);
       sample.hands = state.handData.length;
+      health.run("hands", {ok: true, found: state.handData.length > 0});
+      if (state.handData.length) noteFound("hands");
     }
-  } catch (error) { console.warn("[children-lab] hand frame skipped",error); }
+  } catch (error) { console.warn("[children-lab] hand frame skipped",error); health.run("hands", {ok: false, error: error?.message || error}); noteDetectError("hands", error); }
   try {
     if (state.segmenter && switchedOn("show-outline")) {
       const t2 = performance.now();
@@ -699,6 +743,69 @@ function detectFrame() {
     }
   } catch (error) { console.warn("[children-lab] outline frame skipped",error); }
   trace.frame(sample);
+}
+
+let detectErrorsLogged = 0;
+function noteDetectError(name, error) {
+  if (detectErrorsLogged++ < 6) trace.stage("detector error", {model: name, message: String(error?.message || error).slice(0, 140)});
+}
+const loggedFound = {};
+function noteFound(name) {
+  if (loggedFound[name]) return;
+  loggedFound[name] = true;
+  const info = health.summary()[name] || {};
+  trace.stage("detector found", {model: name, variant: info.variant, delegate: info.delegate, tried: info.tried});
+}
+// A model that throws or stays blind walks down its variant ladder (delegate, thresholds, blendshapes, frame feed). Phones differ;
+// the GPU hand model returning nothing is a known failure class. Which variant first sees something is logged for the triage report.
+const rebuilding = {};
+async function rebuildVariant(name, index) {
+  const ctx = state.visionCtx;
+  if (!ctx || rebuilding[name]) return;
+  rebuilding[name] = true;
+  const list = name === "face" ? FACE_VARIANTS : HAND_VARIANTS;
+  const variant = variantOf(list, index);
+  trace.stage("detector variant", {model: name, to: variant.id, from: health.summary()[name]});
+  try {
+    const old = state[name];
+    const next = name === "face" ? await createFace(ctx, variant) : await createHands(ctx, variant);
+    state[name] = next;
+    state[name === "face" ? "faceVariantIdx" : "handVariantIdx"] = index;
+    try { old?.close?.(); } catch (_) { /* already closed */ }
+    health.markVariant(name, index, variant.id, variant.delegate);
+    if (state.visionDiag) state.visionDiag[name === "face" ? "face" : "hands"] = `ready (${variant.id}, rebuilt)`;
+    trace.stage("detector variant ready", {model: name, variant: variant.id});
+  } catch (error) {
+    health.markVariant(name, index, variant.id, variant.delegate);   // skip it: the next tick tries the following variant
+    trace.stage("detector variant failed", {model: name, variant: variant.id, message: String(error?.message || error).slice(0, 140)});
+  } finally { rebuilding[name] = false; }
+}
+// Called every frame. While the models load, fail, or stay blind, the game is playable by touching the screen
+// (silently: no banner), and it hands control back to the camera as soon as a person has been seen.
+let lastHealthAt = 0;
+let lastHealthState = "";
+function healthTick() {
+  const nowMs = performance.now();
+  if (nowMs - lastHealthAt < 400) return;
+  lastHealthAt = nowMs;
+  for (const name of ["face", "hands"]) {
+    const nextVariant = health.fallbackWanted(name);
+    if (nextVariant >= 0) rebuildVariant(name, nextVariant);
+  }
+  if (state.loadOutlineWhenSeen && health.sawPerson()) { state.loadOutlineWhenSeen = false; state.loadOutline?.(); }
+  const reason = health.touchFallback();
+  const waiting = !state.demo && Boolean(state.stream) && !health.sawPerson();
+  const want = Boolean(state.camOff && state.stream) || (waiting && (Boolean(reason) || health.loading() || (!state.face && !state.hands)));
+  const label = want ? (reason || "loading") : "ready";
+  if (Boolean(state.autoScreen) !== want) {
+    state.autoScreen = want;
+    setTouchMode(state.touchMode);
+    if (want && reason) trace.stage("detector touch fallback", {reason, health: health.summary()});
+  }
+  if (label !== lastHealthState) {
+    lastHealthState = label;
+    labEmit("health", {state: want ? (reason ? "touch" : "loading") : "ready", reason});
+  }
 }
 
 // ---- Quiet redesign (quiet-v4): a soft gold outline traced around the person, plus a small gold star on the shoulder.
@@ -1218,6 +1325,7 @@ function renderVisionReadout() {
   const normalized=state.trail.map(point=>({x:point.nx,y:point.ny}));
   const progress=traceProgress(normalized,state.age);
   setText("trace-readout",`Trace: ${progress.percent}% · ${state.trail.length} points`);
+  labEmit("progress", {percent: Number(progress.percent) || 0, game: state.game});
   setText("game-readout",`Gesture: ${gestureReadout()}`);
 }
 
@@ -1465,6 +1573,7 @@ const popQuiz = createPopQuizGame({
   state, $, stage, spriteLayer, stageBox, catchRadius,
   setPrompt, tellActivity, speak, calculateFun, renderScore, recordEvent,
   chooseGame: () => chooseGame(),
+  isScreenTouch: () => screenTouch() || Boolean(state.demo),
 });
 window.__popQuiz = popQuiz; // read-only status for tests
 function cancelQuizThrow() { popQuiz.cancelThrow(); }
@@ -1937,7 +2046,7 @@ function targetPoint(){
 
 function loop(now) {
   if(!state.running)return;
-  detectFrame();noteSensors();drawVision();
+  detectFrame();healthTick();noteSensors();drawVision();
   watchPresence(now);
   if (state.voiceAway) {
     if (state.deadline && !state.pausedAt) state.pausedAt = now;
@@ -1997,6 +2106,9 @@ function postFocus(kind, evidence) {
 }
 
 function watchPresence(now) {
+  // "You left the camera" may only be said after the detector has actually seen this player. A model that failed or
+  // is still loading used to look exactly like an empty room, and paused the lesson forever.
+  if (!state.demo && (state.camOff || !health.presenceAllowed())) return;
   const face = state.faceData;
   const events = presenceWatch.update({
     atMs: now,
@@ -2392,6 +2504,8 @@ function renderScore(){
   setText("fun-score", `Fun ${state.fun}`);
   setText("combo", `Combo ${state.combo}`);
   setText("stars", state.fun>=85?"★★★":state.fun>=60?"★★☆":state.fun>0?"★☆☆":"☆☆☆");
+  // Games without their own goal (the quiz and the tracing games report theirs) show the Fun score on the thin top line.
+  if (state.game !== "pop-quiz-toss" && !/^trace-|^connect-dots|^color-picture/.test(state.game || "")) labEmit("progress", {percent: Math.min(100, Number(state.fun) || 0), game: state.game});
 }
 
 function fxAudioContext() {
@@ -2822,7 +2936,7 @@ function applyDemoPointer(event) {
 }
 
 function screenTouch() {
-  return phonePlay() && state.touchMode === "screen";
+  return phonePlay() && (state.touchMode === "screen" || Boolean(state.autoScreen));
 }
 function noteSensors() {
   if (state.faceData) state.sawFace = true;
@@ -2884,7 +2998,8 @@ function setTouchMode(mode) {
   state.touchMode = mode === "screen" ? "screen" : "air";
   if (state.game === "pop-quiz-toss") cancelQuizThrow();
   liftScreenHand();
-  const screen = state.touchMode === "screen";
+  // Effective mode: the player's choice, or touch while camera tracking is loading / unavailable.
+  const screen = state.touchMode === "screen" || Boolean(state.autoScreen);
   const group = $("touch-mode");
   const air = $("touch-air");
   const glass = $("touch-screen");
@@ -2921,14 +3036,8 @@ function pokeScreenTargets() {
   updatePopQuizToss(performance.now());
   if (state.game === "air-drums") hitAirDrums(performance.now());
 }
-function releaseScreenThrow(point) {
-  if(state.game!=="pop-quiz-toss"||!point)return;
-  placeScreenHand(point);
-  const hand=state.handData.find(row=>row.screen);
-  if(!hand)return;
-  hand.fist=false;hand.indexUp=true;
-  updatePopQuizToss(performance.now(),hand);
-}
+// By touch, Pop Quiz Toss answers are taps on the target (pop_quiz_game.js); there is no throw to release.
+function releaseScreenThrow() {}
 function screenEventPoint(event) {
   if (Number.isFinite(event?.clientX) && Number.isFinite(event?.clientY)) return event;
   const touch = event?.changedTouches?.[0] || event?.touches?.[0];
@@ -2936,6 +3045,8 @@ function screenEventPoint(event) {
 }
 function beginScreenTouch(event) {
   if (!screenTouch()) return false;
+  // Pop Quiz Toss by touch is just a tap on the answer: nothing to throw or drag.
+  if (state.game === "pop-quiz-toss") return false;
   if (state.screenPointerId != null) return true;
   const point = screenEventPoint(event);
   if (!point) return false;
@@ -2963,7 +3074,7 @@ stage?.addEventListener("pointermove",(event)=>{
 // Pop Quiz Toss draws its own buttons (tutorial, help, win) inside the stage; a press
 // on them must not start a throw or capture the pointer, or the button never clicks.
 function isPopQuizUi(event) {
-  return Boolean(event?.target?.closest?.(".pq-tutorial,.pq-win,.pq-help,.gt-help,.gt-overlay"));
+  return Boolean(event?.target?.closest?.(".pq-tutorial,.pq-win,.pq-help,.gt-help,.gt-overlay,.pq-target,#lab-widget,#lab-menu"));
 }
 stage?.addEventListener("pointerdown",(event)=>{
   if (isPopQuizUi(event)) return;
