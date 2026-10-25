@@ -96,6 +96,10 @@ class CosyVoice2Adapter(Adapter):
             with wave.open(str(out_wav), "rb") as w:
                 return w.getframerate()
         import torchaudio
+
+        from . import host_shims
+
+        host_shims.install()
         from cosyvoice.cli.cosyvoice import CosyVoice2
 
         self._model = self._model or CosyVoice2(self.model_dir())
