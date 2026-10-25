@@ -1,0 +1,14 @@
+{
+  "name": "drivers-ed-demo",
+  "description": "Translate the driver's ed demo (data/cert_machine). Spanish and French run on the Mac via scripts/translate_drivers_ed_fleet.sh. This GPU job is the Spark and iBuyPower shares. It does not use port 8002 and does not stop the catalog translator. Workers are not installed on those machines yet: run the fleet script from the Mac.",
+  "resource": "gpu",
+  "roles": ["spark", "kalel"],
+  "priority": 60,
+  "fill": false,
+  "needs_cuda": true,
+  "preemptible": true,
+  "timeout_s": 86400,
+  "max_attempts": 3,
+  "machine_params": {"spark": {"share": "spark"}, "kalel": {"share": "kalel"}},
+  "cmd": ["scripts/translate_drivers_ed.sh", "{share}"]
+}

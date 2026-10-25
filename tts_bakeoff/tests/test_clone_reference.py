@@ -221,3 +221,53 @@ def test_doctor_names_what_is_missing_and_the_fix(tmp_path, monkeypatch):
     assert doctor.main(["--model", "cosyvoice2"]) == 1
     script = Path(__file__).resolve().parents[2] / "scripts" / "run_voice_clone.sh"
     assert "COSYVOICE_MODEL_DIR" in script.read_text(encoding="utf-8")
+
+
+def test_split_text_and_chunk_limit_follow_the_8gb_card():
+    from tts_bakeoff.adapters.voxcpm2 import chunk_limit, split_text
+
+    assert split_text("Stop.", 80) == ["Stop."] and split_text("Stop.", 0) == ["Stop."]
+    parts = split_text("One sentence here. Another sentence follows after it.", 24)
+    assert len(parts) >= 2 and all(len(part) <= 24 for part in parts)
+    assert chunk_limit({}, total_bytes=8 * 1024**3) == 80
+    assert chunk_limit({}, total_bytes=80 * 1024**3) == 0
+    assert chunk_limit({"chunk_chars": 40}, total_bytes=8 * 1024**3) == 40
+
+
+def test_oom_retries_a_paragraph_in_pieces(tmp_path):
+    calls = []
+
+    class M:
+        def generate(self, **kw):
+            calls.append(kw["text"])
+            if len(kw["text"]) > 80:
+                raise RuntimeError("CUDA out of memory. Tried to allocate 156.00 MiB")
+            return np.ones(100, dtype="float32")
+
+    text = ("If safe, move out of traffic and turn on hazards. "
+            "Call 911 for injuries. Exchange names, contact, license, and insurance info.")
+    ad = VoxCPM2Adapter(reference_wav=str(tmp_path / "ref.wav"), ref_mode="reference", chunk_chars=0)
+    ad._model = M()
+    ad.synthesize(text, "en", tmp_path / "o.wav")
+    assert calls[0] == text
+    assert all(len(piece) <= 80 for piece in calls[1:]) and len(calls) > 1
+    assert (tmp_path / "o.wav").stat().st_size > 500
+
+
+def test_tight_gpu_speaks_a_long_line_in_short_pieces(tmp_path, monkeypatch):
+    from tts_bakeoff.adapters import voxcpm2 as vx
+
+    monkeypatch.setattr(vx, "_cuda_total_bytes", lambda: 8 * 1024**3)
+    calls = []
+
+    class M:
+        def generate(self, **kw):
+            calls.append(kw["text"])
+            assert len(kw["text"]) <= 80
+            return np.ones(80, dtype="float32")
+
+    text = "A" * 200
+    ad = VoxCPM2Adapter(reference_wav="ref.wav", ref_mode="reference")
+    ad._model = M()
+    ad.synthesize(text, "en", tmp_path / "o.wav")
+    assert "".join(calls) == text and len(calls) == 3
