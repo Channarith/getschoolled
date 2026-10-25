@@ -243,3 +243,36 @@ def test_google_access_token_exchange_uses_service_account(env):
     assert iap.google_get_purchase("full_course", "tok", opener=opener) == {"purchaseState": 0}
     assert any("oauth2.googleapis.com" in u for u in seen) and any("/purchases/products/full_course/tokens/tok" in u for u in seen)
     iap._TOKEN_CACHE.update(value="", exp=0.0)
+
+
+def test_apple_transaction_id_is_resolved_by_asking_apple(env):
+    signed = env["pki"].sign(txn())
+    asked = []
+    env["mp"].setattr(iap, "apple_get_transaction", lambda tid, **k: asked.append(tid) or signed)
+    r = env["client"].post("/api/studio/iap/apple/verify", json={"transaction_id": "2000001"}, headers={"Authorization": "Bearer alice"})
+    assert r.status_code == 200 and asked == ["2000001"] and env["store"].is_paid("acct-alice", COURSE)
+    assert env["client"].post("/api/studio/iap/apple/verify", json={}, headers={"Authorization": "Bearer alice"}).status_code == 400
+
+
+def test_apple_server_api_tries_sandbox_after_production_404(env):
+    from cryptography.hazmat.primitives.asymmetric import ec as _ec
+    key = _ec.generate_private_key(_ec.SECP256R1()).private_bytes(
+        serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()).decode()
+    for k, v in {"APPLE_IAP_KEY_ID": "KID", "APPLE_IAP_ISSUER_ID": "ISS", "APPLE_IAP_PRIVATE_KEY": key}.items():
+        env["mp"].setenv(k, v)
+    import urllib.error
+    seen = []
+
+    class Resp:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def read(self): return json.dumps({"signedTransactionInfo": "JWS"}).encode()
+
+    def opener(request, timeout=0):
+        seen.append(request.full_url)
+        if "sandbox" not in request.full_url:
+            raise urllib.error.HTTPError(request.full_url, 404, "nf", {}, None)
+        return Resp()
+
+    assert iap.apple_get_transaction("7", opener=opener) == "JWS"
+    assert "storekit.itunes" in seen[0] and "storekit-sandbox" in seen[1]

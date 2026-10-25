@@ -58,7 +58,8 @@ def iap_products(course_id: str, request: Request, authorization: str = Header(d
 
 
 class AppleVerify(BaseModel):
-    signed_transaction: str
+    signed_transaction: str = ""  # StoreKit 2 JWS, when the app can send it
+    transaction_id: str = ""      # otherwise the id: the server asks Apple for the signed transaction itself
 
 
 class GoogleVerify(BaseModel):
@@ -75,7 +76,12 @@ def apple_verify(req: AppleVerify, request: Request, authorization: str = Header
     base._same_origin(request)
     who = base._require_caller(authorization, request)
     try:
-        payload = iap.verify_apple_jws(req.signed_transaction)
+        signed = req.signed_transaction.strip()
+        if not signed:
+            if not req.transaction_id.strip():
+                raise HTTPException(status_code=400, detail="signed_transaction or transaction_id is required")
+            signed = iap.apple_get_transaction(req.transaction_id.strip())
+        payload = iap.verify_apple_jws(signed)
         paid = iap.apple_transaction_to_paid(payload, account_id=account_id(who))
     except iap.StoreVerificationError as exc:
         raise _fail(exc) from exc

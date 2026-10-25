@@ -1,7 +1,7 @@
 // API client for the Salareen mobile app (curriculum, identity, memory).
 
 import type { MascotResolve } from "./mascot";
-import { CURRICULUM_URL, DEPLOY_MODE, failoverUrlFor, IDENTITY_URL, MEMORY_URL, ORCHESTRATOR_URL, BILLING_URL, SPEECH_URL, MUSIC_URL, musicTtsUri } from "./config";
+import { CURRICULUM_URL, DEPLOY_MODE, failoverUrlFor, IDENTITY_URL, MEMORY_URL, ORCHESTRATOR_URL, BILLING_URL, SPEECH_URL, MUSIC_URL, musicTtsUri, WEB_APP_URL } from "./config";
 import { getToken, clearAuthToken } from "./storage";
 
 export { CURRICULUM_URL, IDENTITY_URL, MEMORY_URL, ORCHESTRATOR_URL, BILLING_URL, SPEECH_URL, MUSIC_URL, musicTtsUri };
@@ -1817,11 +1817,42 @@ export async function getLeaderboard(subject?: string, ageGroup?: string):
   return get(IDENTITY_URL, `/games/leaderboard${qs ? `?${qs}` : ""}`);
 }
 
-export async function purchaseCourse(courseId: string, title: string): Promise<Enrollment> {
-  return get(IDENTITY_URL, `/enrollments/${encodeURIComponent(courseId)}/purchase`, {
+export type CourseEntitlement = {
+  entitlement: "login_required" | "free" | "paid" | "must_pay";
+  offer?: { amount_cents: number; label: string };
+};
+
+/** What this account may do with a paid course. The server decides; the app never infers it. */
+export async function getCourseEntitlement(courseId: string): Promise<CourseEntitlement> {
+  return get(WEB_APP_URL, `/api/studio/entitlement?course_id=${encodeURIComponent(courseId)}`);
+}
+
+export type IapProducts = {
+  course_id: string;
+  products: { apple?: string; google?: string };
+  apple_app_account_token: string;
+  google_obfuscated_account_id: string;
+};
+
+export async function getIapProducts(courseId: string): Promise<IapProducts> {
+  return get(WEB_APP_URL, `/api/studio/iap/products?course_id=${encodeURIComponent(courseId)}`);
+}
+
+type IapVerified = { status: string; order_id?: string };
+
+export async function verifyAppleTransaction(transactionId: string): Promise<IapVerified> {
+  return get(WEB_APP_URL, "/api/studio/iap/apple/verify", {
     method: "POST",
-    headers: { "content-type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ title }),
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ transaction_id: transactionId }),
+  });
+}
+
+export async function verifyGooglePurchase(productId: string, purchaseToken: string): Promise<IapVerified> {
+  return get(WEB_APP_URL, "/api/studio/iap/google/verify", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ product_id: productId, purchase_token: purchaseToken }),
   });
 }
 
