@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import socket
 import sys
 import time
@@ -24,7 +25,7 @@ from pathlib import Path
 from tts_bakeoff.build_sentences import load
 
 from . import clean as audio_clean
-from . import enroll, registry, synth, tones
+from . import enroll, profile, registry, synth, tones
 
 
 def cmd_consent(a) -> int:
@@ -47,7 +48,7 @@ def cmd_enroll(a) -> int:
     return 0
 
 
-def synthesize_all(out: Path, speakers: list[str], models: list[str], langs: list[str], limit: int | None,
+def synthesize_all(out: Path, speakers: list[str], models: list[str], langs: list[str] | None, limit: int | None,
                    base: Path | None = None, gpu: bool = True, takes: int | None = None, clean: bool | None = None) -> dict:
     counts = {"ok": 0, "failed": 0, "skipped_unsupported": 0, "refused": 0}
     for speaker in speakers:
@@ -57,6 +58,9 @@ def synthesize_all(out: Path, speakers: list[str], models: list[str], langs: lis
             print(f"REFUSED {speaker}: {exc}")
             counts["refused"] += 1
             continue
+        enrolled = profile.speaker_languages(speaker, base) or ["en"]
+        own = langs or enrolled   # no --langs: each speaker speaks the language(s) they were enrolled in; anything else is cross-lingual
+        label = profile.display_label(speaker, rec["name"], base)
         for model in models:
             adapter = synth.build_adapter(model, speaker, base, gpu=gpu)
             vid = f"{model}~{speaker}"
@@ -65,17 +69,19 @@ def synthesize_all(out: Path, speakers: list[str], models: list[str], langs: lis
             (root / "meta.json").write_text(json.dumps({
                 "model": vid, "clone": True, "consented": True, "base_model": model, "speaker": speaker,
                 "role": rec["role"], "consent_date": rec["date"], "host": socket.gethostname(),
-                "started": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
-            }, indent=2), encoding="utf-8")
+                "started": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "label": f"{label} · {model}", "primary_lang": enrolled[0], "langs": enrolled,
+            }, indent=2, ensure_ascii=False), encoding="utf-8")
             (root / "scores.jsonl").touch()
             with (root / "manifest.jsonl").open("a", encoding="utf-8") as mf:
-                for lang in langs:
+                for lang in own:
                     if not adapter.supports(lang):
                         counts["skipped_unsupported"] += 1
                         continue
                     for item in load(lang, limit):
                         wav = root / lang / f"{item['id']}.wav"
                         row = {"model": vid, "lang": lang, "id": item["id"], "text": item["text"], "wav": wav.relative_to(out).as_posix()}
+                        if lang not in enrolled:
+                            row["cross_lingual"] = True   # the lab badges these: the voice was enrolled in another language
                         try:
                             row.update(audio_clean.synthesize_best_of(adapter, item["text"], lang, wav, takes=takes, clean=clean))
                             row["status"] = "ok"
@@ -121,6 +127,17 @@ def say_once(speaker: str, model: str, lang: str, text: str, out: Path, base: Pa
     return meta
 
 
+REF_HELP = ("VoxCPM2 reference mode: continue = audio + its exact transcript (same language), reference = audio only (other languages, "
+            "or a transcript that may not match); auto (default) picks per sentence. Logged per clip.")
+
+
+def _langs_arg(arg: str) -> list[str] | None:
+    """None = each speaker's own languages (the default); 'all' = every demo language; else the explicit list."""
+    if not arg:
+        return None
+    return list(profile.ALL_LANGS) if arg == "all" else [x for x in arg.split(",") if x]
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -129,11 +146,12 @@ def main(argv: list[str] | None = None) -> int:
     e = sub.add_parser("enroll"); e.add_argument("--speaker", required=True); e.add_argument("--audio", required=True)
     e.add_argument("--lang", required=True); e.add_argument("--transcript", default=""); e.add_argument("--transcript-file"); e.add_argument("--no-clean", action="store_true", help="keep the recording exactly as imported")
     r = sub.add_parser("run"); r.add_argument("--out", required=True); r.add_argument("--speakers", default="")
-    r.add_argument("--models", default="voxcpm2,cosyvoice2"); r.add_argument("--langs", default="en,es,zh")
-    r.add_argument("--limit", type=int, default=3); r.add_argument("--takes", type=int, default=None, help="takes per sentence, cleanest kept (default 3; 1 = single take)")
+    r.add_argument("--models", default="voxcpm2,cosyvoice2"); r.add_argument("--langs", default="", help="comma list, or 'all'; default: each speaker's own language(s) from their enrollment")
+    r.add_argument("--ref-mode", choices=profile.REF_MODES, help=REF_HELP); r.add_argument("--limit", type=int, default=3); r.add_argument("--takes", type=int, default=None, help="takes per sentence, cleanest kept (default 3; 1 = single take)")
     r.add_argument("--no-clean", action="store_true", help="skip post-processing (best-of-N still applies unless --takes 1)"); r.add_argument("--no-gpu", action="store_true", help="tests only (mock model)")
     y = sub.add_parser("say"); y.add_argument("--speaker", required=True); y.add_argument("--model", required=True, choices=synth.CLONE_MODELS)
     y.add_argument("--lang", required=True); y.add_argument("--text-file", required=True); y.add_argument("--out", required=True)
+    y.add_argument("--ref-mode", choices=profile.REF_MODES, help=REF_HELP)
     y.add_argument("--no-gpu", action="store_true", help="tests only (mock model)")
     y.add_argument("--tone", default="neutral", help="neutral, a preset or a blend; needs the signed stylized_versions addendum")
     y.add_argument("--mechanism", default="dsp", choices=("dsp", "model"))
@@ -143,14 +161,16 @@ def main(argv: list[str] | None = None) -> int:
     w = sub.add_parser("withdraw-scope"); w.add_argument("--speaker", required=True)
     w.add_argument("--scope", default="stylized_versions", choices=registry.OPTIONAL_SCOPES)
     t = sub.add_parser("tones"); t.add_argument("--out", required=True); t.add_argument("--speakers", default="")
-    t.add_argument("--models", default="voxcpm2"); t.add_argument("--langs", default="en,es,zh")
+    t.add_argument("--models", default="voxcpm2"); t.add_argument("--langs", default="", help="comma list, or 'all'; default: each speaker's own language(s)")
     t.add_argument("--tones", default="all", help="comma list of neutral, presets, blends; 'all' = neutral + presets + blends; 'presets' = neutral + presets")
     t.add_argument("--mechanisms", default="dsp,model", help="dsp = post-process the neutral clone (CPU); model = ask the model for the style (one GPU synthesis per tone)")
     t.add_argument("--model-blends", action="store_true", help="also run blends through the model mechanism (22 extra GPU clips per sentence)")
-    t.add_argument("--limit", type=int, default=1); t.add_argument("--no-gpu", action="store_true", help="tests only (mock model)")
+    t.add_argument("--ref-mode", choices=profile.REF_MODES, help=REF_HELP); t.add_argument("--limit", type=int, default=1); t.add_argument("--no-gpu", action="store_true", help="tests only (mock model)")
     t.add_argument("--takes", type=int, default=None, help="takes per clip, cleanest kept (default 3)"); t.add_argument("--no-clean", action="store_true")
     sub.add_parser("list")
     a = ap.parse_args(argv)
+    if getattr(a, "ref_mode", None):
+        os.environ["GS_CLONE_REF_MODE"] = a.ref_mode   # read by synth.build_adapter
     try:
         if a.cmd == "consent":
             return cmd_consent(a)
@@ -180,12 +200,12 @@ def main(argv: list[str] | None = None) -> int:
                 names = [tones.NEUTRAL, *tones.PRESET_NAMES]
             else:
                 names = [x for x in a.tones.split(",") if x]
-            counts = tones.run_tones(Path(a.out), speakers, a.models.split(","), a.langs.split(","), names, a.mechanisms.split(","),
+            counts = tones.run_tones(Path(a.out), speakers, a.models.split(","), _langs_arg(a.langs), names, a.mechanisms.split(","),
                                      a.limit, gpu=not a.no_gpu, model_blends=a.model_blends, takes=a.takes,
                                      clean=False if a.no_clean else None)
             print(counts)
             return 0 if counts["failed"] == 0 else 1
-        counts = synthesize_all(Path(a.out), speakers, a.models.split(","), a.langs.split(","), a.limit, gpu=not a.no_gpu,
+        counts = synthesize_all(Path(a.out), speakers, a.models.split(","), _langs_arg(a.langs), a.limit, gpu=not a.no_gpu,
                                 takes=a.takes, clean=False if a.no_clean else None)
         print(counts)
         return 0 if counts["failed"] == 0 and counts["refused"] == 0 else 1

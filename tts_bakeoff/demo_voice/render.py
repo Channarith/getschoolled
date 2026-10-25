@@ -1,6 +1,6 @@
 """Render the demo manifest in a consented company voice (run on the Spark under scripts/gs_run.sh --gpu).
 
-  python3 -m tts_bakeoff.demo_voice.render run --voice channarith|wei-miao|all [--shard 0/2] [--langs en,es] [--limit N]
+  python3 -m tts_bakeoff.demo_voice.render run --voice channarith|wei-miao|wei|all [--shard 0/2] [--langs en,es|all] [--limit N]
   python3 -m tts_bakeoff.demo_voice.render publish [--reviewed-only]   # rewrite <assets>/voices.json + per-voice index.json
   python3 -m tts_bakeoff.demo_voice.render status           # clips present per voice and language, against the manifest
   python3 -m tts_bakeoff.demo_voice.render prune-revoked    # delete clips of any voice whose consent is gone
@@ -9,8 +9,9 @@ Assets (not in git): <assets>/<voice>/<lang>/<hash>.mp3 + <hash>.json sidecar ("
 <assets>/<voice>/index.json (hashes present, per language) and <assets>/voices.json (the selectable, consented voices).
 Default assets dir: $GS_VOICE_ASSETS or ~/voice-assets. Every synthesis goes through voice_clone.synth.build_adapter,
 so no valid consent (commercial use, model training, course narration; sample hashes intact) means no audio.
-A voice may set "primary_lang" in tts_manifest/voices.json (wei-miao: yue): that language renders first, the others are cross-lingual
-clones. Clips of machine-translated lines carry "translation_status" in their sidecar; publish --reviewed-only leaves the
+Each voice speaks its OWN language(s) by default: the languages it was enrolled in (voice_clone.profile.speaker_languages), so the
+Cantonese voice (wei) renders Cantonese and the English voices render English; --langs a,b overrides and --langs all renders every
+manifest language (cross-lingual clones, quality varies). A voice's "primary_lang" in tts_manifest/voices.json renders first. Clips of machine-translated lines carry "translation_status" in their sidecar; publish --reviewed-only leaves the
 'unreviewed' ones out of index.json, so only lines a native speaker has checked are offered to the demos.
 """
 from __future__ import annotations
@@ -25,6 +26,7 @@ import time
 from pathlib import Path
 
 from tts_bakeoff.voice_clone import registry
+from tts_bakeoff.voice_clone.profile import language_name, speaker_languages
 
 from .manifest import MANIFEST, VOICES
 
@@ -102,7 +104,8 @@ def publish(root: Path, manifest: dict | None = None, check_consent=consent_ok, 
             (root / v["id"]).mkdir(parents=True, exist_ok=True)
             (root / v["id"] / "index.json").write_text(json.dumps({"voice": v["id"], "ext": "mp3", "clips": index}, indent=1), encoding="utf-8")
         label = display_name(v["speaker"], v["label"]) if active else v["label"]
-        entry = {"id": v["id"], "label": label, "ai_label": v.get("ai_label", f"AI-generated voice of {label}"), "active": active}
+        shown = f"{label} ({language_name(v['primary_lang'])})" if v.get("primary_lang") else label   # 'Wei (Cantonese)', 'Wei Miao (English)'
+        entry = {"id": v["id"], "label": shown, "ai_label": v.get("ai_label", f"AI-generated voice of {label}"), "active": active}
         if v.get("primary_lang"):
             entry["primary_lang"] = v["primary_lang"]
         out.append(entry)
@@ -122,7 +125,7 @@ def prune_revoked(root: Path, check_consent=consent_ok) -> list[str]:
 
 
 def run(voice: str, root: Path, shard: str | None, langs: set[str] | None, limit: int | None, manifest: dict | None = None,
-        adapter=None, convert=wav_to_mp3, reviewed_only: bool = False) -> dict:
+        adapter=None, convert=wav_to_mp3, reviewed_only: bool = False, own: set[str] | None = None) -> dict:
     manifest = manifest or load_manifest()
     cfg = voice_cfg(voice)
     registry.require_consent(cfg["speaker"], "course_narration")
@@ -155,6 +158,7 @@ def run(voice: str, root: Path, shard: str | None, langs: set[str] | None, limit
                 "text": c["text"], "lang": c["lang"], "demo": c["demo"], "model": cfg["model"], "speaker": cfg["speaker"],
                 "ai_generated": True, "label": cfg.get("ai_label", f"AI-generated voice of {cfg['label']}"),
                 **({"translation_status": c["status"]} if c.get("status") else {}),
+                **({"cross_lingual": True} if own and c["lang"] not in own else {}),
             }, ensure_ascii=False, indent=1), encoding="utf-8")
             stats["ok"] += 1
             print(f"[{n}/{len(todo)}] ok {c['demo']} {c['lang']} {c['hash']}", flush=True)
@@ -163,6 +167,15 @@ def run(voice: str, root: Path, shard: str | None, langs: set[str] | None, limit
             print(f"[{n}/{len(todo)}] FAILED {c['lang']} {c['hash']}: {str(exc)[:120]}", flush=True)
     publish(root, manifest, reviewed_only=reviewed_only)
     return stats
+
+
+def own_langs(cfg: dict) -> set[str]:
+    """The languages this voice was enrolled in (falls back to the voice's primary_lang, then English)."""
+    try:
+        langs = speaker_languages(cfg["speaker"])
+    except registry.ConsentError:
+        langs = []
+    return set(langs) or {cfg.get("primary_lang", "en")}
 
 
 def status(root: Path, manifest: dict | None = None) -> dict:
@@ -184,8 +197,9 @@ def main(argv=None) -> int:
     r = sub.add_parser("run")
     r.add_argument("--voice", default="channarith", help="a voice id from tts_manifest/voices.json, or 'all' (every active voice, one after the other)")
     r.add_argument("--reviewed-only", action="store_true")
+    r.add_argument("--ref-mode", choices=("auto", "continue", "reference"), help="VoxCPM2 reference mode (default auto: continue only for a same-language reference with an exact transcript)")
     r.add_argument("--shard")
-    r.add_argument("--langs")
+    r.add_argument("--langs", help="comma list, or 'all' (every manifest language); default: the languages the voice was enrolled in")
     r.add_argument("--limit", type=int)
     pub = sub.add_parser("publish")
     pub.add_argument("--reviewed-only", action="store_true")
@@ -193,6 +207,8 @@ def main(argv=None) -> int:
         sp.add_argument("--assets")
     args = ap.parse_args(argv)
     root = assets_dir(args.assets)
+    if getattr(args, "ref_mode", None):
+        os.environ["GS_CLONE_REF_MODE"] = args.ref_mode
     if args.cmd == "run":
         voices = [v["id"] for v in json.loads(VOICES.read_text(encoding="utf-8"))["voices"] if v.get("active", True)] if args.voice == "all" else [args.voice]
         bad = 0
@@ -201,7 +217,10 @@ def main(argv=None) -> int:
                 print(f"{voice}: no valid consent right now, skipped", flush=True)
                 bad += args.voice != "all"
                 continue
-            stats = run(voice, root, args.shard, set(args.langs.split(",")) if args.langs else None, args.limit, reviewed_only=args.reviewed_only)
+            cfg = voice_cfg(voice)
+            langs = None if args.langs == "all" else set(args.langs.split(",")) if args.langs else own_langs(cfg)
+            print(f"{voice}: languages {'all' if langs is None else ','.join(sorted(langs))}", flush=True)
+            stats = run(voice, root, args.shard, langs, args.limit, reviewed_only=args.reviewed_only, own=own_langs(cfg))
             print(voice, json.dumps(stats), flush=True)
             bad += stats["failed"] > 0
         return 0 if bad == 0 else 1

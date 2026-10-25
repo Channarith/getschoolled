@@ -8,6 +8,13 @@ style: a short description such as "cute, sweet, bright voice". Per the model ca
 parentheses before the text and the reference audio is given as reference_wav_path only (no prompt text: with the
 transcript the model continues the prompt, "ultimate cloning", and does not take style guidance). Not run against the
 real weights; compare against the post-processing tones by ear.
+
+ref_mode (option): "continue" gives the model the reference audio AND its exact transcript, which it continues ("ultimate cloning"): best
+when the target language is the reference's language and the transcript is exactly what was said. "reference" gives the audio only
+(reference_wav_path, no prompt text): use it across languages, or when the transcript is not trustworthy; the voice carries over, the
+words come only from the text. A transcript that does not match the audio in continue mode is what produces the model's
+'Badcase detected, audio_text_ratio=...' retries and speech that does not follow the text. Default (no ref_mode): continue, or
+reference when a style is set. The mode used is logged and returned as ref_mode.
 """
 from __future__ import annotations
 
@@ -34,13 +41,29 @@ class VoxCPM2Adapter(Adapter):
             "cfg_value": float(self.options.get("cfg_value", 2.0)),
             "inference_timesteps": int(self.options.get("inference_timesteps", 10)),
         }
-        if self.options.get("style") and self.options.get("reference_wav"):
+        ref = self.options.get("reference_wav")
+        mode = self.options.get("ref_mode") or ("reference" if self.options.get("style") else "continue")
+        if mode not in ("continue", "reference"):
+            raise ValueError(f"ref_mode must be 'continue' or 'reference', not {mode!r}")
+        if self.options.get("style") and ref:
             kwargs["text"] = f"({self.options['style']}){text}"
-            kwargs["reference_wav_path"] = self.options["reference_wav"]
-        elif self.options.get("reference_wav"):
-            kwargs["prompt_wav_path"] = self.options["reference_wav"]
+            kwargs["reference_wav_path"] = ref
+            mode = "reference"
+        elif ref and mode == "reference":
+            kwargs["reference_wav_path"] = ref
+        elif ref:
+            kwargs["prompt_wav_path"] = ref
             kwargs["prompt_text"] = self.options.get("reference_text", "")
+        else:
+            mode = "none"
+        self.last_mode = mode
+        print(f"[voxcpm2] ref-mode={mode} lang={lang} reference={Path(ref).name if ref else '-'}", flush=True)
         wav = model.generate(**kwargs)
         rate = int(getattr(getattr(model, "tts_model", model), "sample_rate", 48000))
         write_wav(out_wav, wav, rate)
         return rate
+
+    def synthesize(self, text, lang, out_wav):
+        info = super().synthesize(text, lang, out_wav)
+        info["ref_mode"] = getattr(self, "last_mode", None)
+        return info

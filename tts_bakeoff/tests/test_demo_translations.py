@@ -96,20 +96,20 @@ def test_refresh_offline_merges_translations_and_voices_idempotently(tdir, tmp_p
     a = mf.refresh_offline(base)
     base.write_text(json.dumps(a), encoding="utf-8")
     b = mf.refresh_offline(base)
-    assert a == b and a["languages"] == ["en", "yue"] and [v["id"] for v in a["voices"]] == ["channarith", "wei-miao"]
+    assert a == b and a["languages"] == ["en", "yue"] and [v["id"] for v in a["voices"]] == ["channarith", "wei-miao", "wei"]
     yue = [c for c in a["clips"] if c["lang"] == "yue"]
     assert sorted(c["text"] for c in yue) == ["乙", "甲"] and all(c["hash"] == clip_hash("yue", c["text"]) for c in yue)   # stale 'old' clip dropped
 
 
-def test_committed_manifest_has_both_voices_and_cantonese_for_every_english_line():
+def test_committed_manifest_has_three_voices_each_with_its_own_language_and_cantonese_lines():
     m = json.loads(mf.MANIFEST.read_text(encoding="utf-8"))
-    assert [v["id"] for v in m["voices"]] == ["channarith", "wei-miao"]
-    wei = m["voices"][1]
-    assert wei["speaker"] == "wei-miao" and wei["primary_lang"] == "yue" and wei["model"] == "voxcpm2"
-    en = [c for c in m["clips"] if c["lang"] == "en"]
-    yue = {c["id"].split(":")[-1] for c in m["clips"] if c["lang"] == "yue"}
+    by = {v["id"]: v for v in m["voices"]}
+    assert list(by) == ["channarith", "wei-miao", "wei"]
+    assert (by["channarith"]["primary_lang"], by["wei-miao"]["primary_lang"], by["wei"]["primary_lang"]) == ("en", "en", "yue")
+    assert by["wei"]["speaker"] == "wei" and by["wei-miao"]["speaker"] == "wei-miao" and all(v["model"] == "voxcpm2" for v in m["voices"])
+    assert len({v["speaker"] for v in m["voices"]}) == 3                      # three people/ids, never merged
     assert "yue" in m["languages"] and len([c for c in m["clips"] if c["lang"] == "yue" and c["demo"] == "vision_play"]) >= 300
-    assert all(c["status"] in tr.IN_MANIFEST for c in m["clips"] if c["lang"] == "yue" and c["demo"] == "vision_play") and yue and en
+    assert all(c["status"] in tr.IN_MANIFEST for c in m["clips"] if c["lang"] == "yue" and c["demo"] == "vision_play")
 
 
 class _Fake:
@@ -149,9 +149,9 @@ def test_render_does_the_voices_own_language_first_and_tags_translation_status(t
 def test_published_label_comes_from_the_consent_record(tmp_path, monkeypatch):
     monkeypatch.setattr(registry, "load_consent", lambda s, base=None: {"name": "苗 偉"})
     doc = rd.publish(tmp_path, _m(), check_consent=lambda s: True)["voices"][0]
-    assert doc["label"] == "苗 偉" and doc["ai_label"] == "AI-generated voice of 苗 偉"
+    assert doc["label"] == "苗 偉 (Cantonese)" and doc["ai_label"] == "AI-generated voice of 苗 偉"
     monkeypatch.setattr(registry, "load_consent", lambda s, base=None: (_ for _ in ()).throw(registry.ConsentError("x")))
-    assert rd.publish(tmp_path, _m(), check_consent=lambda s: True)["voices"][0]["label"] == "Wei Miao"
+    assert rd.publish(tmp_path, _m(), check_consent=lambda s: True)["voices"][0]["label"] == "Wei Miao (Cantonese)"
 
 
 def test_status_reports_clips_per_voice_and_language(tmp_path):
@@ -159,3 +159,15 @@ def test_status_reports_clips_per_voice_and_language(tmp_path):
     (tmp_path / "wei-miao" / "yue" / "a.mp3").write_bytes(b"x" * 600)
     st = rd.status(tmp_path, _m())
     assert st == {"wei-miao": {"en": [0, 2], "yue": [1, 2]}}
+
+
+def test_demo_render_defaults_to_the_voices_own_languages_and_flags_cross_lingual(tmp_path, monkeypatch):
+    monkeypatch.setattr(registry, "require_consent", lambda *a, **k: {})
+    monkeypatch.setattr(rd, "voice_cfg", lambda v: _m()["voices"][0])
+    monkeypatch.setattr(rd, "speaker_languages", lambda s: ["yue"])
+    assert rd.own_langs(_m()["voices"][0]) == {"yue"}
+    monkeypatch.setattr(rd, "speaker_languages", lambda s: (_ for _ in ()).throw(registry.ConsentError("none")))
+    assert rd.own_langs(_m()["voices"][0]) == {"yue"}                       # falls back to the voice's primary_lang
+    rd.run("wei-miao", tmp_path, None, None, None, _m(), _Fake(), lambda w, m: Path(m).write_bytes(Path(w).read_bytes()), own={"yue"})
+    side = {json.loads(p.read_text(encoding="utf-8"))["lang"]: json.loads(p.read_text(encoding="utf-8")) for p in (tmp_path / "wei-miao").glob("*/*.json")}
+    assert side["en"]["cross_lingual"] is True and "cross_lingual" not in side["yue"]

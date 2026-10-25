@@ -19,6 +19,7 @@
    "speaker": "channarith",
    "model": "voxcpm2",
    "active": true,
+   "primary_lang": "en",
    "ai_label": "AI-generated voice of Channarith"
   },
   {
@@ -27,8 +28,17 @@
    "speaker": "wei-miao",
    "model": "voxcpm2",
    "active": true,
-   "primary_lang": "yue",
+   "primary_lang": "en",
    "ai_label": "AI-generated voice of Wei Miao"
+  },
+  {
+   "id": "wei",
+   "label": "Wei",
+   "speaker": "wei",
+   "model": "voxcpm2",
+   "active": true,
+   "primary_lang": "yue",
+   "ai_label": "AI-generated voice of Wei"
   }
  ],
  "clips": [

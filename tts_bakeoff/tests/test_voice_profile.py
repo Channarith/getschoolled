@@ -6,12 +6,12 @@ import pytest
 from tts_bakeoff.voice_clone import profile, registry
 
 
-def _speaker(tmp_path, samples, name="Wei Miao", evidence=None):
+def _speaker(tmp_path, samples, name="Wei Miao", evidence=None, speaker="wei-miao"):
     """Register a consented speaker with fake samples: [(file, lang, seconds, snr, cleaned, snr_clean)]."""
     form = tmp_path / "form.txt"
     form.write_text("signed " * 40, encoding="utf-8")
-    registry.record_consent("wei-miao", name, "employee", form, base=tmp_path, evidence=evidence)
-    d = registry.speaker_dir("wei-miao", tmp_path)
+    registry.record_consent(speaker, name, "employee", form, base=tmp_path, evidence=evidence)
+    d = registry.speaker_dir(speaker, tmp_path)
     (d / "samples").mkdir(exist_ok=True)
     for fname, lang, secs, snr, cleaned, snr_clean in samples:
         wav = d / "samples" / fname
@@ -19,7 +19,7 @@ def _speaker(tmp_path, samples, name="Wei Miao", evidence=None):
         extra = {"seconds": secs, "snr_db": snr, "cleaned": cleaned}
         if snr_clean is not None:
             extra["snr_db_clean"] = snr_clean
-        registry.add_sample("wei-miao", wav, f"transcript of {fname}", lang, tmp_path, extra=extra)
+        registry.add_sample(speaker, wav, f"transcript of {fname}", lang, tmp_path, extra=extra)
     return d
 
 
@@ -136,3 +136,75 @@ def test_build_adapter_returns_the_profile_wrapper(tmp_path, monkeypatch):
     ad = synth.build_adapter("mock", "wei-miao", tmp_path, gpu=False)
     assert isinstance(ad, profile.ProfileAdapter)
     assert ad.options["reference_wav"].endswith("yue.wav")
+
+
+def test_two_wives_two_ids_two_languages_and_consent_records_stay_apart(tmp_path):
+    _speaker(tmp_path, [("en.wav", "en", 60, 30, False, None)], name="Wei Miao", speaker="wei-miao", evidence={"consent_language": "en"})
+    _speaker(tmp_path, [("yue.wav", "yue", 60, 30, False, None)], name="Wei", speaker="wei", evidence={"consent_language": "yue"})
+    assert profile.speaker_languages("wei-miao", tmp_path) == ["en"] and profile.speaker_languages("wei", tmp_path) == ["yue"]
+    assert profile.display_label("wei-miao", "Wei Miao", tmp_path) == "Wei Miao (English)"
+    assert profile.display_label("wei", "Wei", tmp_path) == "Wei (Cantonese)"
+    assert registry.load_consent("wei", tmp_path)["name"] == "Wei" and registry.load_consent("wei-miao", tmp_path)["name"] == "Wei Miao"
+    assert profile.choose_reference("wei", "en", tmp_path).rel == "samples/yue.wav"    # a speaker never borrows the other person's sample
+    assert registry.speaker_dir("wei", tmp_path) != registry.speaker_dir("wei-miao", tmp_path)
+    registry.revoke("wei", tmp_path)
+    assert profile.speaker_languages("wei-miao", tmp_path) == ["en"]                      # revoking one leaves the other untouched
+    with pytest.raises(registry.ConsentError):
+        profile.speaker_languages("wei", tmp_path)
+
+
+def test_speaker_languages_orders_by_audio_then_consent_text_language(tmp_path):
+    _speaker(tmp_path, [("a.wav", "en", 60, 30, False, None), ("b.wav", "yue", 90, 30, False, None), ("c.wav", "es", 60, 30, False, None)],
+             evidence={"consent_language": "es"})
+    assert profile.speaker_languages("wei-miao", tmp_path) == ["yue", "es", "en"]          # most audio first; the tie goes to the consent language
+    assert profile.primary_language("wei-miao", tmp_path) == "yue"
+
+
+def test_expand_langs_default_all_and_explicit(tmp_path):
+    _speaker(tmp_path, [("yue.wav", "yue", 60, 30, False, None)], speaker="wei", name="Wei")
+    assert profile.expand_langs("", "wei", tmp_path) == ["yue"]
+    assert profile.expand_langs("all", "wei", tmp_path) == list(profile.ALL_LANGS) and "yue" in profile.ALL_LANGS
+    assert profile.expand_langs("en,es", "wei", tmp_path) == ["en", "es"]
+
+
+@pytest.fixture
+def mock_speaks_yue(monkeypatch):
+    from tts_bakeoff.adapters.mock import MockAdapter
+
+    monkeypatch.setattr(MockAdapter, "languages", {*MockAdapter.languages, "yue"})
+
+
+def test_bakeoff_defaults_to_each_speakers_own_language_and_flags_cross_lingual(tmp_path, mock_speaks_yue):
+    from tts_bakeoff.voice_clone import bakeoff
+
+    _speaker(tmp_path, [("en.wav", "en", 60, 30, False, None)], name="Wei Miao", speaker="wei-miao")
+    _speaker(tmp_path, [("yue.wav", "yue", 60, 30, False, None)], name="Wei", speaker="wei")
+    out = tmp_path / "out"
+    counts = bakeoff.synthesize_all(out, ["wei", "wei-miao"], ["mock"], None, 1, base=tmp_path, gpu=False)
+    assert counts["failed"] == 0 and counts["ok"] == 2
+    assert sorted(p.name for p in (out / "mock~wei").iterdir() if p.is_dir()) == ["yue"]          # the Cantonese voice does not speak English
+    assert sorted(p.name for p in (out / "mock~wei-miao").iterdir() if p.is_dir()) == ["en"]
+    meta = json.loads((out / "mock~wei" / "meta.json").read_text(encoding="utf-8"))
+    assert meta["label"].startswith("Wei (Cantonese)") and meta["primary_lang"] == "yue" and meta["langs"] == ["yue"]
+    rows = [json.loads(l) for l in (out / "mock~wei" / "manifest.jsonl").read_text(encoding="utf-8").splitlines()]
+    assert rows and all("cross_lingual" not in r for r in rows)
+    asked = tmp_path / "asked"
+    bakeoff.synthesize_all(asked, ["wei"], ["mock"], ["yue", "en"], 1, base=tmp_path, gpu=False)   # explicit --langs: English is allowed but labelled
+    flags = {json.loads(l)["lang"]: json.loads(l).get("cross_lingual", False) for l in (asked / "mock~wei" / "manifest.jsonl").read_text(encoding="utf-8").splitlines()}
+    assert flags == {"yue": False, "en": True}
+
+
+def test_langs_argument_parsing():
+    from tts_bakeoff.voice_clone import bakeoff
+
+    assert bakeoff._langs_arg("") is None and bakeoff._langs_arg("all") == list(profile.ALL_LANGS) and bakeoff._langs_arg("en,yue") == ["en", "yue"]
+
+
+def test_lab_does_not_list_folders_set_aside_with_an_underscore(tmp_path):
+    from tts_bakeoff.lab import list_run
+
+    for d in ("voxcpm2~wei/yue", "_cross-lingual-wei/en", ".raw"):
+        (tmp_path / d).mkdir(parents=True)
+        (tmp_path / d / "S01.wav").write_bytes(b"RIFF" + b"0" * 100)
+    files = [f["path"] for f in list_run(tmp_path)["files"]]
+    assert files == ["voxcpm2~wei/yue/S01.wav"]

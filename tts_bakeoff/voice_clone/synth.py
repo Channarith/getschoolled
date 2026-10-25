@@ -4,6 +4,7 @@ The adapter returned is a ProfileAdapter: for each sentence it uses the speaker'
 """
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from tts_bakeoff import adapters
@@ -21,7 +22,7 @@ def require_gpu(component: str) -> str:
     return pick_device(component)
 
 
-def build_adapter(model: str, speaker: str, base: Path | None = None, gpu: bool = True, **extra):
+def build_adapter(model: str, speaker: str, base: Path | None = None, gpu: bool = True, ref_mode: str | None = None, **extra):
     """Return an adapter that speaks in ``speaker``'s voice, after verifying consent, scope and sample integrity."""
     if model not in CLONE_MODELS and model != "mock":
         raise registry.ConsentError(f"{model!r} is not a cloning model here; use one of {CLONE_MODELS}")
@@ -30,4 +31,4 @@ def build_adapter(model: str, speaker: str, base: Path | None = None, gpu: bool 
         require_gpu(f"voice-clone:{model}")
     inner = adapters.get(model, reference_wav=str(wav), reference_text=transcript, prompt_wav=str(wav),
                          prompt_text=transcript, prompt_lang=lang, **extra)
-    return ProfileAdapter(inner, speaker, base)   # picks the best enrolled sample for each sentence's language (voice_clone.profile)
+    return ProfileAdapter(inner, speaker, base, ref_mode or os.environ.get("GS_CLONE_REF_MODE") or "auto")   # picks the best enrolled sample for each sentence's language (voice_clone.profile)

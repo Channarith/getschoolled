@@ -120,18 +120,53 @@ Say anything (type words, hear them in an enrolled voice)
   the VoxCPM2 license asks that generated audio be labelled. Command line: python3 -m tts_bakeoff.voice_clone.bakeoff say ...
 
 Voice profile: several samples per speaker, the best one per language (tts_bakeoff/voice_clone/profile.py)
-  A speaker can have several enrolled samples (English, Cantonese, more sessions). Every sample records its language, length, SNR,
-  whether the cleaned copy was kept (PR #806: the recording is kept as it was if cleaning would change the voice), the language
-  and sha256 of the consent text the speaker saw, and when it was enrolled.
-  For each sentence the adapter now uses the sample that suits the sentence's language, one model load for all languages
-  (VoxCPM2 gets reference_wav + reference_text, CosyVoice 2 gets prompt_wav + prompt_text + prompt_lang). Fallback order:
+  A speaker can have several enrolled samples (languages, sessions). Every sample records its language, length, SNR, whether the cleaned
+  copy was kept (PR #806: the recording is kept as it was if cleaning would change the voice), the language and sha256 of the consent text
+  the speaker saw, and when it was enrolled.
+  Each speaker speaks their OWN language(s) by default: the bake-off, tones and the demo render use the languages a speaker was enrolled
+  in (most clean audio first), so "wei" (Cantonese) speaks Cantonese and shows up under Cantonese in the lab, and "wei-miao" and
+  "channarith" speak English. An explicit --langs overrides (--langs all = en es zh yue vi th km sw hi); scripts/run_voice_clone.sh
+  passes --langs only if LANGS is set. A clip in a language the voice was not enrolled in is cross-lingual: its manifest row carries
+  "cross_lingual": true and the lab badges it. Lab clone labels read "Wei (Cantonese) - voxcpm2".
+  For each sentence the adapter uses the sample that suits the sentence's language, one model load for all languages. Fallback order:
     1. same-language   a sample in the target language (a Cantonese reference for yue) with the transcript that was actually said
     2. close-language  yue <-> zh (same script, shared sounds, different tones and words)
     3. cross-lingual   the cleanest sample in any other language
-  Inside a tier: highest SNR (cleaned copies are judged by their cleaned SNR), then the longest. Consent, scope and every sample hash
-  are re-checked on every pick. Clone bake-off, tones, say-anything and the demo render all call synth.build_adapter, so all of them
-  get this. Stylized tones still need the stylized_versions scope (granted to nobody yet). Check a pick:
-    python3 -m tts_bakeoff.voice_clone.profile choose --speaker wei-miao --lang yue
+  Inside a tier: a short reference clip beats a long session recording, then highest SNR (cleaned copies by their cleaned SNR), then the
+  longest. Consent, scope and every sample hash are re-checked on every pick. Clone bake-off, tones, say-anything and the demo render all
+  call synth.build_adapter, so all of them get this. Stylized tones still need the stylized_versions scope (granted to nobody yet).
+    python3 -m tts_bakeoff.voice_clone.profile choose --speaker wei --lang yue
+
+Reference clips and reference mode (why speech sometimes does not follow the text)
+  The enrollment page joins the 8 prompt recordings into one ~60 s sample with a joined transcript. VoxCPM2's default "continue" mode
+  (ultimate cloning) treats the reference audio as the start of the speech and needs its EXACT transcript; a 60 s concatenation whose
+  transcript is not word for word what was said, or a Cantonese reference with English text, makes it log "Badcase detected,
+  audio_text_ratio=6.4, retrying" and produce speech that drifts from the text. CosyVoice 2 wants a prompt under about 30 s.
+  Fix: one short reference per language. The page saves every prompt as its own take (raw/<lang>/<lang>-N.wav) and the prompt text is
+  known, so profile refs picks ONE clean single-utterance take of 5-20 s (highest SNR, closest to 11 s, not clipped; with GS_CLONE_ASR=1
+  a take whose round trip does not match its prompt is rejected) and registers it with role "reference", the exact prompt text and
+  transcript_exact true. Enrollment now does this automatically; for voices enrolled before, run once per speaker on the Spark:
+    python3 -m tts_bakeoff.voice_clone.profile refs --speaker wei --dry-run     # shows the take it would use and what it skipped
+    python3 -m tts_bakeoff.voice_clone.profile refs --speaker wei               # also: --speaker wei-miao, --speaker channarith
+  Reference clips are cut from the same takes as the session recording, so they do not count toward the fine-tune minutes.
+  --ref-mode auto|continue|reference (bake-off run/tones/say, render_demo_voice.sh; env GS_CLONE_REF_MODE):
+    continue    reference audio + its exact transcript: only for the SAME language as a reference with an exact transcript
+    reference   audio only (VoxCPM2 reference_wav_path), no prompt text: for another language, or whenever the transcript may not match;
+                the voice carries over and the words come only from the text
+    auto        (default) continue only for a same-language, exact-transcript, short reference; otherwise reference
+  The mode used is printed per sentence ("[voxcpm2] ref-mode=reference lang=en reference=ref-yue.wav") and stored in each clip's row.
+  Sanity check on every take (clean.py, the best-of-N scorer): audio length against the text's normal speaking time (characters per
+  second per language); a take more than 2.5x too long or under 0.4x is rejected, and with GS_CLONE_ASR=1 a whisper round trip with a
+  large error (en es zh yue vi hi) rejects it too. If every take fails the clip is not written and the run records a failure.
+
+CosyVoice 2 setup check
+  scripts/check_clone_models.sh (read-only) runs tts_bakeoff.voice_clone.doctor under each model's own Python and prints what is missing and
+  the fix command, then the tail of the last synth-*.log files. A likely cause of a short failed CosyVoice 2 log: the adapter's default
+  model_dir was the relative path pretrained_models/CosyVoice2-0.5B; the run starts in the repo checkout, where it does not exist, so the
+  model tried to download that string as a model name. It is now <repo>/pretrained_models/CosyVoice2-0.5B (env COSYVOICE_MODEL_DIR),
+  passed explicitly by run_voice_clone.sh, and the adapter check reports missing weights. CosyVoice 2 has no Cantonese: it is skipped
+  for yue (the cloning notes on PR #811), so "wei" renders with VoxCPM2 only. Whether ~/code/CosyVoice, its .venv and the weights exist on
+  the Spark is not known from here: run the script and read its fix lines.
 
 Zero-shot cloning is not training
   What runs today (VoxCPM2 and CosyVoice 2) hears one enrolled sample as a reference and imitates it. Nothing is trained and no
@@ -149,6 +184,6 @@ Zero-shot cloning is not training
   prep is a stub: it writes a manifest.jsonl from consented samples and flags those outside 3-30 s (they would need segmenting with a
   forced aligner, not built). It refuses to write until the minutes are there (--force writes anyway) and it never trains anything.
   What to record next to reach fine-tune readiness: about 10 minutes of clean speech per language you want fine-tuned (Cantonese
-  first for wei-miao, English for channarith), in 5-10 sessions of 60-90 s each, read from varied text, quiet room, same microphone,
-  the transcript saved exactly. Add each one with: python3 -m tts_bakeoff.voice_clone.bakeoff enroll --speaker wei-miao
+  for wei, English for wei-miao and channarith), in 5-10 sessions of 60-90 s each, read from varied text, quiet room, same microphone,
+  the transcript saved exactly. Add each one with: python3 -m tts_bakeoff.voice_clone.bakeoff enroll --speaker wei
   --audio session2.m4a --transcript-file session2.txt --lang yue (the enrollment page records one 8-line set per language today).

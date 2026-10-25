@@ -295,7 +295,14 @@ def finish_enrollment(base: Path, speaker: str, lang: str) -> dict:
         shutil.move(str(held), str(d / "samples" / ".raw" / dest.name))
     transcript = " ".join(p["text"] for p in prompts)
     registry.add_sample(speaker, d / rel, transcript, lang, base, extra=_sample_tags(info))
-    return {"ok": True, "file": rel, **info}
+    try:   # the short single-utterance reference with its exact prompt text, which cloning prefers over the long recording
+        from tts_bakeoff.voice_clone import profile
+
+        ref = profile.build_reference(speaker, lang, base)
+        reference = {k: ref.get(k) for k in ("written", "take", "seconds", "snr_db", "reason")}
+    except Exception as exc:  # noqa: BLE001 - enrollment itself succeeded; the reference can be cut later with profile refs
+        reference = {"written": False, "reason": f"{type(exc).__name__}: {str(exc)[:120]}"}
+    return {"ok": True, "file": rel, **info, "reference": reference}
 
 
 def start_voice_check(base: Path, speaker: str, lang: str) -> dict:

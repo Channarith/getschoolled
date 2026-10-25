@@ -127,7 +127,7 @@ function inferFromPath(path) {
 }
 
 async function ingest(entries) {
-  entries = entries.filter(e => e && e.path);
+  entries = entries.filter(e => e && e.path && !segs(e.path).some(x => x.startsWith('_')));   // "_name" folders are set aside on purpose: not listed
   const byLast = new Map();
   for (const e of entries) { const p = segs(e.path); for (const n of [2, 3]) if (p.length >= n) { const k = p.slice(-n).join('/'); (byLast.get(k) || byLast.set(k, []).get(k)).push(e); } }
   const used = new Set();
@@ -150,7 +150,7 @@ async function ingest(entries) {
       if (!e) continue;
       used.add(e);
       addSentence(r.lang, r.id, r.text, /^A/i.test(r.id) ? {category: 'accent'} : undefined);
-      const clip = {voice: voice.id, lang: r.lang, sid: r.id, entry: e, dur: r.duration_s, score: scores.get(`${r.lang}|${r.id}`) || null, rms: null, peaks: null};
+      const clip = {voice: voice.id, lang: r.lang, sid: r.id, entry: e, dur: r.duration_s, score: scores.get(`${r.lang}|${r.id}`) || null, rms: null, peaks: null, cross: !!r.cross_lingual};
       state.clips.set(`${r.lang}|${r.id}|${voice.id}`, clip);
       indexClip(clip);
       added++;
@@ -487,6 +487,7 @@ function buildCell(row, ri, voiceId, ci) {
   const styled = kindOf(v) === 'style';
   if (!state.blind) head.append(h('span', {class: 'vname', title: v.id, text: styled ? v.meta.style : v.name}));
   if (!state.blind && !styled) head.append(h('span', {class: 'badge ' + b.cls, title: b.title, text: b.text}));
+  if (!state.blind && clip.cross) head.append(h('span', {class: 'badge b-chk', title: 'Cross-lingual: this voice was enrolled in another language, so this is its timbre carried into ' + (LANG_NAMES[clip.lang] || clip.lang) + '. Accent and pronunciation may drift.', text: 'cross-lingual'}));
   const canvas = h('canvas', {'aria-hidden': 'true'});
   clip.canvas = canvas;
   const bar = h('div', {class: 'bar', title: 'click to seek', onclick: e => { const r = bar.getBoundingClientRect(), f = (e.clientX - r.left) / r.width; if (state.now === key && player.duration) player.currentTime = f * player.duration; else play(key).then(() => { if (player.duration) player.currentTime = f * player.duration; }); }}, canvas, h('div', {class: 'prog'}));
