@@ -127,7 +127,7 @@ services/curriculum/src/curriculum/main.py and catalog.py:
 
 5. SHARDING ACROSS THE THREE MACHINES  [IMPLEMENTED in this PR]
 --------------------------------------------------------------
-  config/harvest_shards.json: 256 virtual shards, weights spark 3, kalel 2, mac 1 (edit freely).
+  config/harvest_shards.json: 256 virtual shards, weights spark 1, kalel 3, mac 1 (edit freely).
   A source belongs to the machine that owns hash(host); every page of one site stays on one machine,
   so per-host politeness is not multiplied. The map does not depend on dict order and is identical on
   every machine. Select a machine with HARVEST_MACHINE=spark|kalel|mac (unset = unsharded). The

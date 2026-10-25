@@ -104,6 +104,43 @@ def test_queue_row_records_report_stderr_and_category(tmp_path: Path):
     assert row["utterances"] == 12
 
 
+def test_ingest_channel_passes_kalel_stages_from_env(tmp_path: Path, monkeypatch):
+    """Kal-el voice-prep sets COSYVOICE_INGEST_STAGES=download,denoise (no ASR)."""
+    from aoep_shared.cosyvoice_ingest import queue as q
+    from aoep_shared.cosyvoice_ingest.queue import ChannelJob, ingest_channel
+
+    script = tmp_path / "cosyvoice_ingest.py"
+    script.write_text("# stub\n", encoding="utf-8")
+    urls = tmp_path / "urls.txt"
+    urls.write_text("https://www.youtube.com/watch?v=aaaaaaaaaaa\n", encoding="utf-8")
+    out = tmp_path / "out"
+    out.mkdir()
+    seen: list[list[str]] = []
+
+    class FakeProc:
+        returncode = 0
+        stdout = ""
+        stderr = ""
+
+    def fake_run(cmd, capture_output=True, text=True, env=None):
+        seen.append(list(cmd))
+        return FakeProc()
+
+    monkeypatch.setattr(q.subprocess, "run", fake_run)
+    monkeypatch.setenv("COSYVOICE_INGEST_STAGES", "download,denoise")
+    job = ChannelJob(
+        pool_id="km",
+        slug="demo",
+        urls_file=str(urls),
+        output_dir=str(out),
+        whisper="km",
+        video_count=1,
+    )
+    ingest_channel(job, None, tmp_path / "CosyVoice", script)
+    assert seen and "--stages" in seen[0]
+    assert seen[0][seen[0].index("--stages") + 1] == "download,denoise"
+
+
 def test_execute_queue_uses_injected_runner_and_stop_file(tmp_path: Path):
     paths = _tree(tmp_path)
     calls: list[str] = []

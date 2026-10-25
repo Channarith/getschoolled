@@ -121,6 +121,8 @@ def test_fits_matches_the_documented_budgets():
     assert not f["qlora"] and not f["eval_bf16"] and f["eval_4bit"]
     assert cb.fits(4.0, "ibuypower")["qlora"]
     assert not any(cb.fits(27.4, "ibuypower").values())
+    assert cb.fits(4.0, "kalel") == cb.fits(4.0, "ibuypower")
+    assert cb.MACHINES["kalel"] == cb.MACHINES["ibuypower"]
 
 
 def test_candidate_config_is_valid():
@@ -141,7 +143,7 @@ def test_leaderboard_for_missing_weights_is_reported_not_crashed(tmp_path):
 
 
 def test_list_mode_downloads_nothing(capsys, tmp_path):
-    assert cb.main(["--list", "--machine", "ibuypower", "--weights", str(tmp_path)]) == 0
+    assert cb.main(["--list", "--machine", "kalel", "--weights", str(tmp_path)]) == 0
     assert "qwen3-4b" in capsys.readouterr().out and not list(tmp_path.iterdir())
 
 

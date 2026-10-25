@@ -8,7 +8,7 @@ not multiplied by the number of machines.
 
 Config (JSON), default config/harvest_shards.json:
   {"virtual_shards": 256,
-   "machines": {"spark": {"weight": 3}, "kalel": {"weight": 2}, "mac": {"weight": 1}}}
+   "machines": {"spark": {"weight": 1}, "kalel": {"weight": 3}, "mac": {"weight": 1}}}
 
 Pure and offline-testable: no network, no clock, no randomness.
 """

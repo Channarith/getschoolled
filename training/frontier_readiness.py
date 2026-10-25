@@ -32,10 +32,15 @@ ACCREDITATION_FLOOR = 0.70
 TARGET_FROZEN_F1 = 0.70
 TARGET_GROUNDEDNESS = 0.90
 DEMO_COURSE = "audio-intro-to-machine-learning"
+# Must match scripts/translate_on_machine.sh (Spark keeps heavy-script langs; Kal-el the rest).
 SPARK_LANGS = (
-    "es", "fr", "de", "it", "pt", "nl", "pl", "ru", "uk", "tr",
     "ar", "he", "hi", "bn", "ur", "fa", "zh", "ja", "ko", "vi", "yue",
 )
+KALEL_LANGS = (
+    "es", "fr", "de", "it", "pt", "nl", "pl", "ru", "uk", "tr",
+    "th", "id", "sw", "el", "cs", "km",
+)
+FLEET_LANGS = SPARK_LANGS + KALEL_LANGS
 
 
 def _load_json(path: Path) -> dict | None:
@@ -112,7 +117,7 @@ def _segments(path: Path) -> int | None:
     return len(segs) if isinstance(segs, list) else None
 
 
-def translation_coverage(jobs: list, root: Path, languages: tuple[str, ...] = SPARK_LANGS) -> dict:
+def translation_coverage(jobs: list, root: Path, languages: tuple[str, ...] = FLEET_LANGS) -> dict:
     """Count playable files: segment count matches the course."""
     per_lang = {code: {"playable": 0, "partial": 0} for code in languages}
     demo = {code: "missing" for code in languages}

@@ -52,7 +52,9 @@ def placed(result):
 
 def test_catalog_covers_every_demo_workstream():
     ids = {i.id for i in CATALOG}
-    assert {"voice-agent-train", "voice-agent-eval", "demo-voice-clone", "demo-edge-voices", "voice-ingest"} <= ids
+    assert {"voice-agent-train", "voice-agent-eval", "kalel-small-train", "kalel-frozen-eval",
+            "kalel-base-bakeoff", "grow-train-set", "kalel-voice-prep",
+            "demo-voice-clone", "demo-edge-voices", "voice-ingest"} <= ids
     assert any(i.startswith("translate-km-th-vi") for i in ids), "Khmer, Thai and Vietnamese are translated first"
 
 

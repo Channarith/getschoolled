@@ -8,7 +8,8 @@
 # computed by compare_bases.py: weights_gb = params_b * 0.55, plus ~4 GB overhead.
 # bf16 evaluation needs params_b * 2 GB for weights alone.
 #   DGX Spark   121 GB unified: QLoRA to ~70B, bf16 eval to ~40B. Leave 16 GB free.
-#   iBuyPower   8 GB VRAM:      QLoRA up to ~7B (tight), bf16 eval up to ~3B. Leave the OS 6 GB.
+#   Kal-el / iBuyPower  8 GB VRAM: QLoRA up to ~4B, 4-bit eval up to ~7B, bf16 eval up to ~3B.
+#                       Leave the OS 6 GB. Use --machine kalel (alias: ibuypower).
 #
 # Licence notes (verify on the model card before any commercial use):
 #   Qwen3 / Qwen2.5 (most sizes): Apache 2.0.   Gemma 3: Gemma terms of use.

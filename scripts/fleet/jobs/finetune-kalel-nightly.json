@@ -1,0 +1,17 @@
+{
+  "name": "finetune-kalel-nightly",
+  "description": "Parallel small-model (<=4B) QLoRA cycle on Kal-el (iBuyPower RTX 5060 Ti 8 GB). Same promotion gates as the Spark nightly; outputs under output/kalel/. Set BASE_MODEL in ~/.config/gs/worker.env to a local <=4B instruct dir (llama-3.2-3b-instruct, qwen3-4b, or gemma-3-4b-it).",
+  "resource": "gpu",
+  "roles": ["kalel"],
+  "priority": 90,
+  "window": ["22:00", "07:00"],
+  "tz": "America/Los_Angeles",
+  "every_s": 86400,
+  "needs_cuda": true,
+  "preemptible": false,
+  "timeout_s": 21600,
+  "max_attempts": 2,
+  "backoff_s": 1800,
+  "min_free_gb": 8,
+  "cmd": ["training/kalel_nightly.sh"]
+}

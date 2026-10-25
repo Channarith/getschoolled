@@ -25,11 +25,14 @@ Workflow
                   scripts/fleet/work_split.py collect --machine kalel --yes    (merge the current ones)
 
 Order (tier) and placement
-  tier 0  Spark training (finetune cycle) then its frozen exam. Pinned to the Spark, first in its GPU lane.
-  tier 1  demo translation (Khmer, Thai, Vietnamese, Spanish, Chinese, then Swahili, Indonesian, Greek, Czech),
-          the company-voice render (Spark only: the voices and consents live there), edge-tts voice renders.
-  tier 2  the other languages, voice-data ingest (resumable, yields the GPU), translation validation (Mac).
-  * One GPU job at a time per machine (the GPU lock). While the Spark trains, translation shards go to iBuyPower.
+  tier 0  Spark 7B+ training + frozen exam; Kal-el <=4B QLoRA cycle (finetune-kalel-nightly).
+  tier 1  Kal-el frozen-eval-small / compare-bases-small / grow-train-set; demo translation
+          (bulk on Kal-el; Spark keeps East/South Asian scripts), company-voice render (Spark),
+          edge-tts voice renders.
+  tier 2  remaining languages, Kal-el voice-prep (download+denoise), Spark voice-ingest
+          (segment/transcribe/export), translation validation (Mac).
+  * One GPU job at a time per machine (the GPU lock). While the Spark trains, translation and
+    small-model eval go to Kal-el. Voice-prep is network/CPU and can run beside Kal-el's GPU job.
   * CUDA jobs never go to a machine without CUDA. The Mac has none, so it takes CPU work only.
   * CPU-only work (edge-tts renders) is kept off the Spark while another machine can take it.
   * The "now" wave only starts jobs whose summed memory fits (available - reserve from budgets.conf), only if the

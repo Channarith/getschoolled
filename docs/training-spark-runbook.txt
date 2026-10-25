@@ -9,14 +9,20 @@ not train from scratch: that needs far more compute than these machines have.
 
 WHAT RUNS WHERE
   DGX Spark      121 GB unified memory, GB10, torch 2.14.1+cu130.
-                 Fine-tune (QLoRA or bf16 LoRA), evaluate, bake-off, nightly, via
-                 training/spark_nightly.sh under the GPU lock ~/.gs-gpu.lock.
-                 Budget: always keep 16 GB RAM and 2 cores free.
-  iBuyPower      RTX 5060 Ti 8 GB VRAM, 30 GB RAM, Python 3.14. NLLB translation
-                 batches (docs/translation-run.txt), transcription and audio prep,
-                 and scoring SMALL bases (4-bit, up to ~7B) with compare_bases.py.
-                 It is not a big trainer: 8 GB fits QLoRA up to about 4B only.
+                 Main frontier trainer: 7B-14B QLoRA (training/spark_nightly.sh),
+                 evaluate, bake-off, CosyVoice segment/transcribe/export, under
+                 the GPU lock ~/.gs-gpu.lock. Budget: keep 16 GB RAM and 2 cores free.
+  iBuyPower      Kal-el, RTX 5060 Ti 8 GB VRAM, 30 GB RAM, Python 3.14.
+                 Parallel training peer for the frontier path (not overflow only):
+                   * <=4B QLoRA nightly: training/kalel_nightly.sh -> output/kalel/
+                   * 4-bit frozen eval + compare_bases.py --machine kalel
+                   * bulk NLLB course translation (docs/translation-run.txt)
+                   * CosyVoice download+denoise (voice-prep); rsync to Spark
+                   * grow-train-set (data is the frontier bottleneck, not GPU)
+                   * harvest-crawl (majority of shards)
+                 8 GB fits QLoRA up to about 4B only; 7B+ stays on the Spark.
                  Budget: always keep 6 GB RAM and 2 cores free.
+                 Sync winners / voice inbox: scripts/sync_kalel_to_spark.sh --yes
   This Mac       Coordinator: repo, benchmarks, data checks (CHECK_ONLY), review
                  lab, small experiments. Never a long training job.
   Production     Never trains. It only serves the promoted model (later).
@@ -190,13 +196,29 @@ ORDER OF OPERATIONS ON THE SPARK (run in this order; do not skip ahead)
     Restore the 35B server: sudo snap start qwen3-6
     Nothing here changes production; the served model only changes in a separate step.
 
-ORDER ON THE IBUYPOWER (translation and prep)
+ORDER ON THE IBUYPOWER / KAL-EL (training peer + translation + prep)
     ssh cvanthin@192.168.1.118      (DHCP address; it moved from .113 and .117 to .118: reserve it in the router)
     Its repo is at ~/code/getschoolled (a stray nested getschoolled/getschoolled copy also exists).
     git -C ~/code/getschoolled status --short ; check no batch is running before touching the checkout,
     then fetch and use a worktree of main as on the Spark. It already has torch 2.14.1+cu130 working
     (Python 3.14): keep it, do not install requirements.txt.
-    .venv/bin/python training/compare_bases.py --list --machine ibuypower
+    .venv/bin/python training/compare_bases.py --list --machine kalel
+    Download a <=4B base once (space ~8 GB):
+      huggingface-cli download meta-llama/Llama-3.2-3B-Instruct --local-dir models/weights/llama-3.2-3b-instruct
+      # or: Qwen/Qwen3-4B -> models/weights/qwen3-4b
+    One manual small-model cycle (same gates as the Spark nightly):
+      BASE_MODEL=$PWD/models/weights/llama-3.2-3b-instruct ./training/kalel_nightly.sh
+    Arm the fleet worker (docs/ops-schedule.txt) so night windows run finetune-kalel-nightly,
+    day windows run frozen-eval-small / compare-bases-small / translate-stage / voice-prep /
+    grow-train-set / harvest-crawl. Or by hand:
+      scripts/gs_run.sh --gpu --name kalel-qlora --timeout 21600 -- training/kalel_nightly.sh
+      scripts/gs_run.sh --name grow-data --timeout 3600 -- python3 training/build_train_set.py \
+        --out output/kalel/data/sessions.grown.json
+      scripts/gs_run.sh --name voice-prep --timeout 86400 -- \
+        env COSYVOICE_INGEST_STAGES=download,denoise \
+        python3 scripts/cosyvoice_batch_ingest.py --pool km,th,vi,sw --workers 1 --output-root output/kalel
+    Hand off to Spark (adapters, grown sessions, CosyVoice inbox):
+      scripts/sync_kalel_to_spark.sh --yes
     Run long batches under the same limits: GS_PROFILE=ibuypower bash -c '. training/lib_limits.sh; gs_stage translate 240 <command>'
 
 WHY THE LOOP IS FLAT, AND WHAT TO DO ABOUT IT (measured on the Spark, briefing of 2026-10-24)

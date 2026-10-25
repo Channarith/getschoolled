@@ -1,0 +1,20 @@
+{
+  "name": "frozen-eval-small",
+  "description": "4-bit frozen-exam score for a <=4B (or 4-bit-loadable <=8B) base on Kal-el. Frees the Spark for 7B-14B work. Enqueue with --payload '{\"base_model\": \"models/weights/qwen3-4b\"}'.",
+  "resource": "gpu",
+  "roles": ["kalel"],
+  "priority": 75,
+  "window": ["08:00", "21:00"],
+  "tz": "America/Los_Angeles",
+  "every_s": 86400,
+  "needs_cuda": true,
+  "preemptible": true,
+  "timeout_s": 7200,
+  "max_attempts": 2,
+  "defaults": {"base_model": "models/weights/llama-3.2-3b-instruct"},
+  "env": {"HF_HUB_OFFLINE": "1", "TRANSFORMERS_OFFLINE": "1"},
+  "cmd": ["{python}", "training/evaluate.py", "--offline", "--device", "cuda", "--load-4bit",
+          "--base-model", "{base_model}",
+          "--eval", "training/data/eval_frozen.jsonl", "--max-new-tokens", "96",
+          "--metrics-out", "{state}/work/eval/{day}-frozen-small.json"]
+}

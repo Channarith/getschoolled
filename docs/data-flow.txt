@@ -61,13 +61,16 @@ COPYING BETWEEN MACHINES SAFELY
       voice audio is far larger.
 
 WHO RUNS WHAT (so no machine is starved)
-  DGX Spark    The only machine that trains big models. One GPU job at a time (the GPU
-               lock ~/.gs-gpu.lock). Long jobs run under systemd-run --user --scope with
-               MemoryMax and CPUQuota so a runaway cannot starve the rest.
-  iBuyPower    Translation batches, transcription and dataset preparation. 8 GB of GPU
-               memory: small models only.
+  DGX Spark    Trains 7B+ models and finishes CosyVoice (segment/transcribe/export). One
+               GPU job at a time (the GPU lock ~/.gs-gpu.lock). Long jobs run under
+               systemd-run --user --scope with MemoryMax and CPUQuota.
+  iBuyPower    Kal-el: <=4B QLoRA (output/kalel/), bulk NLLB translation, voice download+
+               denoise, grow-train-set, harvest. Sync to Spark: scripts/sync_kalel_to_spark.sh.
+               8 GB VRAM: small models only.
   Mac          Validation, staging, scoring, review and small experiments. It holds the
                repo and decides what ships.
+  Training outputs  output/spark/ (7B+ adapters) and output/kalel/ (<=4B adapters, grown
+                    sessions, CosyVoice prep). Never share one live output folder across machines.
   Before starting any long job: free -g, nvidia-smi, uptime; afterwards: look for
   leftover or zombie processes (ps -eo pid,ppid,stat,cmd | awk '$3 ~ /Z/'); a zombie
   is cleared by stopping its parent, not by killing the zombie.

@@ -8,12 +8,15 @@ without leaving dead or runaway processes behind.
 
 WHO RUNS WHAT
   DGX Spark (Chans-Spark, nvidia@192.168.1.107, GB10, 121 GB unified memory)
-    Main trainer. LLM QLoRA (training/spark_nightly.sh), evaluation and bake-off, and one TTS
-    fine-tune at a time. Reserve: 16 GB RAM and 2 cores stay free.
+    Main frontier trainer. 7B-14B LLM QLoRA (training/spark_nightly.sh), evaluation and bake-off,
+    CosyVoice segment/transcribe/export, and one TTS fine-tune at a time. Reserve: 16 GB RAM and
+    2 cores stay free.
   iBuyPower (Kal-el, cvanthin@192.168.1.118, RTX 5060 Ti 8 GB, 30 GB RAM)
-    Data and inference. NLLB course translation, ASR / transcription, audio denoising, dataset
-    preparation and conversion, TTS inference for the voice bake-off. NOT for large training: 8 GB
-    of video memory fits small models only. Reserve: 6 GB RAM and 2 cores stay free.
+    Parallel training peer for the frontier path. Owns: <=4B QLoRA (training/kalel_nightly.sh ->
+    output/kalel/), 4-bit frozen eval and compare_bases --machine kalel, bulk NLLB course
+    translation, CosyVoice download+denoise (voice-prep), grow-train-set (data growth), and most
+    harvest shards. Sync to Spark with scripts/sync_kalel_to_spark.sh. 8 GB VRAM fits QLoRA up to
+    about 4B only; 7B+ stays on the Spark. Reserve: 6 GB RAM and 2 cores stay free.
     Its address comes from DHCP and has moved .113 -> .117 -> .118. Fix it with a DHCP reservation
     in the router; until then use FLEET_HOST_KALEL=<ip> or the Kal-el.local name (fallback is automatic).
   Mac (coordinator)
@@ -83,9 +86,16 @@ COMMANDS
     scripts/gs_run.sh --name cosyvoice-ingest --timeout 86400 -- python3 scripts/cosyvoice_batch_ingest.py --pool km,zh --workers 1
   (gs_run --gpu sets GS_GPU_LOCK_HELD=1 so spark_nightly.sh does not wait on a lock gs_run holds.)
 
-  iBuyPower examples:
+  iBuyPower / Kal-el examples:
+    scripts/gs_run.sh --gpu --name kalel-qlora --timeout 21600 -- training/kalel_nightly.sh
     scripts/gs_run.sh --name nllb --timeout 43200 -- scripts/translate_on_machine.sh run ibuy
+    scripts/gs_run.sh --name voice-prep --timeout 86400 -- \
+      env COSYVOICE_INGEST_STAGES=download,denoise \
+      python3 scripts/cosyvoice_batch_ingest.py --pool km,th,vi,sw --workers 1 --output-root output/kalel
+    scripts/gs_run.sh --name grow-data --timeout 3600 -- \
+      python3 training/build_train_set.py --out output/kalel/data/sessions.grown.json
     scripts/gs_run.sh --gpu --name tts-bakeoff --timeout 7200 -- python3 <bakeoff script>
+    scripts/sync_kalel_to_spark.sh --yes
 
   Mac examples:
     scripts/gs_run.sh --name score --timeout 3600 -- python3 training/evaluate.py ...

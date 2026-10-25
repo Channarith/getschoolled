@@ -10,6 +10,6 @@
   "max_attempts": 4,
   "backoff_s": 600,
   "defaults": {"per_hour": "60"},
-  "machine_params": {"kalel": {"per_hour": "80"}, "spark": {"per_hour": "20"}},
+  "machine_params": {"kalel": {"per_hour": "100"}, "spark": {"per_hour": "15"}},
   "cmd": ["scripts/fleet/runners/harvest_run.sh", "{shard}", "{nshards}", "{per_hour}"]
 }

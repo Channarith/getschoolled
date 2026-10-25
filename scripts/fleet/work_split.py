@@ -127,6 +127,11 @@ def build_catalog(jobs_dir: Path = JOBS_DIR, langs: list[str] | None = None, day
     items = [
         from_manifest("finetune-nightly", "voice-agent-train", "Voice-agent / STEM training cycle", 0, 40, 480),
         from_manifest("frozen-eval", "voice-agent-eval", "Frozen exam on the current base", 0, 20, 60),
+        from_manifest("finetune-kalel-nightly", "kalel-small-train", "Kal-el <=4B QLoRA cycle", 0, 10, 240),
+        from_manifest("frozen-eval-small", "kalel-frozen-eval", "Kal-el 4-bit frozen exam", 1, 6, 60),
+        from_manifest("compare-bases-small", "kalel-base-bakeoff", "Kal-el small-base bake-off", 1, 6, 180),
+        from_manifest("grow-train-set", "grow-train-set", "Grow tutor train set (data bottleneck)", 1, 2, 30),
+        from_manifest("voice-prep", "kalel-voice-prep", "Kal-el CosyVoice download+denoise", 2, 4, 600),
     ]
     ordered, demo = _languages()
     wanted = langs or ordered

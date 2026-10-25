@@ -4,12 +4,13 @@
 One command replaces the runbook's shell loop:
 
   python3 training/compare_bases.py --machine spark            # every model whose weights are present
-  python3 training/compare_bases.py --machine ibuypower --only qwen3-4b,gemma-3-4b-it
+  python3 training/compare_bases.py --machine kalel --only qwen3-4b,gemma-3-4b-it
   python3 training/compare_bases.py --list                      # what fits where; downloads nothing
 
 Each candidate runs evaluate.py in its own process group with a timeout (no orphans), once per
 model load, over all benchmarks. Missing weights are reported as "missing", never an error.
-Outputs: output/spark/eval/bases/<name>/*.json, leaderboard.json and leaderboard.txt.
+Outputs: output/spark/eval/bases/<name>/*.json (or output/kalel/... when --machine kalel),
+leaderboard.json and leaderboard.txt.
 """
 
 from __future__ import annotations
@@ -26,8 +27,9 @@ from typing import Dict, List, Optional
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-# (usable accelerator memory in GB, label). Spark is unified memory; iBuyPower is VRAM.
-MACHINES = {"spark": 121 - 16, "ibuypower": 8}
+# (usable accelerator memory in GB, label). Spark is unified memory; Kal-el / iBuyPower is VRAM.
+# "kalel" and "ibuypower" are the same 8 GB budget (hostname vs fleet name).
+MACHINES = {"spark": 121 - 16, "ibuypower": 8, "kalel": 8}
 OVERHEAD_GB = 4.0
 
 
@@ -143,7 +145,7 @@ def main(argv: Optional[list] = None) -> int:
     ap.add_argument("--config", default=str(ROOT / "training" / "config" / "base_candidates.yaml"))
     ap.add_argument("--machine", default="spark", choices=sorted(MACHINES))
     ap.add_argument("--weights", default=str(ROOT / "models" / "weights"))
-    ap.add_argument("--out", default=str(ROOT / "output" / "spark" / "eval" / "bases"))
+    ap.add_argument("--out", default="", help="default: output/<spark|kalel>/eval/bases")
     ap.add_argument("--only", default="", help="comma-separated candidate names")
     ap.add_argument("--device", default="cuda", choices=["auto", "cpu", "cuda"])
     ap.add_argument("--max-new-tokens", type=int, default=96)
@@ -160,6 +162,9 @@ def main(argv: Optional[list] = None) -> int:
     benchmarks = cfg.get("benchmarks", [])
     floors = cfg.get("floors", {})
     weights = Path(args.weights)
+    host_key = "kalel" if args.machine in {"kalel", "ibuypower"} else "spark"
+    if not args.out:
+        args.out = str(ROOT / "output" / host_key / "eval" / "bases")
 
     if args.list:
         print(f"{'MODEL':<26} {'PARAMS':>7} {'QLoRA GB':>9} {'bf16 GB':>8} fits QLoRA / eval on {args.machine}  weights present")

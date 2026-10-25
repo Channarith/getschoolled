@@ -411,6 +411,10 @@ def ingest_channel(
     ]
     if max_urls:
         cmd.extend(["--max-urls", str(max_urls)])
+    # Kal-el voice-prep: COSYVOICE_INGEST_STAGES=download,denoise (no ASR on 8 GB).
+    stages = (os.environ.get("COSYVOICE_INGEST_STAGES") or "").strip()
+    if stages:
+        cmd.extend(["--stages", stages])
     child_env = os.environ.copy()
     # Heavy ASR stays off when the box is already low on RAM. The parent
     # queue can still run; only this channel's transcribe step refuses.
