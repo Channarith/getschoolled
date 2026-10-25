@@ -216,6 +216,41 @@ def decode_apple_notification(signed_payload: str, *, root_pem: Optional[bytes] 
 APPLE_REVOKING = {"REFUND", "REVOKE"}
 
 
+_APPLE_API = {"production": "https://api.storekit.itunes.apple.com", "sandbox": "https://api.storekit-sandbox.itunes.apple.com"}
+
+
+def apple_api_token(*, now: Callable[[], float] = time.time) -> str:
+    """ES256 bearer for the App Store Server API (key id, issuer id and the .p8 key from App Store Connect)."""
+    import jwt
+
+    key_id, issuer, private = _env("APPLE_IAP_KEY_ID"), _env("APPLE_IAP_ISSUER_ID"), _env("APPLE_IAP_PRIVATE_KEY").replace("\\n", "\n")
+    if not (key_id and issuer and private and _env("APPLE_BUNDLE_ID")):
+        raise StoreVerificationError("not_configured", "App Store purchases are not set up on the server yet.")
+    issued = int(now())
+    return jwt.encode({"iss": issuer, "iat": issued, "exp": issued + 600, "aud": "appstoreconnect-v1", "bid": _env("APPLE_BUNDLE_ID")},
+                      private, algorithm="ES256", headers={"kid": key_id})
+
+
+def apple_get_transaction(transaction_id: str, *, opener: Callable[..., Any] = urllib.request.urlopen,
+                          now: Callable[[], float] = time.time) -> str:
+    """Ask Apple for the signed transaction by id (the app only sends the id). Production first, then sandbox (App Review)."""
+    token = apple_api_token(now=now)
+    quoted = urllib.parse.quote(str(transaction_id), safe="")
+    last: Optional[StoreVerificationError] = None
+    for env_name in (("production", "sandbox") if allow_sandbox() else ("production",)):
+        try:
+            data = _request(f"{_APPLE_API[env_name]}/inApps/v1/transactions/{quoted}", headers={"Authorization": f"Bearer {token}"}, opener=opener)
+        except StoreVerificationError as exc:
+            last = exc
+            if exc.code == "store_rejected":  # 404 here means "not in this environment": try the next one
+                continue
+            raise
+        signed = str(data.get("signedTransactionInfo") or "")
+        if signed:
+            return signed
+    raise StoreVerificationError("store_rejected", "We could not confirm that purchase with the App Store.") if last is None or last.code != "store_error" else last
+
+
 # ---------------------------------------------------------------- Google
 def _request(url: str, *, method: str = "GET", data: Optional[bytes] = None, headers: Optional[dict[str, str]] = None,
              opener: Callable[..., Any] = urllib.request.urlopen) -> dict[str, Any]:

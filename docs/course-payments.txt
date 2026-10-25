@@ -155,3 +155,26 @@ OWNER CHECKLIST (store side, nothing here is done for you)
          accounts are entitled without buying. Gotchas: a Restore Purchases button is required; no links to web payment inside the
          apps; account deletion must be offered in-app.
   Store fee: Apple and Google keep a commission on in-app sales (decision for the owner; web price is unchanged).
+
+
+PART 5: MOBILE APPS (client side of the store purchases)
+=========================================================
+Library: react-native-iap 12.16.4 (our own server validates; no RevenueCat, no third party or extra fee). It is a NATIVE module:
+it needs a development or release build (not Expo Go); "react-native-iap" is in the app.json plugins. Lockfile was updated with
+pnpm install --ignore-workspace --no-frozen-lockfile semantics.
+
+Flow (apps/mobile/src/studioCoursePrompt.ts, storeIap.ts):
+  1. The app asks the SERVER what the signed-in account may do (GET /api/studio/entitlement). free (admin/VIP/premium) and paid open the
+     full class with no price anywhere. Anonymous users get the demo only.
+  2. must_pay: a dialog offers "Buy (<store price>)", "Restore purchases" and the demo. No web checkout and no payment link.
+  3. Buy: GET iap/products gives the product id and the account token; the app starts the store purchase with appAccountToken (iOS) /
+     obfuscatedAccountIdAndroid; the app sends the transaction id (iOS) or product id + purchase token (Android) to the server; only
+     after the server records it does the app finish the transaction and open the class. Server refusal leaves it unfinished.
+  4. Restore Purchases re-verifies what the store says this person owns onto THIS account (App Review requires the button).
+  5. The class WebView receives the login as the aoep_session cookie so the studio server can verify the account; the URL carries no
+     admin/enrollment claims any more.
+iOS: the app sends the transaction id and the server asks Apple (App Store Server API, needs APPLE_IAP_KEY_ID, APPLE_IAP_ISSUER_ID,
+APPLE_IAP_PRIVATE_KEY) for the signed transaction, tries production then sandbox, and verifies the signature chain itself.
+Testing without money: StoreKit configuration file / Sandbox testers (iOS), license testers (Android); automated tests use fakes.
+Known limits: real-device purchase flows could not be run here (no store accounts); the native module is exercised only through the
+adapter in tests. Pending Google purchases unlock when a later restore or the RTDN purchased notification re-verifies them.
