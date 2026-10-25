@@ -1,0 +1,50 @@
+REGULATORY FLAG: SELLING A "CALIFORNIA DRIVER EDUCATION" COURSE ONLINE
+======================================================================
+Written 2026-10-25. NOT LEGAL ADVICE. The owner should confirm all of this with counsel and with the DMV before launch.
+
+TOP OWNER DECISION
+  Decide, with counsel, whether the paid Driver's Education course is sold as:
+    (A) general learning and practice, clearly NOT a DMV-approved or DMV-licensed driver education course; or
+    (B) a course that is meant to satisfy California's driver education requirement for a license, which (see below) appears to
+        require a DMV-licensed driving school and DMV-issued completion certificates.
+  Until the owner confirms a licence, the product copy must say (A). Everything shipped in this work assumes (A).
+
+WHAT THE DMV SAYS (found by search on 2026-10-25; read the pages yourself, they change)
+  1. California DMV, "Driving School Operator License":
+     https://www.dmv.ca.gov/portal/vehicle-industry-services/occupational-licensing/occupational-licenses/driving-school/driving-school-operator-license/
+     A driving school needs a licensed owner, operator and instructor to give instruction. The page lists qualifications
+     (minimum age 21, background clearance, a written exam, and, for internet-only schools, "60 hours of driving school operator
+     training"). The page does not say in so many words that an unlicensed provider may not sell driver education; it describes
+     the licence as the way to operate a driving school. COUNSEL SHOULD CONFIRM what an unlicensed seller of "driver education"
+     may and may not say or do.
+  2. California DMV, "Driver Training Schools": https://www.dmv.ca.gov/portal/driver-education-and-safety/driver-training-schools/
+  3. California DMV, "Online Learning": https://www.dmv.ca.gov/portal/driver-education-and-safety/online-learning-and-tests/
+  4. California DMV, "Instruction and Learner's Permits": https://www.dmv.ca.gov/portal/dmv/detail/teenweb/permit_btn1/driver_ed
+     From the search summaries: driver education may be 30 hours or 2 1/2 semester periods of classroom instruction, or a home
+     study or internet training program, and an internet program "must meet the same requirements as classroom instruction".
+  5. Certificates of completion. Search results describe DL 400C as the Certificate of Completion of Non-Classroom Driver
+     Education issued by DMV-licensed driving schools, and say each school is accountable for the certificates (DL 400B, 400C,
+     400D, OL 800) issued to it. A seller that is not a licensed school should not issue anything that looks like one.
+
+WHAT THIS MEANS FOR THE PRODUCT (assumption A)
+  * The receipt, the checkout card and the Terms of Sale say: "AI-assisted instruction. This course is not a DMV-approved or
+    DMV-licensed driver education course, and completing it does not satisfy California licensing requirements, unless the
+    course page says otherwise." The wording is configuration (COURSE_DMV_DISCLAIMER): counsel should set the final text.
+  * No completion certificate that could be mistaken for a DMV certificate may be issued without the owner's confirmation.
+  * The refund policy blocks automatic refunds after "a certificate is issued": decide what a Salareen certificate is and is not.
+  * Other rules may apply (consumer protection, education or vocational-school law, minors' contracts, auto-renewal rules,
+    payment-processor restrictions on regulated education). They were not researched here.
+
+COPY AUDIT (searched apps/web, the course studio, shared lessons, the mobile app)
+  * No product text claims DMV approval or that the course satisfies licensing. The searches covered "DMV-approved",
+    "approved by the DMV", "DMV-licensed", "satisfies ... requirement", "certificate of completion", "DL 400".
+  * To check: subrepos/theodore_course_studio/src/theodore_course_studio/cert_multimodal.py line 271 says "Short lessons plus
+    official CA DMV practice tests". If those are the DMV's own practice tests linked from dmv.ca.gov this is fine; if they are
+    our own practice tests, the word "official" could mislead. Not changed here.
+  * lesson_visuals.py tells learners to check each state's official DMV handbook: good, keep.
+
+OPEN QUESTIONS FOR THE OWNER / COUNSEL
+  1. Does selling this as test prep (not as the required driver education) need any DMV licence? What may the marketing say?
+  2. If the aim is (B): licensing path, approved curriculum, who issues certificates, bonding and record-keeping duties.
+  3. Is a "Driver's Education" title itself a problem under (A)? Consider "California permit test prep".
+  4. Apple App Review and Google Play will look at the same claims: keep the app text consistent with (A).

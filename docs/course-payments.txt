@@ -102,3 +102,13 @@ RECEIPTS, REFUNDS, TAX (part 2)  -- all wording is DRAFT for counsel / CPA revie
     or elsewhere; does selling to other states create a collection duty (economic nexus); the seller's permit / CDTFA
     registration. Apple and Google are the sellers of record for in-app purchases and handle tax themselves.
   Policy endpoint: GET /api/studio/policy returns the configured numbers so the policy pages always match the server.
+
+POLICY PAGES, CHECKOUT AND ACCOUNT (part 3)
+  Pages (linked from the footer's "Legal & Compliance" hub and from the checkout card): /legal/terms-of-sale,
+  /legal/refund-policy, /legal/receipts-and-taxes. Plain-language DRAFTS in apps/web/content/legal/*.txt, English only.
+  Each page also shows the live numbers from GET /api/studio/policy so it cannot disagree with the server.
+  Checkout card: price, tax line and total when tax applies (asks for the state only in manual tax mode), the AI-assisted /
+  not-DMV-approved note, and the three policy links. Account > Purchases: receipt, PDF, credit note, "Email me this receipt",
+  "Request a refund" (wording from the server's verdict).
+  The regulatory question (is a DMV licence needed to sell this as driver education) is the TOP owner decision: see
+  docs/regulatory-driver-ed.txt, with sources and a copy audit.

@@ -774,12 +774,13 @@ export async function getCourseEntitlement(courseId: string): Promise<CourseEnti
 export async function startCourseCheckout(
   courseId: string,
   method: "card" | "paypal",
+  billingState = "",
 ): Promise<{ url?: string; already_entitled?: boolean; entitlement?: CourseEntitlementState }> {
   return jsonOrThrow(
     await fetch("/api/studio/pay/checkout", {
       method: "POST",
       headers: { "content-type": "application/json", ...authHeaders() },
-      body: JSON.stringify({ course_id: courseId, method, return_url: window.location.href.split("#")[0] }),
+      body: JSON.stringify({ course_id: courseId, method, return_url: window.location.href.split("#")[0], billing_state: billingState }),
     })
   );
 }
@@ -795,6 +796,53 @@ export async function confirmCoursePayment(
       headers: { "content-type": "application/json", ...authHeaders() },
       body: JSON.stringify({ session_id: sessionId, method }),
     })
+  );
+}
+
+export interface CoursePolicy {
+  refund: { window_days: number; max_progress_pct: number; block_after_certificate: boolean; auto_approve: boolean };
+  tax_mode: string;
+  seller: { legal_name: string; address: string; support_email: string };
+  disclaimer: string;
+  draft: boolean;
+}
+
+export async function getCoursePolicy(): Promise<CoursePolicy> {
+  return jsonOrThrow(await fetch("/api/studio/policy"));
+}
+
+export interface CourseQuote {
+  amount_cents: number; tax_cents: number; tax_label: string; tax_mode: string; requires_state: boolean;
+  total_cents: number; total_label: string;
+}
+
+export async function getCourseQuote(courseId: string, state = ""): Promise<CourseQuote> {
+  return jsonOrThrow(
+    await fetch(`/api/studio/pay/quote?course_id=${encodeURIComponent(courseId)}&state=${encodeURIComponent(state)}`, { headers: authHeaders() })
+  );
+}
+
+export interface PurchaseRow {
+  order_id: string; course_id: string; amount_cents: number; tax_cents: number; total_cents: number; currency: string;
+  provider: string; status: string; created_at: number; last4: string; receipt_url: string; refund_requested: boolean;
+  refund: { eligible: boolean; reason: string; message: string; days_left: number };
+}
+
+export async function listPurchases(): Promise<{ purchases: PurchaseRow[] }> {
+  return jsonOrThrow(await fetch("/api/studio/account/purchases", { headers: authHeaders() }));
+}
+
+export async function emailReceipt(orderId: string): Promise<{ sent: boolean; already_sent: boolean }> {
+  return jsonOrThrow(
+    await fetch(`/api/studio/account/receipts/${encodeURIComponent(orderId)}/email`, { method: "POST", headers: authHeaders() })
+  );
+}
+
+export async function requestRefund(orderId: string): Promise<{
+  refunded: boolean; routed_to_support?: boolean; reason?: string; message: string; credit_note_url?: string;
+}> {
+  return jsonOrThrow(
+    await fetch(`/api/studio/account/purchases/${encodeURIComponent(orderId)}/refund-request`, { method: "POST", headers: authHeaders() })
   );
 }
 

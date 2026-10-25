@@ -1,0 +1,19 @@
+SALAREEN - Receipts and Taxes
+===============================
+
+DRAFT FOR REVIEW. This text has not been reviewed by a lawyer or tax adviser.
+
+1. Receipts.
+Every purchase gets a receipt with an order number, the date and time (in UTC and in our local time), the account email, what you bought, the price, any tax, the total, the kind of payment (for a card, only the last four digits), the seller's details, a link to the refund policy, and a short note that the course is AI-assisted instruction. A code at the bottom lets anyone check the receipt against our records.
+
+2. Where to find a receipt.
+Sign in, open your account, go to Purchases. You can open the receipt, print it or save it as a PDF, and ask us to email it. For purchases made through Apple or Google, they also email you their own receipt; ours is a record of your access.
+
+3. Sales tax.
+Whether sales tax applies to a course depends on the course and on where you are. When tax applies it is shown as a separate line before you pay and again on your receipt. We ask for your state only when we need it to calculate tax. For purchases made through Apple or Google, they calculate and collect any tax.
+
+4. Credit notes.
+If a purchase is refunded you get a credit note that shows the refunded amount and date.
+
+5. Questions.
+Use the support address on your receipt.
