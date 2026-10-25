@@ -26,7 +26,7 @@ Workflow
 
 Order (tier) and placement
   tier 0  Spark training (finetune cycle) then its frozen exam. Pinned to the Spark, first in its GPU lane.
-  tier 1  demo translation (Khmer, Thai, Vietnamese, Spanish, Chinese, then Swahili, Indonesian, Greek, Czech),
+  tier 1  demo translation (Khmer, Cantonese, Spanish, Chinese, French, Italian, then Thai, Vietnamese; the order is aoep_shared.translation_v2.PRIORITY_ORDER),
           the company-voice render (Spark only: the voices and consents live there), edge-tts voice renders.
   tier 2  the other languages, voice-data ingest (resumable, yields the GPU), translation validation (Mac).
   * One GPU job at a time per machine (the GPU lock). While the Spark trains, translation shards go to iBuyPower.

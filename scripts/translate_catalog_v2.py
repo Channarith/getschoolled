@@ -3,8 +3,9 @@
 
   python3 scripts/translate_catalog_v2.py --check                       # what is stale, translate nothing
   python3 scripts/translate_catalog_v2.py --languages km --limit 3      # small trial
-  python3 scripts/translate_catalog_v2.py                               # km,th,vi,es,zh, then sw,id,el,cs, then the rest
-  python3 scripts/translate_catalog_v2.py --tier 1                      # only km,th,vi,es,zh
+  python3 scripts/translate_catalog_v2.py                               # priority order: km,yue,es,zh,fr,it, th,vi, ja,ko,pt,de,ru,ar,hi,id,tr, the rest, tl last
+  python3 scripts/translate_catalog_v2.py --tier 1                      # km,yue,es,zh,fr,it,th,vi
+  python3 scripts/translate_catalog_v2.py --languages km,yue,es,zh --exclude es   # explicit order, minus some
   python3 scripts/translate_catalog_v2.py --fallback grok --fallback-cap 40   # opt in: paid API for the leftovers
 
 Differences from translate_courses_batch.py (v1):
@@ -35,21 +36,35 @@ for extra in (ROOT / "subrepos" / "theodore_course_studio" / "src",):
         sys.path.insert(0, str(extra))
 
 from aoep_shared import translation_v2 as v2  # noqa: E402
-from aoep_shared.course_translation_library import TARGET_LANGUAGES, library_dir  # noqa: E402
+from aoep_shared.course_translation_library import (  # noqa: E402
+    EXTRA_TRANSLATION_LANGUAGES,
+    TARGET_LANGUAGES,
+    library_dir,
+    normalize_translation_language,
+)
 
 
 def pick_languages(args: argparse.Namespace) -> list[str]:
     if args.languages:
-        langs = [x.strip() for x in args.languages.split(",") if x.strip()]
+        langs = []
+        for raw in args.languages.split(","):
+            code = normalize_translation_language(raw.strip()) if raw.strip() else ""
+            if raw.strip() and code not in langs:
+                langs.append(code or raw.strip())  # an unknown code is kept so the check below names it
     elif args.tier == 1:
         langs = list(v2.TIER1)
     elif args.tier == 2:
         langs = list(v2.TIER1) + list(v2.TIER2)
     else:
         langs = v2.priority_languages()
-    bad = [x for x in langs if x not in TARGET_LANGUAGES]
+    allowed = set(TARGET_LANGUAGES) | set(EXTRA_TRANSLATION_LANGUAGES)
+    bad = [x for x in langs if x not in allowed]
     if bad:
-        raise SystemExit(f"unsupported language(s): {', '.join(bad)}")
+        raise SystemExit(f"unsupported language(s): {', '.join(bad)} (allowed: {' '.join(v2.priority_languages())})")
+    skip = {normalize_translation_language(x.strip()) or x.strip() for x in (args.exclude or "").split(",") if x.strip()}
+    langs = [x for x in langs if x not in skip]
+    if not langs:
+        raise SystemExit("no languages left after --exclude")
     return langs
 
 
@@ -70,8 +85,9 @@ def load_sources(args: argparse.Namespace) -> list:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--root", type=Path, default=None, help="library folder (default AOEP_COURSE_TRANSLATION_DIR or ~/.cache/aoep/course_translations)")
-    ap.add_argument("--languages", default="", help="comma list; default is priority order")
-    ap.add_argument("--tier", type=int, choices=(1, 2, 3), default=3, help="1 = km,th,vi,es,zh; 2 adds sw,id,el,cs; 3 = all")
+    ap.add_argument("--languages", default="", help="comma list, run IN THIS ORDER (yue and tl/fil allowed); default is the priority order")
+    ap.add_argument("--exclude", default="", help="comma list to drop from the chosen languages (split the ordered list between machines)")
+    ap.add_argument("--tier", type=int, choices=(1, 2, 3), default=3, help="prefixes of the priority order: 1 = %s; 2 adds %s; 3 = all (%s)" % (",".join(v2.TIER1), ",".join(v2.TIER2), ",".join(v2.priority_languages())))
     ap.add_argument("--course", action="append", help="course id (repeatable; a trailing '-' is a prefix)")
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--studio", action="store_true", help="also the Course Studio catalog")
@@ -107,7 +123,7 @@ def main() -> int:
     engine = v2.NllbEngine(batch_size=args.batch_size or None)
     glossary = v2.Glossary.load()
     print(f"{len(sources)} courses x {len(langs)} languages ({len(sources) * len(langs)} files) -> {root}", flush=True)
-    print(f"languages in order: {' '.join(langs)}; glossary v{glossary.version} ({len(glossary.terms)} terms, unreviewed)", flush=True)
+    print(f"languages in order (priority queue, first = most important): {' '.join(langs)}; glossary v{glossary.version} ({len(glossary.terms)} terms, unreviewed)", flush=True)
 
     started = time.time()
 

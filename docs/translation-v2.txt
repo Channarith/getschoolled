@@ -51,8 +51,19 @@ WHAT CHANGED
          --fallback grok --fallback-cap 40 --price-per-mtok <usd>
      It prints a token estimate first (and a cost if you give a price), stops at the cap, and its answer
      goes through the same checks. A course is written only when every passage passes.
-  5. Catalog runner (scripts/translate_catalog_v2.py). 222 audio courses, languages in priority order:
-     km, th, vi, es, zh, then sw, id, el, cs, then the rest. Resumable (provenance makes a finished file a
+  5. Catalog runner (scripts/translate_catalog_v2.py). 222 audio courses, languages in priority order
+     (aoep_shared.translation_v2.PRIORITY_ORDER, one list for every machine; all courses of a language
+     finish before the next language starts):
+       the owner's six   km, yue, es, zh, fr, it
+       demo languages    th, vi
+       big languages     ja, ko, pt, de, ru, ar, hi, id, tr
+       the rest          pl, nl, uk, he, bn, fa, ur, el, cs, sw, then tl (Filipino/Tagalog) last
+     yue (Cantonese) and tl (Filipino; fil/tgl/tagalog are accepted) are translation-only extras: they are
+     written to <course>/yue.json and <course>/tl.json, are not platform languages, and are not in the language
+     picker or the UI strings (normalize_language() is unchanged). NLLB codes: yue_Hant, tgl_Latn.
+     --tier 1 = km,yue,es,zh,fr,it,th,vi; --tier 2 adds ja,ko,pt,de,ru,ar,hi,id,tr; --tier 3 (default) = all.
+     --languages takes an explicit list and runs it in that order; --exclude drops languages, so two
+     machines can split the list without overlap (see "Splitting the order between machines" below). Resumable (provenance makes a finished file a
      no-op), prints per-run stats (written, reused, needs_fallback, retried segments, rungs used), then runs
      the validator over exactly the languages it was asked for and writes output/translation_v2/summary.txt.
   6. Migration (scripts/translation_migrate.py). Reads an old library and writes a new one; the source
@@ -118,8 +129,19 @@ ON THE SPARK
       $PY scripts/translation_migrate.py ~/.cache/aoep/course_translations --out $AOEP_COURSE_TRANSLATION_DIR --studio
       $PY scripts/translate_catalog_v2.py --check --tier 1
       scripts/gs_run.sh --gpu -- $PY scripts/translate_catalog_v2.py --languages km --limit 3     # trial
-      scripts/gs_run.sh --gpu -- $PY scripts/translate_catalog_v2.py --tier 1                     # km th vi es zh
+      scripts/gs_run.sh --gpu -- $PY scripts/translate_catalog_v2.py --tier 1                     # km yue es zh fr it th vi
   gs_run takes the GPU lock: if the nightly STEM run holds ~/.gs-gpu.lock it waits its turn. CUDA is
   required on the Spark (aoep_shared.devices); the script stops with the reason if it is not available.
   The old library is kept for comparison. Nothing from either library is shipped until the validator
   report (output/translation_v2/summary.txt) is read and the languages are reviewed.
+
+Splitting the order between machines (Spark 3.3B, kalel 1.3B on 8 GB). Both keep the same priority order and
+write to their own folder; finished files are skipped on a restart, so re-running is safe.
+
+  Spark (queue after killing any old waiter; the demo languages use the larger model):
+      scripts/gs_run.sh --name translate-v2-spark --gpu -- $PY scripts/translate_catalog_v2.py \
+          --languages km,yue,es,zh,th,vi,hi --root $HOME/.cache/aoep/course_translations_v2
+  kalel (NLLB_PROFILE=8gb, memory capped):
+      NLLB_PROFILE=8gb scripts/gs_run.sh --name kalel-translate-v2 --gpu --mem-max 18 --min-free-gb 14 -- \
+          python3 scripts/translate_catalog_v2.py --exclude km,yue,es,zh,th,vi,hi --root $HOME/.cache/aoep/course_translations_v2
+      (fr, it, then ja, ko, pt, de, ru, ar, id, tr, pl, nl, uk, he, bn, fa, ur, el, cs, sw, tl, in that order)

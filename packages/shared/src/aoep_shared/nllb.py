@@ -33,6 +33,9 @@ _FLORES: dict[str, str] = {
     "zh": "zho_Hans",
     # Cantonese is its own FLORES language. Do not alias it to Mandarin.
     "yue": "yue_Hant",
+    # Tagalog (Filipino) is a translation-only extra, like Cantonese: FLORES-200 lists tgl_Latn.
+    "tl": "tgl_Latn",
+    "fil": "tgl_Latn",
     "ja": "jpn_Jpan",
     "ko": "kor_Hang",
     "vi": "vie_Latn",
