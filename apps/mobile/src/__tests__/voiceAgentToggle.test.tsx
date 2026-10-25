@@ -110,5 +110,7 @@ test("the selector shows Sala and xAI Voice Agent", () => {
   expect(lessonVoiceButtonKey("xai", true, "unavailable")).toBe("lesson.xaiUnavailable");
   expect(lessonVoiceButtonKey("sala", true, "live")).toBe("lesson.salaOn");
   expect(translateWith("nl", "settings.voiceAgentXai")).toBe("xAI Voice Agent");
-  expect(translateWith("nl", "voice.xaiUnavailable")).toMatch(/Switch back to Sala/);
+  // Dutch now has a machine translation (machineFill.json) instead of falling back to English; the brand names must survive it.
+  expect(translateWith("nl", "voice.xaiUnavailable")).toMatch(/Sala/);
+  expect(translateWith("nl", "voice.xaiUnavailable")).not.toMatch(/Switch back to Sala/);
 });

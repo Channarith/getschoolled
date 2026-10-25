@@ -104,6 +104,22 @@ const SPEECH_BCP: Record<string, string> = {
 };
 
 /** Runs before the vision lab script so its hardcoded English TTS and mic follow the app locale. */
+/**
+ * Copies the voice the learner picked in the app into the hosted demo page's own storage before the page runs.
+ * The demos are web pages inside a WebView with a separate localStorage, so without this they would ignore the app's choice.
+ * Keys match the site: aoep_demo_voice (custom voice id or "default"), aoep_drive_voice (catalog voice id), aoep_live_voice_engine.
+ */
+export function demoVoiceHandoffScript(p: { cloneVoice?: string; voiceId?: string; agent?: string }): string {
+  const put = (key: string, value: string) => `try{localStorage.setItem(${JSON.stringify(key)},${JSON.stringify(value)});}catch(e){}`;
+  const drop = (key: string) => `try{localStorage.removeItem(${JSON.stringify(key)});}catch(e){}`;
+  return [
+    put("aoep_demo_voice", p.cloneVoice || "default"),
+    p.voiceId ? put("aoep_drive_voice", p.voiceId) : drop("aoep_drive_voice"),
+    put("aoep_live_voice_engine", p.agent === "xai" ? "xai" : "salane"),
+    "true;",
+  ].join("\n");
+}
+
 export function childrenLabLocaleScript(locale: string): string {
   const code = spokenDemoCode(locale);
   const bcp = SPEECH_BCP[code] || code;

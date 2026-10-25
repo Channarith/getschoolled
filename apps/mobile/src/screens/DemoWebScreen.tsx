@@ -11,9 +11,12 @@ import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
 import { driverWaveScript } from "../driverWave";
 import { liveAudioPhoneScript } from "../liveAudioPhone";
-import { appStateScript, isPageHttpError, publicDemoUrl, childrenLabLocaleScript, childrenLabTouchScript, demoPathWithLocale, type PublicDemo } from "../publicDemos";
+import { appStateScript, demoVoiceHandoffScript, isPageHttpError, publicDemoUrl, childrenLabLocaleScript, childrenLabTouchScript, demoPathWithLocale, type PublicDemo } from "../publicDemos";
 import { SERENITY_HERO, SERENITY_NAME } from "../serenity";
 import { ensureLoudSpeaker } from "../tts";
+import { getSelectedVoice } from "../cloneVoice";
+import { getSettings } from "../storage";
+import { loadVoiceAgentChoice } from "../voiceAgentPref";
 import AdaptiveContent from "../layout/AdaptiveContent";
 import { useLayoutMetrics } from "../layout";
 import { theme } from "../theme";
@@ -46,6 +49,7 @@ export default function DemoWebScreen({
   const [error, setError] = useState("");
   const [errorStatus, setErrorStatus] = useState<number | null>(null);
   const [plays, setPlays] = useState(0);
+  const [voiceScript, setVoiceScript] = useState<string | null>(null);
   const webRef = useRef<WebView>(null);
   const path = demoPathWithLocale(demo.path, locale);
   const url = publicDemoUrl(WEB_APP_URL, path);
@@ -57,9 +61,19 @@ export default function DemoWebScreen({
   const touchScript = path.includes("/children-lab") ? childrenLabTouchScript() : undefined;
   const waveScript = audioOnly ? driverWaveScript() : undefined;
   const phoneAudio = liveAudioPhoneScript();
-  const beforeLoad = [phoneAudio, waveScript, localeScript, touchScript].filter(Boolean).join("\n");
+  const beforeLoad = [voiceScript, phoneAudio, waveScript, localeScript, touchScript].filter(Boolean).join("\n");
   const { overlayBottomPad } = useLayoutMetrics();
   useAndroidBackTo(onBack);
+
+  useEffect(() => {
+    let alive = true;
+    void Promise.all([getSelectedVoice(), getSettings(), loadVoiceAgentChoice()])
+      .then(([cloneVoice, settings, agent]) => {
+        if (alive) setVoiceScript(demoVoiceHandoffScript({ cloneVoice, voiceId: settings.voiceId, agent }));
+      })
+      .catch(() => { if (alive) setVoiceScript(demoVoiceHandoffScript({})); });   // storage unavailable: the page uses its own defaults
+    return () => { alive = false; };
+  }, []);
 
   useEffect(() => {
     void ensureLoudSpeaker();
@@ -123,7 +137,7 @@ export default function DemoWebScreen({
           onRetry={() => { setError(""); setErrorStatus(null); return true; }}
           onBack={onBack}
         />
-      ) : (
+      ) : voiceScript === null ? null : (
         <WebView
           ref={webRef}
           testID="demo-webview"
