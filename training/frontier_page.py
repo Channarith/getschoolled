@@ -264,10 +264,10 @@ def render_briefing(snapshot: dict, history: list[dict]) -> str:
 </head>
 <body>
 <header>
-  <div class="kicker">Salareen · measured on Chans-Spark</div>
+  <div class="kicker">Salareen · measured on Chans-Spark · Kal-el is the parallel peer</div>
   <h1>Where the model stands, and what still blocks a frontier tutor.</h1>
-  <p class="lede">The frozen exam is now the score that counts, and it is stuck at {_pct(frozen)}. The adapter still beats the base on the 41-item split ({_pct(split)} versus {_pct(snapshot.get("split_base"))}), and the gate refuses to keep it. Cantonese text exists for {yue_playable} of {courses} courses. The demo lesson still speaks English. Nothing in this stack yet earns an outside credential.</p>
-  <p class="meta">Snapshot {e(snapshot["at"])}. Rebuild with <code>python3 training/frontier_readiness.py --record</code> from the spark-eval-gates tree. Scores are token-overlap F1 unless a row says otherwise. Proposed bars are targets, drawn next to measurements so the gap is visible. They are not results.</p>
+  <p class="lede">The frozen exam is still the score that counts, and it is stuck at {_pct(frozen)}. The adapter still beats the base on the 41-item split ({_pct(split)} versus {_pct(snapshot.get("split_base"))}), and the gate refuses to keep it. Cantonese text exists for {yue_playable} of {courses} courses. The demo lesson still speaks English. Nothing in this stack yet earns an outside credential. The bottleneck is training data, not GPU time — Kal-el (iBuyPower) is now wired as a parallel peer so Spark stays on 7B+ train and CosyVoice ASR.</p>
+  <p class="meta">Snapshot {e(snapshot["at"])}. Rebuild with <code>python3 training/frontier_readiness.py --record</code>. Scores are token-overlap F1 unless a row says otherwise. Proposed bars are targets, drawn next to measurements so the gap is visible. They are not results.</p>
 </header>
 <main>
   <section class="grid">
@@ -277,15 +277,33 @@ def render_briefing(snapshot: dict, history: list[dict]) -> str:
     <div class="card"><b class="bad">{snapshot.get("cards", 0)}</b><span>Outside cards. A person of record and a {ACCREDITATION_FLOOR:.0%} subject floor are required even to ask. Salareen does not print the card.</span></div>
   </section>
 
+  <h2>Fleet — who trains what</h2>
+  <div class="row">
+    <div class="card">
+      <h3>DGX Spark (121 GB)</h3>
+      <p>7B–14B QLoRA nightly, frozen/STEM eval, bake-off, CosyVoice segment/transcribe/export. Smaller NLLB share (East/South Asian scripts). One GPU job at a time. Reserve 16 GB RAM.</p>
+      <em class="meta" style="display:block;margin-top:8px">Last gate: <code>{e(str(snapshot.get("promote_reason") or "not run yet"))}</code>. Promoted: {e(str(snapshot.get("promoted")))}.</em>
+    </div>
+    <div class="card">
+      <h3>Kal-el / iBuyPower (8 GB)</h3>
+      <p>Parallel peer, not overflow: ≤4B QLoRA (<code>kalel_nightly.sh</code> → <code>output/kalel/</code>), 4-bit frozen eval, small-base bake-off, bulk NLLB, CosyVoice download+denoise, grow-train-set, majority harvest. Sync with <code>scripts/sync_kalel_to_spark.sh</code>.</p>
+      <em class="meta" style="display:block;margin-top:8px">{e(str((snapshot.get("fleet") or {}).get("kalel_note") or "Fleet jobs landed in v0.97.54; enable the worker on the box to start cycles."))}.</em>
+    </div>
+  </div>
+
   <h2>What is running now</h2>
   <div class="row">
     <div>
-      <p>STEM nightly holds the GPU and keeps rescoring the same adapter. The last gate was <code>{e(str(snapshot.get("promote_reason") or "not run yet"))}</code>. Promoted: {e(str(snapshot.get("promoted")))}. A repeated win over the 12.1% base is not a kept adapter. Khmer CosyVoice is off. The hold file is in place, so a later start does not load the base weights. Translation of the 222-course catalog is running at concurrency 1 on CPU. The NLLB server on port 8002 is up. Voice ingest stays at one worker while this exam is alive.</p>
-      <p>{e(f"Batch {done}/{total}: written {written}, skipped {skipped}, failed {failed}.") if total else "The batch log has no progress line yet."} Failures in this run were empty translations while the gateway was down. The gateway is answering again.</p>
+      <p>{e(str((snapshot.get("fleet") or {}).get("running") or (
+        "STEM nightly on Spark still rescoring the same adapter when the hold is cleared. "
+        "Khmer CosyVoice stays off that GPU. Kal-el is the machine that should grow the train set, "
+        "translate the bulk languages, and prep voice downloads so Spark GPU time is not spent on them."
+      )))}</p>
+      <p>{e(f"Batch {done}/{total}: written {written}, skipped {skipped}, failed {failed}.") if total else "The batch log has no progress line yet."} Failures in this run were empty translations while the gateway was down.</p>
     </div>
     <div class="card">
       <h3>Why the loop is flat</h3>
-      <p>Each cycle fine-tunes the same 373 examples for one epoch, then scores the frozen 200, the 96-item STEM exam, and the 41-item split. The frozen result stays {_pct(frozen)}. The split stays {_pct(split)}. Fairness gap on the frozen exam is {_pct(snapshot.get("frozen_gap"))}. On the split it is {_pct(snapshot.get("split_gap"))}. The subject floor is {TRAINING_FLOOR:.0%}. Health &amp; Wellness, calculus 1, and the Python files item are all under it.</p>
+      <p>Each cycle fine-tunes the same 373 examples for one epoch, then scores the frozen 200, the 96-item STEM exam, and the 41-item split. The frozen result stays {_pct(frozen)}. The split stays {_pct(split)}. Fairness gap on the frozen exam is {_pct(snapshot.get("frozen_gap"))}. On the split it is {_pct(snapshot.get("split_gap"))}. The subject floor is {TRAINING_FLOOR:.0%}. Health &amp; Wellness, calculus 1, and the Python files item are all under it. More GPU cycles will not move this — authored sessions for those subjects will.</p>
     </div>
   </div>
 
@@ -433,7 +451,7 @@ def render_briefing(snapshot: dict, history: list[dict]) -> str:
   <div class="flow" aria-label="Path from clean data to a served lesson">
     <div class="step"><b>1 Clean</b><p>Script filter, dedup, and drop padded lessons.</p><em>Pipeline is built. The demo cache is still padded.</em></div>
     <div class="step"><b>2 Frozen exam</b><p>200 items, fixed, plus 96 STEM items.</p><em>Scored. Adapter {_pct(frozen)}. Not rising.</em></div>
-    <div class="step"><b>3 Train</b><p>One GPU lock. STEM is on it. Khmer is held.</p><em>Same 373 examples, same score.</em></div>
+    <div class="step"><b>3 Train</b><p>Spark: 7B+. Kal-el: ≤4B + grow-train-set. Khmer CosyVoice held.</p><em>Same 373 examples until data grows.</em></div>
     <div class="step"><b>4 Fairness</b><p>Gap under 10 points, and no subject under {TRAINING_FLOOR:.0%}.</p><em>The gap passes. The subjects do not.</em></div>
     <div class="step"><b>5 Ground</b><p>Every claim overlaps the lesson, or the tutor abstains.</p><em>Logged at {_pct(truth.get("groundedness"))}. No human marks.</em></div>
     <div class="step"><b>6 Human sign</b><p>200-slide program, summative check, person of record.</p><em>Cards stay off.</em></div>
@@ -462,14 +480,15 @@ def render_briefing(snapshot: dict, history: list[dict]) -> str:
 
   <h2>Where to go next, in order</h2>
   <ol>
-    <li>Stop spending cycles on the same 373 examples. The frozen score stays {_pct(frozen)} until the training data or the objective changes. Keep an adapter only when that number rises and every subject is at least {TRAINING_FLOOR:.0%}.</li>
-    <li>Add items for the subjects that set the floor. Health &amp; Wellness is {_pct(frozen_weak.get("score"))} on the frozen exam. Calculus 1 is {_pct(stem_weak.get("score"))} on the STEM exam. Python files is {_pct(weak.get("score"))} on the split. Linear algebra is {_pct(algebra)} on its 4-item STEM exam and still under 40% on the split.</li>
+    <li>Grow the train set on Kal-el (<code>grow-train-set</code> / <code>training/build_train_set.py</code>), then sync to Spark. Stop spending Spark cycles on the same 373 examples. The frozen score stays {_pct(frozen)} until the data or the objective changes. Keep an adapter only when that number rises and every subject is at least {TRAINING_FLOOR:.0%}.</li>
+    <li>Author sessions for the subjects that set the floor. Health &amp; Wellness is {_pct(frozen_weak.get("score"))} on the frozen exam. Calculus 1 is {_pct(stem_weak.get("score"))} on the STEM exam. Python files is {_pct(weak.get("score"))} on the split. Linear algebra is {_pct(algebra)} on its 4-item STEM exam and still under 40% on the split.</li>
+    <li>Arm Kal-el’s fleet worker: download a ≤4B base, set <code>BASE_MODEL</code>, run <code>scripts/fleet/install-units.sh --enable-worker</code>, then morning <code>scripts/sync_kalel_to_spark.sh --yes</code>.</li>
     <li>Have a person mark truth-log rows. Groundedness is {_pct(truth.get("groundedness"))} and abstention is {_pct(truth.get("abstain_accuracy"))}. Human agreement is blank, so the teal diagonal is still a target.</li>
-    <li>Let the 222-course batch finish. It is at {done} of {total}. Cantonese is playable for {yue_playable} courses. Rewrite Intro to Machine Learning so Mandarin, Khmer, and Cantonese match the lesson. Until then the demo speaks English.</li>
-    <li>Keep Khmer CosyVoice off this GPU. The next voice run, when the exam is finished, starts from the last real checkpoint after a listening check. It does not start from the base weights.</li>
+    <li>Let the 222-course batch finish on the language split (bulk on Kal-el, East/South Asian on Spark). It is at {done} of {total}. Cantonese is playable for {yue_playable} courses. Rewrite Intro to Machine Learning so Mandarin, Khmer, and Cantonese match the lesson. Until then the demo speaks English.</li>
+    <li>Keep Khmer CosyVoice off the Spark GPU while the exam owns it. Use Kal-el voice-prep (download+denoise) and Spark only for ASR/export. The next voice fine-tune starts from the last real checkpoint after a listening check.</li>
     <li>Leave outside cards off until a person of record signs a program whose weakest subject clears {ACCREDITATION_FLOOR:.0%}.</li>
   </ol>
-  <p>Already in place, so they are not the next move: the frozen 200 is the Spark score, a repeated promotion is refused, one weak item sets a {TRAINING_FLOOR:.0%} floor, groundedness and abstention are logged, Cantonese is its own translation file, languages xAI cannot speak use our neural voices, and the card flag stays false.</p>
+  <p>Already in place, so they are not the next move: the frozen 200 is the Spark score, a repeated promotion is refused, one weak item sets a {TRAINING_FLOOR:.0%} floor, groundedness and abstention are logged, Cantonese is its own translation file, languages xAI cannot speak use our neural voices, Kal-el is a coded training peer (v0.97.54), and the card flag stays false.</p>
 
   <h2>History</h2>
   <table>
@@ -478,7 +497,7 @@ def render_briefing(snapshot: dict, history: list[dict]) -> str:
   </table>
 </main>
 <footer>
-  <p>Sources: frozen exam <code>stem.frozen.json</code>, STEM exam <code>stem.stemfrozen.json</code>, split <code>stem.json</code>, truth log, translation cache, and the 222-course batch log. Historical charts end 22 Oct 2026, 5 AM PT. Rebuild with <code>python3 training/frontier_readiness.py --record</code>. Snapshot {e(snapshot["at"])}.</p>
+  <p>Sources: frozen exam <code>stem.frozen.json</code>, STEM exam <code>stem.stemfrozen.json</code>, split <code>stem.json</code>, truth log, translation cache, the 222-course batch log, and the Spark/Kal-el fleet split (docs/ops-schedule.txt). Historical charts end 22 Oct 2026, 5 AM PT. Rebuild with <code>python3 training/frontier_readiness.py --record</code>. Snapshot {e(snapshot["at"])}.</p>
 </footer>
 </body>
 </html>

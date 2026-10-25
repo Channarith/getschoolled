@@ -108,6 +108,10 @@ def test_page_names_the_weak_subject_and_the_recheck_command():
     snapshot["weakest_split"] = {"subject": "linear-algebra", "score": 0.1379}
     snapshot["weakest_frozen"] = {"subject": "Health & Wellness", "score": 0.1024}
     snapshot["weakest_stem"] = {"subject": "calculus-1", "score": 0.1122}
+    snapshot["fleet"] = {
+        "kalel_note": "test peer note",
+        "running": "test running line for the fleet",
+    }
     page = report.render_html(snapshot, [])
     assert "linear-algebra" in page
     assert "Health &amp; Wellness" in page
@@ -115,6 +119,10 @@ def test_page_names_the_weak_subject_and_the_recheck_command():
     assert "Where to go next, in order" in page
     assert "frontier_readiness.py --record" in page
     assert "Outside cards" in page
+    assert "Kal-el" in page
+    assert "Fleet — who trains what" in page
+    assert "test running line for the fleet" in page
+    assert "grow-train-set" in page
 
 
 def tmp_unused() -> Path:
