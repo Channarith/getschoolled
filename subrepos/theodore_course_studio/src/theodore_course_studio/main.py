@@ -41,6 +41,7 @@ from .course_pay import (
 from aoep_shared.friendly_errors import install_friendly_errors
 from aoep_shared.live_audio_agents import inject_client, install_live_audio_routes
 
+from .caller_claims import effective_access
 from .certification_prep import (
     CertCourseRequest,
     CertTrackId,
@@ -776,8 +777,12 @@ class TrialRunRequest(BaseModel):
 
 
 @app.post("/api/studio/teach/trial-run")
-def teach_trial_run(req: TrialRunRequest) -> dict[str, Any]:
+def teach_trial_run(req: TrialRunRequest, authorization: str = Header(default="")) -> dict[str, Any]:
     """Compose the default segment sequence, persist it, and start teaching."""
+    trusted = effective_access(
+        authorization=authorization, access=req.access, registered=req.registered,
+        is_admin=req.is_admin, enrollment_status=req.enrollment_status,
+    )
     course = compose_course_from_segments(
         ComposeCourseRequest(title="Trial demo course", language=req.language)
     )
@@ -793,10 +798,10 @@ def teach_trial_run(req: TrialRunRequest) -> dict[str, Any]:
             resume=False,
             soft_limit_minutes=18,
             access=resolve_teach_access(
-                requested=req.access,
-                registered=req.registered,
-                enrollment_status=req.enrollment_status,
-                is_admin=req.is_admin,
+                requested=trusted["access"],
+                registered=trusted["registered"],
+                enrollment_status=trusted["enrollment_status"],
+                is_admin=trusted["is_admin"],
             ),
         )
     except (KeyError, ValueError) as exc:
@@ -926,18 +931,26 @@ def teach_start(
     req: TeachStartRequest,
     authorization: str = Header(default=""),
 ) -> dict[str, Any]:
-    enrollment = _paid_enrollment(req.learner_id, req.course_id, req.enrollment_status)
-    registered = req.registered or enrollment == "paid"
+    trusted = effective_access(
+        authorization=authorization, access=req.access, registered=req.registered,
+        is_admin=req.is_admin, enrollment_status=req.enrollment_status,
+    )
+    # Paid status comes from the pay store; with verification on it only counts for a verified caller.
+    enrollment = (
+        _paid_enrollment(req.learner_id, req.course_id, trusted["enrollment_status"])
+        if trusted["verified"] in (None, True) else ""
+    )
+    registered = trusted["registered"] or enrollment == "paid"
     access = resolve_teach_access(
-        requested=req.access,
+        requested=trusted["access"],
         registered=registered,
         enrollment_status=enrollment,
-        is_admin=req.is_admin,
+        is_admin=trusted["is_admin"],
     )
     course = _builder.get_course(req.course_id)
     from aoep_shared.accreditation import requires_identity_assurance_for_category
 
-    learner_full_access = req.access == "full" and access == "full" and not req.is_admin
+    learner_full_access = trusted["access"] == "full" and access == "full" and not trusted["is_admin"]
     if course is not None and learner_full_access and requires_identity_assurance_for_category(course.category):
         import json as _json
         import os as _os

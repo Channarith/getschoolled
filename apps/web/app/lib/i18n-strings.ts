@@ -190,6 +190,7 @@ export const STRINGS: Partial<Record<Locale, Record<string, string>>> = {
     "lang.groupMore": "More languages (UI rolling out)",
     "landing.tryDemo": "Try the demo",
     "landing.logIn": "Log in",
+    "landing.offline": "You are offline. Reconnect to the internet and try again.",
     "demo.back": "← Back",
     "demo.solo.title": "Solo AI Session",
     "demo.solo.subtitle": "Driver's Ed · 10-min demo",

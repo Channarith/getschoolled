@@ -85,6 +85,9 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 if VISION_ASSET_DIR.is_dir():
     mimetypes.add_type("application/octet-stream", ".task")
     mimetypes.add_type("application/octet-stream", ".tflite")   # was served as text/plain
+    # The folder URL itself is not a page. Starlette would 307 "/vendor/vision" to "/vendor/vision/" while the site's Next proxy strips the
+    # trailing slash with a 308, so a browser or crawler on the folder bounced between the two forever. Answer 404 for it instead.
+    app.add_api_route("/vendor/vision", lambda: Response(status_code=404), include_in_schema=False)
     app.mount("/vendor/vision", VisionStaticFiles(directory=VISION_ASSET_DIR), name="vision-assets")
 
 _analytics = AggregateAnalytics()
