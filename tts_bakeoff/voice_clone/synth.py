@@ -31,4 +31,4 @@ def build_adapter(model: str, speaker: str, base: Path | None = None, gpu: bool 
         require_gpu(f"voice-clone:{model}")
     inner = adapters.get(model, reference_wav=str(wav), reference_text=transcript, prompt_wav=str(wav),
                          prompt_text=transcript, prompt_lang=lang, **extra)
-    return ProfileAdapter(inner, speaker, base, ref_mode or os.environ.get("GS_CLONE_REF_MODE") or "auto")   # picks the best enrolled sample for each sentence's language (voice_clone.profile)
+    return ProfileAdapter(inner, speaker, base, ref_mode or os.environ.get("GS_CLONE_REF_MODE") or "auto", cache_key=model)   # picks the best enrolled sample for each sentence's language (voice_clone.profile)
