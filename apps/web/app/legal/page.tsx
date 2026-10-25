@@ -31,6 +31,9 @@ const SECTIONS: Section[] = [
     href: "/data-deletion",
     filename: "DATA_DELETION.txt",
   },
+  { id: "terms-of-sale", label: "Terms of Sale", href: "/legal/terms-of-sale", filename: "TERMS_OF_SALE.txt" },
+  { id: "refund-policy", label: "Refund Policy", href: "/legal/refund-policy", filename: "REFUND_POLICY.txt" },
+  { id: "receipts-and-taxes", label: "Receipts & Taxes", href: "/legal/receipts-and-taxes", filename: "RECEIPTS_AND_TAXES.txt" },
   {
     id: "sweepstakes-rules",
     label: "Rewards & Sweepstakes Rules",

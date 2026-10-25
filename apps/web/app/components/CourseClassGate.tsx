@@ -7,15 +7,20 @@ import {
   confirmCoursePayment,
   friendlyApiError,
   getCourseEntitlement,
+  getCoursePolicy,
+  getCourseQuote,
   getIdentityAssurance,
   getLessonAccreditation,
   getMe,
   getToken,
   listStudents,
   startCourseCheckout,
+  type CoursePolicy,
   type CourseOffer,
+  type CourseQuote,
 } from "../lib/api";
 import { cleanReturnSearch, gateForEntitlement, paymentReturn } from "../lib/courseGate.mjs";
+import { US_STATES, canStartCheckout } from "../lib/purchaseView.mjs";
 import { courseStudioFrameSrc, type PublicCourseId } from "../lib/courseStudio";
 import { CourseStudioFrame } from "./CourseStudioFrame";
 
@@ -43,6 +48,19 @@ export function CourseClassGate({
   const [offer, setOffer] = useState<CourseOffer | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState<"" | "card" | "paypal">("");
+  const [quote, setQuote] = useState<CourseQuote | null>(null);
+  const [policy, setPolicy] = useState<CoursePolicy | null>(null);
+  const [billingState, setBillingState] = useState("");
+
+  useEffect(() => {
+    if (gate !== "pay") return;
+    getCoursePolicy().then(setPolicy).catch(() => setPolicy(null));
+  }, [gate]);
+
+  useEffect(() => {
+    if (gate !== "pay") return;
+    getCourseQuote(courseId, billingState).then(setQuote).catch(() => setQuote(null));
+  }, [gate, courseId, billingState]);
 
   const enter = useCallback(async () => {
     if (!getToken()) {
@@ -100,7 +118,7 @@ export function CourseClassGate({
     setBusy(method);
     setError("");
     try {
-      const session = await startCourseCheckout(courseId, method);
+      const session = await startCourseCheckout(courseId, method, billingState);
       if (session.already_entitled) {
         await enter();
         return;
@@ -142,6 +160,7 @@ export function CourseClassGate({
   }
 
   if (gate === "pay") {
+    const ready = canStartCheckout(quote, billingState);
     return (
       <main className="container">
         <h1>{title}</h1>
@@ -150,20 +169,43 @@ export function CourseClassGate({
             Full course: one payment{offer ? ` of ${offer.label}` : ""} unlocks the whole class, on the web and in the
             app.
           </p>
+          {quote && quote.requires_state ? (
+            <p>
+              <label>
+                Your state (to calculate tax){" "}
+                <select value={billingState} onChange={(event) => setBillingState(event.target.value)}>
+                  <option value="">Choose…</option>
+                  {US_STATES.map((code) => (
+                    <option key={code} value={code}>{code}</option>
+                  ))}
+                </select>
+              </label>
+            </p>
+          ) : null}
+          {quote && quote.tax_cents > 0 ? (
+            <p className="muted">
+              {offer ? offer.label : ""} + {quote.tax_label} = <strong>{quote.total_label}</strong>
+            </p>
+          ) : null}
           {demoHref ? (
             <p>
               Want to try it first? <Link href={demoHref}>Start the free 10-minute demo</Link>
             </p>
           ) : null}
           <p>
-            <button type="button" onClick={() => { void pay("card"); }} disabled={Boolean(busy)}>
+            <button type="button" onClick={() => { void pay("card"); }} disabled={Boolean(busy) || !ready}>
               {busy === "card" ? "Opening secure checkout…" : "Credit card"}
             </button>{" "}
-            <button type="button" onClick={() => { void pay("paypal"); }} disabled={Boolean(busy)}>
+            <button type="button" onClick={() => { void pay("paypal"); }} disabled={Boolean(busy) || !ready}>
               {busy === "paypal" ? "Opening PayPal…" : "PayPal"}
             </button>
           </p>
           {error ? <p role="alert" className="muted">{error}</p> : null}
+          {policy ? <p className="muted" style={{ fontSize: 12 }}>{policy.disclaimer}</p> : null}
+          <p className="muted" style={{ fontSize: 12 }}>
+            <Link href="/legal/terms-of-sale">Terms of Sale</Link> · <Link href="/legal/refund-policy">Refund Policy</Link> ·{" "}
+            <Link href="/legal/receipts-and-taxes">Receipts &amp; Taxes</Link>
+          </p>
         </div>
       </main>
     );
