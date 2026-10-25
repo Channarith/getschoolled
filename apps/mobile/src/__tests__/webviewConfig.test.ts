@@ -3,11 +3,17 @@
  * loudly: getUserMedia is simply refused, and the game quietly falls back to the pointer demo. These checks read the
  * source and the app config, because the real behaviour only shows on a device.
  */
-import fs from "fs";
-import path from "path";
+export {};   // makes this a module, so the declarations below stay local to this file
 
+// Node builtins, declared locally because the mobile typecheck intentionally omits @types/node.
+declare const __dirname: string;
+declare function require(name: "fs"): { readFileSync(path: string, encoding: string): string };
+declare function require(name: "path"): { resolve(...parts: string[]): string };
+
+const fs = require("fs");
+const path = require("path");
 const root = path.resolve(__dirname, "..", "..");
-const read = (rel: string) => fs.readFileSync(path.join(root, rel), "utf8");
+const read = (rel: string) => fs.readFileSync(path.resolve(root, rel), "utf8");
 const screen = read("src/screens/DemoWebScreen.tsx");
 const appJson = JSON.parse(read("app.json")).expo;
 const pkg = JSON.parse(read("package.json"));
