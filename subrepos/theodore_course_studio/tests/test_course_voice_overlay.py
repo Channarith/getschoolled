@@ -134,7 +134,8 @@ def test_demo_has_a_tutorial_help_button_and_goes_full_screen_on_phones():
     assert "options.demo ? window.sessionStorage : window.localStorage" in js
     # The full course gets its own tutorial and help button, not only the demo.
     assert "FULL_TUTORIAL" in js and "sala_course_tutorial_seen_v2" in js
-    for name in ("tutorial-tap.webp", "tutorial-double.webp", "tutorial-dance.webp"):
+    # The dance is an easter egg and is deliberately not a tutorial step (test_tutorial_parity.py checks that).
+    for name in ("tutorial-tap.webp", "tutorial-double.webp"):
         assert name in js
         assert (_PKG_ROOT / "voice_static" / name).is_file()
     assert "else wireDemoHelp();" in js

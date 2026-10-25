@@ -15,7 +15,8 @@ import { liveAudioPhoneScript } from "../liveAudioPhone";
 import { appStateScript, demoVoiceHandoffScript, isPageHttpError, publicDemoUrl, childrenLabLocaleScript, childrenLabTouchScript, demoPathWithLocale, type PublicDemo } from "../publicDemos";
 import { SERENITY_HERO, SERENITY_NAME } from "../serenity";
 import { ensureLoudSpeaker } from "../tts";
-import { getSelectedVoice } from "../cloneVoice";
+import { EXPLICIT_VOICE_KEY, getSelectedVoice } from "../cloneVoice";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getSettings } from "../storage";
 import { CAMERA_CHECK_PATH, diagBridgeScript, isCameraCheckPath, routeDiagMessage } from "../diag/webDiag";
 import { armDiagForBugReport, diagLog, initDiag, isDebugMode, shareDiagReport } from "../diag/diagLog";
@@ -87,9 +88,9 @@ export default function DemoWebScreen({
 
   useEffect(() => {
     let alive = true;
-    void Promise.all([getSelectedVoice(), getSettings(), loadVoiceAgentChoice()])
-      .then(([cloneVoice, settings, agent]) => {
-        if (alive) setVoiceScript(demoVoiceHandoffScript({ cloneVoice, voiceId: settings.voiceId, agent }));
+    void Promise.all([getSelectedVoice(), getSettings(), loadVoiceAgentChoice(), AsyncStorage.getItem(EXPLICIT_VOICE_KEY).catch(() => null)])
+      .then(([cloneVoice, settings, agent, marker]) => {
+        if (alive) setVoiceScript(demoVoiceHandoffScript({ cloneVoice, voiceId: settings.voiceId, agent, explicit: marker === "1" || marker === "0" ? marker : "" }));
       })
       .catch(() => { if (alive) setVoiceScript(demoVoiceHandoffScript({})); });   // storage unavailable: the page uses its own defaults
     return () => { alive = false; };

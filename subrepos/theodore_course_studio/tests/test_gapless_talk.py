@@ -101,7 +101,7 @@ def test_playback_and_talk_markup_contracts():
     assert "isBlobUrl" in release
     assert "blob:" in js
     speak = _slice(js, "function speakText", "function fetchLockedVoice")
-    assert "holdLesson ? null : manifestClip" in speak
+    assert "(holdLesson || picked) ? null : manifestClip" in speak
     assert "playManifest" in speak
     assert "playOnDemand" in speak
     assert "playDevice" in speak

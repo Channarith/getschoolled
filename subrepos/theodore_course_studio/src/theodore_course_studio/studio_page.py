@@ -6489,10 +6489,11 @@ STUDIO_JS = """
       // The voice picked in the account menu wins over the baked course narration: a company voice plays its
       // pre-rendered clip (any miss falls back to the edge voice, then the course voice); an edge voice is rendered
       // on demand in that voice. Nothing is spoken by the browser's own voice unless every server path fails.
-      const choice = (!holdLesson && window.SalaVoiceChoice) ? window.SalaVoiceChoice.chosen() : { custom: '', edge: '' };
+      const choice = (!holdLesson && window.SalaVoiceChoice) ? window.SalaVoiceChoice.chosen() : { custom: '', edge: '', isDefault: false };
       const choiceLang = (ttsMeta && ttsMeta.language) || teachLanguage || 'en';
       const choiceEdge = (!holdLesson && window.SalaVoiceChoice) ? window.SalaVoiceChoice.edgeVoiceFor(choiceLang) : '';
-      const picked = !!(choice.custom || choiceEdge);
+      // The published default voice (Sage) is not a deliberate pick: a line it has no clip for keeps the baked course narration.
+      const picked = !!((choice.custom && !choice.isDefault) || choiceEdge);
       const clip = (holdLesson || picked) ? null : manifestClip(ttsMeta);
       const upcoming = picked ? '' : nextSlideAudioUrl(ttsMeta);
       narrationGenderOverride = '';
@@ -6505,8 +6506,9 @@ STUDIO_JS = """
         window.SalaVoiceChoice.cloneClipUrl(choiceLang, spoken).then((url) => {
           if (gen !== speechGen || settled) return;
           if (url) playManifest(url, 0, 0);
+          else if (choice.isDefault) { if (clip) playManifest(clip.url, clip.durationMs, 0); else playOnDemand(); }
           else withCustomGender();
-        }).catch(() => { if (gen === speechGen && !settled) withCustomGender(); });
+        }).catch(() => { if (gen === speechGen && !settled) { if (choice.isDefault) playOnDemand(); else withCustomGender(); } });
       } else if (clip) playManifest(clip.url, clip.durationMs, 0);
       else playOnDemand();
       if (upcoming && (!clip || upcoming !== clip.url)) preloadNextSlideAudio(upcoming);

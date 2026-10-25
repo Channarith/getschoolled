@@ -2,6 +2,10 @@
 //   aoep_demo_voice   = a consented company voice id, or "default"
 //   aoep_drive_voice  = an edge-tts voice id such as en-US-AriaNeural, or "" for the automatic voice
 //   aoep_demo_tone    = a tone id (professional, cute, anime, blend-professional50-cute50 ...) or "neutral"; edge voices only
+//   aoep_voice_explicit = "0" when the visitor picked the Salane Voice on purpose, "1" when they picked an edge voice on purpose
+// A visitor who never chose a company voice (or whose stored choice is the old automatic "default") gets the PUBLISHED DEFAULT voice
+// (voices.json "default": true, today Sage) for every line it has a pre-rendered clip for; an edge voice or tone picked on purpose wins,
+// and a line without a clip keeps the baked course narration (isDefault tells the lesson player which of the two cases it is in).
 // Company voices are never cloned live: a clip is looked up by voice + language + a hash of the exact text and any miss
 // falls back to the edge voice (or the default narration). The hash must stay identical to apps/web/app/lib/cloneVoice.ts
 // and tts_bakeoff/demo_voice/clip_hash.py.
@@ -10,6 +14,8 @@
   var CLONE_KEY = "aoep_demo_voice";
   var EDGE_KEY = "aoep_drive_voice";
   var TONE_KEY = "aoep_demo_tone";
+  var EXPLICIT_KEY = "aoep_voice_explicit";
+  var defaultId = "";   // the published default voice, known once voices.json has loaded (ready())
   var TONE_ID = /^(neutral|[a-z]{3,20}|blend-[a-z0-9-]{3,60})$/;
   var EDGE_ID = /^[a-z]{2,3}(-[A-Za-z0-9]+)+Neural$/;
   var WS = /[ \t\n\r\f\v\u00a0\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+/g;
@@ -38,11 +44,18 @@
   }
 
   function chosen() {
-    var custom = "", edge = "";
-    try { custom = window.localStorage.getItem(CLONE_KEY) || ""; edge = window.localStorage.getItem(EDGE_KEY) || ""; } catch (_) { /* private mode */ }
+    var custom = "", edge = "", marker = "";
+    try {
+      custom = window.localStorage.getItem(CLONE_KEY) || "";
+      edge = window.localStorage.getItem(EDGE_KEY) || "";
+      marker = window.localStorage.getItem(EXPLICIT_KEY) || "";
+    } catch (_) { /* private mode */ }
     if (custom === "default") custom = "";
-    if (!EDGE_ID.test(edge)) edge = "";
-    return { custom: custom, edge: edge };
+    if (!EDGE_ID.test(edge) || marker === "0") edge = "";
+    var isDefault = false;
+    // Nothing chosen on purpose: the published default narrates. A tone means the live edge voice (the pre-rendered default is the plain voice).
+    if (!custom && !edge && !tone() && defaultId) { custom = defaultId; isDefault = true; }
+    return { custom: custom, edge: edge, isDefault: isDefault };
   }
 
   // The tone picked in the account menu ("" = plain voice). Company voices ignore it: a stylized clone needs its own consent scope.
@@ -69,9 +82,18 @@
       voicesPromise = fetch(assetsBase() + "/voices.json", { cache: "no-store" })
         .then(function (r) { return r.ok ? r.json() : { voices: [] }; })
         .then(function (j) { return Array.isArray(j && j.voices) ? j.voices.filter(function (v) { return v && v.active; }) : []; })
-        .catch(function () { return []; });
+        .catch(function () { return []; })
+        .then(function (voices) {
+          var d = voices.filter(function (v) { return v.default; })[0];
+          defaultId = d ? d.id : "";
+          return voices;
+        });
     }
     return voicesPromise;
+  }
+  // Resolves once the published list is known, so chosen() can say whether the default voice applies. Never rejects, never waits long.
+  function ready() {
+    return Promise.race([activeVoices(), new Promise(function (resolve) { setTimeout(function () { resolve([]); }, 1500); })]).then(function () { return chosen(); });
   }
   function loadIndex(voice) {
     if (!indexes[voice]) {
@@ -113,5 +135,6 @@
     });
   }
 
-  window.SalaVoiceChoice = { chosen: chosen, edgeVoiceFor: edgeVoiceFor, cloneClipUrl: cloneClipUrl, clipHash: clipHash, customGender: customGender, tone: tone };
+  window.SalaVoiceChoice = { chosen: chosen, edgeVoiceFor: edgeVoiceFor, cloneClipUrl: cloneClipUrl, clipHash: clipHash, customGender: customGender, tone: tone, ready: ready };
+  ready();   // load voices.json now, so the first narrated slide already knows the default
 })();

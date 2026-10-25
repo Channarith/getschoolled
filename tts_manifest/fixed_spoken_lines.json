@@ -1,0 +1,632 @@
+{
+ "source": "apps/web/app/components/OnTheGo.tsx + i18n-pages.ts + onTheGoCatalog.ts",
+ "titles": {
+  "audio-intro-to-machine-learning": "Intro to Machine Learning (audio)",
+  "audio-what-is-artificial-intelligence": "What Is Artificial Intelligence (audio)",
+  "audio-cybersecurity-basics": "Cybersecurity Basics (audio)",
+  "audio-what-is-blockchain": "What Is Blockchain (audio)",
+  "audio-how-smartphones-work": "How Smartphones Work (audio)",
+  "audio-the-roman-empire": "The Roman Empire (audio)",
+  "audio-ancient-egypt": "Ancient Egypt (audio)",
+  "audio-the-silk-road": "The Silk Road (audio)",
+  "audio-the-space-race": "The Space Race (audio)",
+  "audio-the-theory-of-evolution": "The Theory of Evolution (audio)",
+  "audio-climate-and-weather": "Climate and Weather (audio)",
+  "audio-quantum-physics-for-beginners": "Quantum Physics for Beginners (audio)",
+  "audio-the-art-of-focus": "The Art of Focus (audio)",
+  "audio-understanding-classical-music": "Understanding Classical Music (audio)",
+  "audio-the-history-of-cinema": "The History of Cinema (audio)",
+  "audio-understanding-mental-health": "Understanding Mental Health (audio)"
+ },
+ "skipped": {
+  "drive.courseUnknown": "{name} is whatever the visitor said",
+  "drive.groundedAnswer": "{snippet} is a passage of the course text"
+ },
+ "lines": [
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.pausedAnswer",
+   "text": "Paused. Say or tap Resume when you want to continue."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.resumingAnswer",
+   "text": "Resuming the lesson."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.skipAnswer",
+   "text": "Skipping to the next segment."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.repeatAnswer",
+   "text": "Going back so you can hear that part again."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.restartAnswer",
+   "text": "Starting the course over from the top."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.backToCourse",
+   "text": "I will go back and resume if there are no further questions."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitSession",
+   "text": "That is the question limit for this session. Reload the page to start a new one."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.awayPaused",
+   "text": "Paused while you are away. I will carry on when you are back."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.backResume",
+   "text": "Welcome back. Carrying on."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.speedAnswer",
+   "text": "Speed set to 0.7 times."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.speedAnswer",
+   "text": "Speed set to 0.75 times."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.speedAnswer",
+   "text": "Speed set to 0.8 times."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.speedAnswer",
+   "text": "Speed set to 0.85 times."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.speedAnswer",
+   "text": "Speed set to 0.9 times."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.speedAnswer",
+   "text": "Speed set to 0.95 times."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.speedAnswer",
+   "text": "Speed set to 1 times."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.speedAnswer",
+   "text": "Speed set to 1.05 times."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.speedAnswer",
+   "text": "Speed set to 1.1 times."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.speedAnswer",
+   "text": "Speed set to 1.15 times."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.speedAnswer",
+   "text": "Speed set to 1.2 times."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.speedAnswer",
+   "text": "Speed set to 1.25 times."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.speedAnswer",
+   "text": "Speed set to 1.3 times."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.speedAnswer",
+   "text": "Speed set to 1.35 times."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.speedAnswer",
+   "text": "Speed set to 1.4 times."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.speedAnswer",
+   "text": "Speed set to 1.45 times."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.speedAnswer",
+   "text": "Speed set to 1.5 times."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.speedAnswer",
+   "text": "Speed set to 1.55 times."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.speedAnswer",
+   "text": "Speed set to 1.6 times."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 1 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 2 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 3 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 4 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 5 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 6 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 7 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 8 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 9 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 10 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 11 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 12 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 13 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 14 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 15 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 16 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 17 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 18 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 19 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 20 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 21 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 22 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 23 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 24 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 25 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 26 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 27 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 28 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 29 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 30 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 31 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 32 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 33 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 34 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 35 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 36 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 37 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 38 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 39 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 40 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 41 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 42 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 43 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 44 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 45 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 46 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 47 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 48 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 49 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 50 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 51 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 52 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 53 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 54 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 55 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 56 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 57 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 58 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 59 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.limitRate",
+   "text": "That was a lot of questions at once. Please ask again in 60 seconds."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.coursePlaying",
+   "text": "Playing Intro to Machine Learning."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.coursePlaying",
+   "text": "Playing What Is Artificial Intelligence."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.coursePlaying",
+   "text": "Playing Cybersecurity Basics."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.coursePlaying",
+   "text": "Playing What Is Blockchain."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.coursePlaying",
+   "text": "Playing How Smartphones Work."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.coursePlaying",
+   "text": "Playing The Roman Empire."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.coursePlaying",
+   "text": "Playing Ancient Egypt."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.coursePlaying",
+   "text": "Playing The Silk Road."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.coursePlaying",
+   "text": "Playing The Space Race."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.coursePlaying",
+   "text": "Playing The Theory of Evolution."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.coursePlaying",
+   "text": "Playing Climate and Weather."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.coursePlaying",
+   "text": "Playing Quantum Physics for Beginners."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.coursePlaying",
+   "text": "Playing The Art of Focus."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.coursePlaying",
+   "text": "Playing Understanding Classical Music."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.coursePlaying",
+   "text": "Playing The History of Cinema."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.coursePlaying",
+   "text": "Playing Understanding Mental Health."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.courseNextIs",
+   "text": "Next course: Intro to Machine Learning."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.courseNextIs",
+   "text": "Next course: What Is Artificial Intelligence."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.courseNextIs",
+   "text": "Next course: Cybersecurity Basics."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.courseNextIs",
+   "text": "Next course: What Is Blockchain."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.courseNextIs",
+   "text": "Next course: How Smartphones Work."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.courseNextIs",
+   "text": "Next course: The Roman Empire."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.courseNextIs",
+   "text": "Next course: Ancient Egypt."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.courseNextIs",
+   "text": "Next course: The Silk Road."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.courseNextIs",
+   "text": "Next course: The Space Race."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.courseNextIs",
+   "text": "Next course: The Theory of Evolution."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.courseNextIs",
+   "text": "Next course: Climate and Weather."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.courseNextIs",
+   "text": "Next course: Quantum Physics for Beginners."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.courseNextIs",
+   "text": "Next course: The Art of Focus."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.courseNextIs",
+   "text": "Next course: Understanding Classical Music."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.courseNextIs",
+   "text": "Next course: The History of Cinema."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.courseNextIs",
+   "text": "Next course: Understanding Mental Health."
+  },
+  {
+   "demo": "on_the_go_fixed",
+   "source": "drive.courseList",
+   "text": "A few courses: Intro to Machine Learning, What Is Artificial Intelligence, Cybersecurity Basics, What Is Blockchain, How Smartphones Work. Say play, then the name."
+  }
+ ]
+}

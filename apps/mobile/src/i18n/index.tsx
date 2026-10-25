@@ -15,6 +15,8 @@ import {
 import { softenLineBreaks } from "./lineBreaks";
 import { FALLBACK, STRINGS, type StringKey } from "./strings";
 import { englishVariety, englishVoiceForLocale, varyEnglish } from "./englishVariety";
+import { explicitEdgeVoice } from "../cloneVoice";
+import { initialLocale } from "../voiceLanguage";
 import { getMe, setAccountLanguage } from "../api";
 import { getSettings, setSettings } from "../storage";
 
@@ -109,12 +111,24 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     (async () => {
+      // The language follows the VOICE (there is no separate language setting): a voice picked on purpose decides it, then a stored
+      // language from an older release, then the device's. The older key keeps being read, so nobody's language is lost.
       const stored = await readStoredLocale();
+      const voice = await explicitEdgeVoice();
+      const followed = voice
+        ? (initialLocale({ storedLocale: stored || "", edgeVoiceId: voice, browserLocale: "", supported: LANGUAGES.map((l) => l.code), fallback: "" }) as LocaleCode | "")
+        : "";
+      if (followed && isSupportedLocale(followed)) {
+        setLocaleState(followed);
+        void writeStoredLocale(followed);
+        void rememberLocale(followed);
+        return;
+      }
       if (stored) {
         setLocaleState(stored);
         void rememberLocale(stored);
         return;
-      } // explicit device pick wins
+      } // an older explicit pick wins over the device
       // Adopt the signed-in learner's saved language so the app + course appear
       // in their language on this device; fall back to the device locale.
       try {

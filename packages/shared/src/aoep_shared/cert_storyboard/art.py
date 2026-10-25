@@ -93,7 +93,7 @@ def _pedestrian(shirt: str = "#3b82f6", pants: str = "#1e3a8a") -> str:
 def _stop_sign() -> str:
     return """<svg viewBox="0 0 100 140" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <rect x="46" y="70" width="8" height="60" fill="#6b7280"/>
-      <polygon points="50,8 78,22 92,50 78,78 50,92 22,78 8,50 22,22" fill="#dc2626" stroke="#fff" stroke-width="3"/>
+      <polygon points="92.0,67.4 67.4,92.0 32.6,92.0 8.0,67.4 8.0,32.6 32.6,8.0 67.4,8.0 92.0,32.6" fill="#dc2626" stroke="#fff" stroke-width="3"/>
       <text x="50" y="56" text-anchor="middle" font-family="Arial Black,Arial,sans-serif"
         font-size="18" font-weight="800" fill="#fff">STOP</text>
     </svg>"""
@@ -101,9 +101,9 @@ def _stop_sign() -> str:
 
 def _yield_sign() -> str:
     return """<svg viewBox="0 0 100 140" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <rect x="46" y="78" width="8" height="52" fill="#6b7280"/>
-      <polygon points="50,10 90,78 10,78" fill="#fff" stroke="#dc2626" stroke-width="6"/>
-      <text x="50" y="68" text-anchor="middle" font-family="Arial,sans-serif"
+      <rect x="46" y="82" width="8" height="48" fill="#6b7280"/>
+      <polygon points="9,12 91,12 50,84" fill="#fff" stroke="#dc2626" stroke-width="6" stroke-linejoin="round"/>
+      <text x="50" y="38" text-anchor="middle" font-family="Arial,sans-serif"
         font-size="12" font-weight="800" fill="#dc2626">YIELD</text>
     </svg>"""
 
@@ -121,11 +121,21 @@ def _speed_sign(mph: str = "25") -> str:
     </svg>"""
 
 
+def _school_sign() -> str:
+    # MUTCD 7B.07: the school sign is a 5-sided pentagon, fluorescent yellow-green with a black legend and border.
+    return """<svg viewBox="0 0 100 140" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect x="46" y="88" width="8" height="42" fill="#6b7280"/>
+      <polygon points="50,6 94,38 77,92 23,92 6,38" fill="#c7f000" stroke="#111827" stroke-width="4" stroke-linejoin="round"/>
+      <circle cx="40" cy="38" r="5" fill="#111827"/><path d="M40 44 V64 M40 50 L32 58 M40 50 L48 58 M40 64 L34 78 M40 64 L46 78" stroke="#111827" stroke-width="4" stroke-linecap="round" fill="none"/>
+      <circle cx="62" cy="44" r="4" fill="#111827"/><path d="M62 49 V66 M62 54 L56 61 M62 54 L68 61 M62 66 L58 78 M62 66 L66 78" stroke="#111827" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+    </svg>"""
+
+
 def _warning_sign(symbol: str = "⚠") -> str:
     return f"""<svg viewBox="0 0 100 140" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <rect x="46" y="78" width="8" height="52" fill="#6b7280"/>
-      <polygon points="50,8 92,78 8,78" fill="#facc15" stroke="#1f2937" stroke-width="3"/>
-      <text x="50" y="62" text-anchor="middle" font-size="28">{symbol}</text>
+      <rect x="46" y="92" width="8" height="38" fill="#6b7280"/>
+      <polygon points="50,4 96,50 50,96 4,50" fill="#facc15" stroke="#1f2937" stroke-width="3" stroke-linejoin="round"/>
+      <text x="50" y="60" text-anchor="middle" font-size="26">{symbol}</text>
     </svg>"""
 
 
@@ -349,7 +359,7 @@ SPRITES: dict[str, str] = {
     "sign-work": _warning_sign("🚧"),
     "sign-bike": _warning_sign("🚲"),
     "school-sign": _warning_sign("🏫"),
-    "sign-school": _warning_sign("🏫"),
+    "sign-school": _school_sign(),
     "sign-guide": _guide_sign(),
     "sign-do-not-enter": _warning_sign("⛔"),
     "sign-one-way": _warning_sign("➡"),
