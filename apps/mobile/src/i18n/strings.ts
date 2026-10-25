@@ -58,7 +58,7 @@ export type StringKey =
   // Settings
   | "settings.title" | "settings.sub"
   | "settings.sectionNotif" | "settings.sectionLang" | "settings.sectionDiag"
-  | "settings.sectionVoice" | "settings.voiceDesc" | "settings.voiceDefault"
+  | "settings.sectionVoice" | "settings.voiceDesc" | "settings.voiceDefault" | "voice.defaultAuto" | "voice.customGroup" | "voice.footerTitle" | "home.more"
   | "settings.voiceAgent" | "settings.voiceAgentDesc" | "settings.voiceAgentSala" | "settings.voiceAgentXai"
   | "settings.sectionInstructor" | "settings.instructorDesc" | "settings.instructorAuto"
   | "settings.sectionTrainingLang" | "settings.trainingLangDesc"
@@ -523,6 +523,10 @@ const EN: Record<StringKey, string> = {
   "settings.sectionVoice": "VOICE & ACCENT",
   "settings.voiceDesc": "Accent and neural voice for all spoken courses — On the Go, live classes, and lessons. Matches the On the Go audio picker.",
   "settings.voiceDefault": "Default",
+  "voice.defaultAuto": "Default (auto)",
+  "voice.customGroup": "Custom voices (AI-generated)",
+  "voice.footerTitle": "Language and voice",
+  "home.more": "More",
   "settings.voiceAgent": "Voice agent",
   "settings.voiceAgentDesc": "Temporary choice for class voice. Sala is the usual teacher. xAI Voice Agent uses the speech service already configured on the server. The API key stays there.",
   "settings.voiceAgentSala": "Sala",

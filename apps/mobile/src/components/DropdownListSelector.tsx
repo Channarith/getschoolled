@@ -7,6 +7,8 @@ import { theme } from "../theme";
 export type DropdownOption = {
   key: string;
   label: string;
+  /** A group heading (like an optgroup): shown, never selectable. */
+  header?: boolean;
 };
 
 type Props = {
@@ -47,6 +49,7 @@ export default function DropdownListSelector({
       {open ? (
         <ScrollView nestedScrollEnabled style={[styles.options, { maxHeight }]}>
           {options.map((opt) => {
+            if (opt.header) return <Text key={opt.key} style={styles.groupHeader}>{opt.label}</Text>;
             const selected = opt.key === selectedKey;
             return (
               <AnimatedPressable
@@ -105,6 +108,9 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(255,255,255,0.06)",
+  },
+  groupHeader: {
+    color: theme.colors.muted, fontSize: 11, fontWeight: "800", letterSpacing: 0.6, paddingHorizontal: 12, paddingTop: 10, paddingBottom: 4,
   },
   optionSelected: { backgroundColor: "rgba(229, 9, 20, 0.16)" },
   optionLabel: { color: theme.colors.text, fontSize: 14, fontWeight: "600", flex: 1, lineHeight: 18, marginRight: 8, minWidth: 0 },

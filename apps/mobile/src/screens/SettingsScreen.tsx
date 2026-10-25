@@ -4,10 +4,10 @@ import {
 } from "react-native";
 
 import {
-  CURRICULUM_URL, IDENTITY_URL, checkServiceReachable, getTtsInstructors, getTtsVoices,
+  CURRICULUM_URL, IDENTITY_URL, checkServiceReachable, getTtsInstructors,
   getVoiceEnrollmentStatus,
   listStudents,
-  type Instructor, type StudentProfile, type VoiceEnrollmentStatus, type VoiceGroup,
+  type Instructor, type StudentProfile, type VoiceEnrollmentStatus,
 } from "../api";
 import { useAuth } from "../auth/AuthContext";
 import AnimatedPressable from "../components/AnimatedPressable";
@@ -16,8 +16,7 @@ import BiometricSetupModal from "../components/BiometricSetupModal";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
 import CameraTrackingCheck from "../components/CameraTrackingCheck";
-import NarratorVoicePicker from "../components/NarratorVoicePicker";
-import VoiceAgentToggle from "../components/VoiceAgentToggle";
+import VoicePicker from "../components/VoicePicker";
 import { DEPLOY_MODE } from "../config";
 import { useIntroSplash } from "../introSplash";
 import {
@@ -38,10 +37,6 @@ import AdaptiveContent from "../layout/AdaptiveContent";
 import { useLayoutMetrics } from "../layout";
 import { theme } from "../theme";
 import { APP_VERSION } from "../version";
-import {
-  loadVoiceAgentChoice, saveVoiceAgentChoice, subscribeVoiceAgent,
-  type VoiceAgentChoice,
-} from "../voiceAgentPref";
 
 type Props = {
   onAuthChange?: () => void;
@@ -73,16 +68,13 @@ export default function SettingsScreen({
   const [scheduled, setScheduled] = useState<number>(0);
   const [student, setStudent] = useState<StudentProfile | null>(null);
   const [identityUp, setIdentityUp] = useState<boolean | null>(null);
-  const [voiceGroups, setVoiceGroups] = useState<VoiceGroup[]>([]);
   const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [localeOpen, setLocaleOpen] = useState(false);
-  const [voiceOpen, setVoiceOpen] = useState(false);
   const [instructorOpen, setInstructorOpen] = useState(false);
   const [trainingLocaleOpen, setTrainingLocaleOpen] = useState(false);
   const [hourOpen, setHourOpen] = useState(false);
   const [showVoiceEnroll, setShowVoiceEnroll] = useState(false);
   const [voiceEnrollStatus, setVoiceEnrollStatus] = useState<VoiceEnrollmentStatus | null>(null);
-  const [voiceAgent, setVoiceAgent] = useState<VoiceAgentChoice>("sala");
 
   const probeIdentity = useCallback(async () => {
     const up = await checkServiceReachable(IDENTITY_URL);
@@ -127,19 +119,8 @@ export default function SettingsScreen({
     void refreshStudent();
     void refreshAccount();
     void probeIdentity();
-    void getTtsVoices().then((r) => setVoiceGroups(r.groups)).catch(() => setVoiceGroups([]));
     void getTtsInstructors().then((r) => setInstructors(r.instructors)).catch(() => setInstructors([]));
   }, [refreshStudent, refreshAccount, probeIdentity]);
-
-  useEffect(() => {
-    let alive = true;
-    void loadVoiceAgentChoice().then((next) => {
-      if (alive) setVoiceAgent(next);
-    });
-    return subscribeVoiceAgent((next) => {
-      if (alive) setVoiceAgent(next);
-    });
-  }, []);
 
   const update = (patch: Partial<Settings>): void => {
     setS((cur) => {
@@ -248,14 +229,6 @@ export default function SettingsScreen({
 
   const current = languageInfo(locale);
   const categoryLabel = student?.learner_category?.replace(/_/g, " ") || "";
-  const voiceOptions = [
-    { key: "", label: t("settings.voiceDefault") },
-    ...voiceGroups.flatMap((g) => g.voices).map((v) => ({
-      key: v.id,
-      label: `${v.accent}${v.gender ? ` · ${v.gender === "male" ? "M" : "F"}` : ""}`,
-    })),
-  ];
-  const selectedVoice = voiceOptions.find((v) => v.key === s.voiceId) ?? voiceOptions[0];
   const instructorOptions = [
     { key: "", label: t("settings.instructorAuto") },
     ...instructors.map((p) => ({ key: p.id, label: `${p.emoji} ${p.label}` })),
@@ -353,27 +326,8 @@ export default function SettingsScreen({
       <Section title={t("settings.sectionVoice")}>
         <Text style={styles.desc}>{t("settings.voiceDesc")}</Text>
         <Text style={styles.desc}>{t("settings.voiceAgentDesc")}</Text>
-        <NarratorVoicePicker />
-        <VoiceAgentToggle
-          value={voiceAgent}
-          onChange={(next) => {
-            setVoiceAgent(next);
-            void saveVoiceAgentChoice(next);
-          }}
-        />
         <View style={{ marginTop: 10 }}>
-          <DropdownListSelector
-            title={t("settings.sectionVoice")}
-            selectedLabel={selectedVoice.label}
-            selectedKey={selectedVoice.key}
-            options={voiceOptions}
-            open={voiceOpen}
-            onToggle={() => setVoiceOpen((v) => !v)}
-            onSelect={(key) => {
-              update({ voiceId: key });
-              setVoiceOpen(false);
-            }}
-          />
+          <VoicePicker />
         </View>
       </Section>
 

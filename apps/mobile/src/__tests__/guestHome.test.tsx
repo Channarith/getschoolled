@@ -49,6 +49,14 @@ describe("GuestHomeScreen", () => {
     expect(screen.getByTestId("auth-screen")).toBeTruthy();
   });
 
+  test("the landing has exactly two buttons, Demo and Login, like the site", () => {
+    const screen = render(<GuestHomeScreen />);
+    expect(screen.getByTestId("guest-try-demo")).toBeTruthy();
+    expect(screen.getByTestId("guest-log-in")).toBeTruthy();
+    expect(screen.queryByTestId("guest-create-account")).toBeNull();
+    expect(screen.queryByText(/create your account/i)).toBeNull();
+  });
+
   test("opens a demo from the picker", () => {
     const screen = render(<GuestHomeScreen />);
     fireEvent.press(screen.getByTestId("guest-try-demo"));

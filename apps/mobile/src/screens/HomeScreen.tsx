@@ -22,6 +22,7 @@ import type { StudioCourseId } from "../studioCourses";
 import Rail, { CategoryTile, CourseCard } from "../components/Rail";
 import MascotSvg from "../components/MascotSvg";
 import AdBanner from "../components/AdBanner";
+import HomeFooter from "../components/HomeFooter";
 import { useAuth } from "../auth/AuthContext";
 import { useT } from "../i18n";
 import { theme, wallpapers } from "../theme";
@@ -62,11 +63,11 @@ export default function HomeScreen({
   const [savedRows, setSavedRows] = useState<AudioCourseRow[]>([]);
   const [newRows, setNewRows] = useState<AudioCourseRow[]>([]);
   const [forYou, setForYou] = useState<AudioCourseRow[]>([]);
-  const [trending, setTrending] = useState<AudioCourseRow[]>([]);
   const [cats, setCats] = useState<CategoryRow[]>([]);
   const [streakDays, setStreakDays] = useState(0);
   const [savedSet, setSavedSet] = useState<Set<string>>(new Set());
   const [showMascot, setShowMascot] = useState(false);
+  const [showMore, setShowMore] = useState(false);
   // Tracks the alive object for whichever load is currently in-flight (effect or refresh).
   const loadAliveRef = useRef<{ current: boolean }>({ current: false });
   const load = async (aliveObj: { current: boolean }) => {
@@ -94,7 +95,6 @@ export default function HomeScreen({
       const savedIdSet = new Set(savedIds);
       setSavedSet(savedIdSet);
       setNewRows(all.courses.slice(0, 12));
-      setTrending(all.courses.slice(12, 24));
 
       const interestSet = new Set(interests);
       const matches = all.courses.filter((c) =>
@@ -191,7 +191,6 @@ export default function HomeScreen({
               </AnimatedPressable>
             )}
           </View>
-          <Text style={styles.kicker}>{t("home.kicker")}</Text>
           <Text style={styles.hero}>{t("home.hero")}</Text>
           <Text style={styles.heroSub}>
             {streakDays > 0 ? t("home.subStreak", { days: streakDays }) : t("home.subDefault")}
@@ -204,32 +203,11 @@ export default function HomeScreen({
                 onPress={onOpenArcade}
               />
             ) : null}
-            {onOpenWorlds ? (
-              <HomeAction
-                icon="earth-outline"
-                label={t("home.navWorlds")}
-                onPress={onOpenWorlds}
-              />
-            ) : null}
             {onOpenLanguages ? (
               <HomeAction
                 icon="mic-outline"
                 label={t("home.navLanguages")}
                 onPress={onOpenLanguages}
-              />
-            ) : null}
-            {onOpenRewards ? (
-              <HomeAction
-                icon="trophy-outline"
-                label={t("home.navRewards")}
-                onPress={onOpenRewards}
-              />
-            ) : null}
-            {onOpenGroupClasses ? (
-              <HomeAction
-                icon="people-outline"
-                label={t("home.navGroups")}
-                onPress={onOpenGroupClasses}
               />
             ) : null}
             {onOpenLiveClass ? (
@@ -239,19 +217,49 @@ export default function HomeScreen({
                 onPress={onOpenLiveClass}
               />
             ) : null}
-            {onOpenCorporate ? (
-              <HomeAction
-                icon="briefcase-outline"
-                label={t("home.navCorporate")}
-                onPress={onOpenCorporate}
-              />
-            ) : null}
-            {onOpenKids ? (
-              <HomeAction
-                icon="happy-outline"
-                label={t("home.navKids")}
-                onPress={onOpenKids}
-              />
+            <HomeAction
+              icon={showMore ? "chevron-up-outline" : "ellipsis-horizontal"}
+              label={t("home.more")}
+              onPress={() => setShowMore((v) => !v)}
+            />
+            {showMore ? (
+              <>
+              {onOpenWorlds ? (
+                <HomeAction
+                  icon="earth-outline"
+                  label={t("home.navWorlds")}
+                  onPress={onOpenWorlds}
+                />
+              ) : null}
+              {onOpenRewards ? (
+                <HomeAction
+                  icon="trophy-outline"
+                  label={t("home.navRewards")}
+                  onPress={onOpenRewards}
+                />
+              ) : null}
+              {onOpenGroupClasses ? (
+                <HomeAction
+                  icon="people-outline"
+                  label={t("home.navGroups")}
+                  onPress={onOpenGroupClasses}
+                />
+              ) : null}
+              {onOpenCorporate ? (
+                <HomeAction
+                  icon="briefcase-outline"
+                  label={t("home.navCorporate")}
+                  onPress={onOpenCorporate}
+                />
+              ) : null}
+              {onOpenKids ? (
+                <HomeAction
+                  icon="happy-outline"
+                  label={t("home.navKids")}
+                  onPress={onOpenKids}
+                />
+              ) : null}
+              </>
             ) : null}
           </View>
           {guestMode ? (
@@ -359,22 +367,6 @@ export default function HomeScreen({
       />
 
       <Rail
-        title={t("rail.trending")}
-        data={trending}
-        keyExtractor={(c) => c.id}
-        renderItem={(c) => (
-          <CourseCard
-            emoji="📈"
-            title={c.title}
-            category={c.category}
-            meta={`${c.category} · ${c.duration_min} ${t("meta.min")}`}
-            savedBadge={savedSet.has(c.id)}
-            onPress={() => open(c.id, c.category)}
-          />
-        )}
-      />
-
-      <Rail
         title={t("rail.categories")}
         data={cats}
         keyExtractor={(c) => c.category_id || c.category}
@@ -386,6 +378,8 @@ export default function HomeScreen({
       />
 
       <AdBanner tier={account?.tier} placement="mobile-home-banner" />
+
+      {guestMode ? null : <HomeFooter />}
     </ScrollView>
   );
 }

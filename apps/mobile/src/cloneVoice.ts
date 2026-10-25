@@ -60,6 +60,12 @@ function loadIndex(voice: string) {
   return indexes.get(voice)!;
 }
 
+/** Language codes this voice has published clips for (empty when the voice has no index yet). */
+export async function cloneVoiceLanguages(voice: string): Promise<string[]> {
+  const index = await loadIndex(voice);
+  return index ? Object.keys(index.clips || {}).filter((l) => (index.clips?.[l] || []).length > 0) : [];
+}
+
 export function resetCloneVoiceCacheForTests(): void {
   voicesPromise = null;
   indexes.clear();
