@@ -102,6 +102,8 @@ def start_card_checkout(
     return_url: str,
     email: str = "",
     automatic_tax: bool = False,
+    tax_cents: int = 0,
+    tax_label: str = "Sales tax",
     opener: Callable[..., Any] = _OPENER,
 ) -> dict[str, str]:
     secret = _stripe_secret()
@@ -126,6 +128,13 @@ def start_card_checkout(
     }
     if email:
         fields["customer_email"] = email[:200]
+    if tax_cents > 0 and not automatic_tax:
+        # Manual mode: the server computed the tax for the buyer's state; it is its own line on the receipt.
+        fields["line_items[1][quantity]"] = "1"
+        fields["line_items[1][price_data][currency]"] = "usd"
+        fields["line_items[1][price_data][unit_amount]"] = str(int(tax_cents))
+        fields["line_items[1][price_data][product_data][name]"] = tax_label[:120]
+        fields["metadata[tax_cents]"] = str(int(tax_cents))
     if automatic_tax:
         fields["automatic_tax[enabled]"] = "true"
         fields["billing_address_collection"] = "required"
@@ -154,7 +163,8 @@ def card_session(session_id: str, *, opener: Callable[..., Any] = _OPENER) -> di
     if not secret:
         return {}
     return _request_json(
-        "https://api.stripe.com/v1/checkout/sessions/" + urllib.parse.quote(session_id, safe=""),
+        "https://api.stripe.com/v1/checkout/sessions/" + urllib.parse.quote(session_id, safe="")
+        + "?expand%5B%5D=payment_intent.latest_charge",
         headers={"Authorization": f"Bearer {secret}"},
         opener=opener,
     )
@@ -175,11 +185,19 @@ def paid_from_stripe_session(session: dict[str, Any]) -> Optional[dict[str, Any]
     details = session.get("customer_details") or {}
     totals = session.get("total_details") or {}
     total = int(session.get("amount_total") or 0)
-    tax = int(totals.get("amount_tax") or 0)
+    try:
+        tax = int(totals.get("amount_tax") or 0) or int(meta.get("tax_cents") or 0)
+    except (TypeError, ValueError):
+        tax = 0
+    intent = session.get("payment_intent")
+    charge = (intent.get("latest_charge") if isinstance(intent, dict) else None) or {}
+    card = ((charge.get("payment_method_details") or {}).get("card") or {}) if isinstance(charge, dict) else {}
     return {
         "account_id": account_id, "course_id": course_id, "provider": "stripe", "provider_ref": str(session.get("id") or ""),
         "amount_cents": max(total - tax, 0), "tax_cents": tax, "currency": str(session.get("currency") or "usd"),
-        "email": str(details.get("email") or ""), "payment_intent": str(session.get("payment_intent") or ""),
+        "email": str(details.get("email") or ""),
+        "payment_intent": str(intent.get("id") if isinstance(intent, dict) else (intent or "")),
+        "last4": str(card.get("last4") or ""),
     }
 
 
@@ -236,6 +254,18 @@ def _basic(client_id: str, secret: str) -> str:
     return base64.b64encode(f"{client_id}:{secret}".encode()).decode()
 
 
+def _usd(cents: int) -> str:
+    return f"{int(cents) // 100}.{int(cents) % 100:02d}"
+
+
+def _paypal_amount(price_cents: int, tax_cents: int, title: str, tax_label: str) -> dict[str, Any]:
+    if tax_cents <= 0:
+        return {"currency_code": "USD", "value": _usd(price_cents)}
+    return {"currency_code": "USD", "value": _usd(price_cents + tax_cents),
+            "breakdown": {"item_total": {"currency_code": "USD", "value": _usd(price_cents)},
+                          "tax_total": {"currency_code": "USD", "value": _usd(tax_cents)}}}
+
+
 def start_paypal_checkout(
     *,
     account_id: str,
@@ -243,6 +273,8 @@ def start_paypal_checkout(
     title: str,
     amount_cents: int,
     return_url: str,
+    tax_cents: int = 0,
+    tax_label: str = "Sales tax",
     opener: Callable[..., Any] = _OPENER,
 ) -> dict[str, str]:
     access = _paypal_token(opener)
@@ -257,7 +289,9 @@ def start_paypal_checkout(
                     {
                         "custom_id": f"{account_id}:{course_id}"[:127],
                         "description": (title or "Full course")[:127],
-                        "amount": {"currency_code": "USD", "value": f"{int(amount_cents) // 100}.{int(amount_cents) % 100:02d}"},
+                        "amount": _paypal_amount(int(amount_cents), int(tax_cents), title or "Full course", tax_label),
+                        **({"items": [{"name": (title or "Full course")[:127], "quantity": "1",
+                                       "unit_amount": {"currency_code": "USD", "value": _usd(int(amount_cents))}}]} if tax_cents > 0 else {}),
                     }
                 ],
                 "application_context": {
@@ -312,9 +346,13 @@ def paid_from_paypal_order(order: dict[str, Any]) -> Optional[dict[str, Any]]:
     except ValueError:
         cents = 0
     payer = order.get("payer") or {}
+    try:
+        tax = int(round(float((((unit.get("amount") or {}).get("breakdown") or {}).get("tax_total") or {}).get("value") or 0) * 100))
+    except (TypeError, ValueError):
+        tax = 0
     return {
         "account_id": account_id, "course_id": course_id, "provider": "paypal", "provider_ref": str(order.get("id") or ""),
-        "amount_cents": cents, "tax_cents": 0, "currency": "usd", "email": str(payer.get("email_address") or ""),
+        "amount_cents": max(cents - tax, 0), "tax_cents": tax, "currency": "usd", "email": str(payer.get("email_address") or ""),
         "capture_id": str(capture.get("id") or ""),
     }
 
@@ -354,3 +392,40 @@ def verify_paypal_webhook(
         opener=opener,
     )
     return str(result.get("verification_status") or "") == "SUCCESS"
+
+
+def stripe_refund(
+    payment_intent: str, amount_cents: int, *, order_id: str, opener: Callable[..., Any] = _OPENER
+) -> dict[str, Any]:
+    """Refund a card payment. The idempotency key makes a retry of the same order refund once, never twice."""
+    secret = _stripe_secret()
+    if not secret:
+        raise RuntimeError("Card refunds need PAYMENT_API_KEY on the server.")
+    if not payment_intent:
+        raise RuntimeError("This order has no card payment to refund.")
+    return _request_json(
+        "https://api.stripe.com/v1/refunds",
+        method="POST",
+        data=urllib.parse.urlencode({"payment_intent": payment_intent, "amount": str(int(amount_cents)),
+                                     "metadata[order_id]": order_id}).encode(),
+        headers={"Authorization": f"Bearer {secret}", "Content-Type": "application/x-www-form-urlencoded",
+                 "Idempotency-Key": f"refund-{order_id}"},
+        opener=opener,
+    )
+
+
+def paypal_refund(
+    capture_id: str, amount_cents: int, *, order_id: str, opener: Callable[..., Any] = _OPENER
+) -> dict[str, Any]:
+    if not capture_id:
+        raise RuntimeError("This order has no PayPal capture to refund.")
+    access = _paypal_token(opener)
+    return _request_json(
+        _paypal_base() + "/v2/payments/captures/" + urllib.parse.quote(capture_id, safe="") + "/refund",
+        method="POST",
+        data=json.dumps({"amount": {"currency_code": "USD", "value": _usd(int(amount_cents))},
+                         "note_to_payer": "Course refund"}).encode(),
+        headers={"Authorization": f"Bearer {access}", "Content-Type": "application/json",
+                 "PayPal-Request-Id": f"refund-{order_id}"},
+        opener=opener,
+    )

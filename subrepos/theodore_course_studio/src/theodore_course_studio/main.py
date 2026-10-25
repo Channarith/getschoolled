@@ -861,6 +861,11 @@ def teach_start(
         enrollment_status=enrollment,
         is_admin=trusted["is_admin"],
     )
+    if access == "full" and trusted.get("caller") and _purchases_for(req.course_id) is not None:
+        try:
+            _purchases_for(req.course_id).mark_started(str(trusted["caller"].get("id") or ""), req.course_id)
+        except Exception:  # noqa: BLE001 - bookkeeping for the refund rules must never block a lesson
+            pass
     course = _builder.get_course(req.course_id)
     from aoep_shared.accreditation import requires_identity_assurance_for_category
 
