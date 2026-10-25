@@ -17,6 +17,39 @@ from pathlib import Path
 from .base import Adapter, AdapterError, have, write_wav
 
 
+def load_prompt_wav(path: str, target_sr: int = 16000):
+    """Read the reference wav as a (1, T) float tensor at target_sr without torchaudio.load.
+
+    Newer torchaudio routes load() through TorchCodec, which is not installed on the Spark, so CosyVoice's own
+    load_wav raises ImportError on every clip. soundfile (if present) or the stdlib wave module reads the file; the
+    resample uses torchaudio.functional, which has no TorchCodec dependency.
+    """
+    import numpy as np
+
+    try:
+        import soundfile as sf
+
+        data, sr = sf.read(path, dtype="float32", always_2d=True)
+        mono = data.mean(axis=1)
+    except Exception:  # noqa: BLE001 - soundfile missing or cannot read this file: fall back to PCM16 via wave
+        import wave
+
+        with wave.open(path, "rb") as w:
+            sr, ch, width = w.getframerate(), w.getnchannels(), w.getsampwidth()
+            if width != 2:
+                raise AdapterError(f"reference wav must be 16-bit PCM, got {width * 8}-bit: {path}") from None
+            raw = np.frombuffer(w.readframes(w.getnframes()), dtype="<i2").astype("float32") / 32768.0
+        mono = raw.reshape(-1, ch).mean(axis=1) if ch > 1 else raw
+    import torch
+
+    speech = torch.from_numpy(np.ascontiguousarray(mono)).unsqueeze(0)
+    if sr != target_sr:
+        import torchaudio.functional as taf
+
+        speech = taf.resample(speech, sr, target_sr)
+    return speech
+
+
 class CosyVoice2Adapter(Adapter):
     name = "cosyvoice2"
     languages = {"en", "es", "zh"}
@@ -64,10 +97,9 @@ class CosyVoice2Adapter(Adapter):
                 return w.getframerate()
         import torchaudio
         from cosyvoice.cli.cosyvoice import CosyVoice2
-        from cosyvoice.utils.file_utils import load_wav
 
         self._model = self._model or CosyVoice2(self.model_dir())
-        prompt = load_wav(self.options["prompt_wav"], 16000)
+        prompt = load_prompt_wav(self.options["prompt_wav"], 16000)
         gen = self._infer(self._model, text, lang, prompt)
         parts = [j["tts_speech"] for j in gen]
         import torch
