@@ -185,12 +185,14 @@ def test_clear_needs_a_native_speaker_and_valid_tones(stock_copy):
 
 
 def test_the_picker_cannot_activate_a_voice_nobody_cleared(stock_copy, tmp_path):
+    vid = "stock-m-adult-deep"   # Sage is cleared (the owner's default); this one is not
+    assert not registry.get(vid, stock_copy).get("cleared")
     vj = tmp_path / "voices.json"
-    vj.write_text(json.dumps({"voices": [{"id": "stock-f-young-warm", "active": False}]}))
+    vj.write_text(json.dumps({"voices": [{"id": vid, "active": False}]}))
     with pytest.raises(registry.StockError):
-        registry.activate("stock-f-young-warm", vj, stock_copy)
-    registry.clear("stock-f-young-warm", "yue", "Wei", path=stock_copy)
-    registry.activate("stock-f-young-warm", vj, stock_copy)
+        registry.activate(vid, vj, stock_copy)
+    registry.clear(vid, "yue", "Wei", path=stock_copy)
+    registry.activate(vid, vj, stock_copy)
     assert json.loads(vj.read_text())["voices"][0]["active"] is True
 
 

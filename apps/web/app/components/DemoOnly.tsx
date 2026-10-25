@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import LandingAuthPanel from "./LandingAuthPanel";
-import LanguagePicker from "./LanguagePicker";
 import MascotImage from "./MascotImage";
 import { useFlag, useFlags, useLoginGateHidden } from "../lib/flags";
 import { useT } from "../lib/i18n";
@@ -127,9 +126,6 @@ export function DemoOnlyLanding() {
         {!loginHidden && (
           <Link href="/login" style={secondaryCta}>{t("landing.logIn")}</Link>
         )}
-      </div>
-      <div style={{ marginTop: 28 }}>
-        <LanguagePicker compact />
       </div>
     </DemoOnlyShell>
   );

@@ -140,7 +140,17 @@ def publish(root: Path, manifest: dict | None = None, check_consent=consent_ok, 
             entry["primary_lang"] = v["primary_lang"]
         if v.get("gender") in ("male", "female"):
             entry["gender"] = v["gender"]   # the pages fall back to an edge voice of this gender when a clip is missing
+        entry["name"] = v["label"]          # the bare name ("Sage"): the picker writes "Salane Voice (Sage)" for the default
+        if stock:
+            entry["kind"] = "stock"
+        if v.get("default") and active:
+            entry["default"] = True         # the Salane Voice for visitors who never chose one (exactly one voice carries it)
         out.append(entry)
+    defaults = [e["id"] for e in out if e.get("default")]
+    if len(defaults) > 1:
+        for e in out:
+            if e["id"] in defaults[1:]:
+                e.pop("default", None)      # a second default would make the choice depend on list order: keep the first
     doc = {"voices": out, "updated": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
     (root / "voices.json").write_text(json.dumps(doc, indent=1), encoding="utf-8")
     return doc

@@ -32,9 +32,8 @@ import {
   DEFAULT_SETTINGS, getSettings, setSettings,
   type Settings,
 } from "../storage";
-import { TRAINING_LOCALE_LABELS, TRAINING_LOCALES } from "../trainingLocale";
 import { applyVoicePrefsToTts, voicePrefsFromSettings } from "../narrationTts";
-import { LANGUAGES, languageInfo, useT, type LocaleCode } from "../i18n";
+import { useT } from "../i18n";
 import AdaptiveContent from "../layout/AdaptiveContent";
 import { useLayoutMetrics } from "../layout";
 import { theme } from "../theme";
@@ -63,7 +62,7 @@ export default function SettingsScreen({
   guestMode = false, onOpenAccount, onOpenRewards, onOpenLanguages, onOpenBilling,
   onOpenHomework, onOpenTraining, onOpenBugReport, onSignIn, onOpenCameraCheck,
 }: Props) {
-  const { t, locale, setLocale } = useT();
+  const { t } = useT();
   const { playFullIntro } = useIntroSplash();
   const { account, signOut, refreshAccount } = useAuth();
   const [s, setS] = useState<Settings>(DEFAULT_SETTINGS);
@@ -73,9 +72,7 @@ export default function SettingsScreen({
   const [student, setStudent] = useState<StudentProfile | null>(null);
   const [identityUp, setIdentityUp] = useState<boolean | null>(null);
   const [instructors, setInstructors] = useState<Instructor[]>([]);
-  const [localeOpen, setLocaleOpen] = useState(false);
   const [instructorOpen, setInstructorOpen] = useState(false);
-  const [trainingLocaleOpen, setTrainingLocaleOpen] = useState(false);
   const [hourOpen, setHourOpen] = useState(false);
   const [showVoiceEnroll, setShowVoiceEnroll] = useState(false);
   const [debugOn, setDebugOn] = useState(isDebugMode());
@@ -235,19 +232,12 @@ export default function SettingsScreen({
     await refreshScheduled();
   };
 
-  const current = languageInfo(locale);
   const categoryLabel = student?.learner_category?.replace(/_/g, " ") || "";
   const instructorOptions = [
     { key: "", label: t("settings.instructorAuto") },
     ...instructors.map((p) => ({ key: p.id, label: `${p.emoji} ${p.label}` })),
   ];
   const selectedInstructor = instructorOptions.find((p) => p.key === s.instructorId) ?? instructorOptions[0];
-  const trainingLocaleOptions = TRAINING_LOCALES.map((loc) => ({
-    key: loc,
-    label: TRAINING_LOCALE_LABELS[loc],
-  }));
-  const selectedTrainingLocale = trainingLocaleOptions.find((loc) => loc.key === s.trainingLocale)
-    ?? trainingLocaleOptions[0];
   const reminderHours = [7, 8, 9, 12, 15, 18, 20, 21];
   const selectedReminderHour = `${pad(s.dailyReminderHour)}:00`;
   const { overlayTopPad, tabBarClearance } = useLayoutMetrics();
@@ -313,24 +303,6 @@ export default function SettingsScreen({
         </Text>
       </Section>
 
-      <Section title={t("settings.sectionLang")}>
-        <Text style={styles.desc}>{t("settings.languageDesc")}</Text>
-        <View style={{ marginTop: 10 }}>
-          <DropdownListSelector
-            title={t("settings.language")}
-            selectedLabel={`${current.flag} ${current.native}`}
-            selectedKey={locale}
-            options={LANGUAGES.map((lang) => ({ key: lang.code, label: `${lang.flag} ${lang.native}` }))}
-            open={localeOpen}
-            onToggle={() => setLocaleOpen((v) => !v)}
-            onSelect={(code) => {
-              setLocale(code as LocaleCode);
-              setLocaleOpen(false);
-            }}
-          />
-        </View>
-      </Section>
-
       <Section title={t("settings.sectionVoice")}>
         <Text style={styles.desc}>{t("settings.voiceDesc")}</Text>
         <Text style={styles.desc}>{t("settings.voiceAgentDesc")}</Text>
@@ -367,24 +339,6 @@ export default function SettingsScreen({
             onSelect={(key) => {
               update({ instructorId: key });
               setInstructorOpen(false);
-            }}
-          />
-        </View>
-      </Section>
-
-      <Section title={t("settings.sectionTrainingLang")}>
-        <Text style={styles.desc}>{t("settings.trainingLangDesc")}</Text>
-        <View style={{ marginTop: 10 }}>
-          <DropdownListSelector
-            title={t("settings.sectionTrainingLang")}
-            selectedLabel={selectedTrainingLocale?.label ?? ""}
-            selectedKey={selectedTrainingLocale?.key ?? ""}
-            options={trainingLocaleOptions}
-            open={trainingLocaleOpen}
-            onToggle={() => setTrainingLocaleOpen((v) => !v)}
-            onSelect={(key) => {
-              setLocale(key as LocaleCode);
-              setTrainingLocaleOpen(false);
             }}
           />
         </View>

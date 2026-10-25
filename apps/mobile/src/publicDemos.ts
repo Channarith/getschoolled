@@ -107,14 +107,17 @@ const SPEECH_BCP: Record<string, string> = {
 /**
  * Copies the voice the learner picked in the app into the hosted demo page's own storage before the page runs.
  * The demos are web pages inside a WebView with a separate localStorage, so without this they would ignore the app's choice.
- * Keys match the site: aoep_demo_voice (custom voice id or "default"), aoep_drive_voice (catalog voice id), aoep_live_voice_engine.
+ * Keys match the site: aoep_demo_voice (custom voice id or "default"), aoep_drive_voice (catalog voice id), aoep_voice_explicit ("1" an edge
+ * voice picked on purpose, "0" the Salane Voice picked on purpose, absent when never chosen), aoep_live_voice_engine. A learner who never
+ * chose gets the published default (Sage) in the page, exactly as on the site.
  */
-export function demoVoiceHandoffScript(p: { cloneVoice?: string; voiceId?: string; agent?: string }): string {
+export function demoVoiceHandoffScript(p: { cloneVoice?: string; voiceId?: string; agent?: string; explicit?: "1" | "0" | "" }): string {
   const put = (key: string, value: string) => `try{localStorage.setItem(${JSON.stringify(key)},${JSON.stringify(value)});}catch(e){}`;
   const drop = (key: string) => `try{localStorage.removeItem(${JSON.stringify(key)});}catch(e){}`;
   return [
     put("aoep_demo_voice", p.cloneVoice || "default"),
     p.voiceId ? put("aoep_drive_voice", p.voiceId) : drop("aoep_drive_voice"),
+    p.explicit ? put("aoep_voice_explicit", p.explicit) : drop("aoep_voice_explicit"),
     put("aoep_live_voice_engine", p.agent === "xai" ? "xai" : "salane"),
     "true;",
   ].join("\n");

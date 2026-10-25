@@ -11,6 +11,7 @@ const PROFILE: Partial<Record<Locale, Record<string, string>>> = {
     "profile.getApp": "Get the app",
     "profile.language": "Language",
     "profile.voice": "Voice",
+    "voice.search": "Search voices or languages",
     "profile.signIn": "Sign in",
     "profile.createAccount": "Create account",
     "profile.signOut": "Sign out",
