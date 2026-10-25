@@ -17,6 +17,7 @@
     <label class="btn" tabindex="0" id="add-files-label">Add audio files
       <input id="add-files" type="file" multiple accept="audio/*,.wav,.mp3,.m4a,.ogg,.flac,.webm,.json,.jsonl" hidden>
     </label>
+    <button class="btn" id="rescan" type="button" title="Look for clips added since the page loaded (this also happens by itself every 20 seconds)">Refresh clips</button>
     <button class="btn" id="help-btn" type="button" aria-haspopup="dialog">Keys ?</button>
   </div>
 </header>
@@ -35,6 +36,7 @@
     <button type="button" id="lang-btn" class="btn lang-btn" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="lang-label lang-btn-text"><span id="lang-btn-text">Language</span> <span aria-hidden="true">▾</span></button>
     <div id="lang-pop" class="lang-pop" hidden>
       <input id="lang-q" type="search" placeholder="Search by name, native name or code" aria-label="Search languages" role="combobox" aria-expanded="true" aria-controls="lang-list" autocomplete="off">
+      <label class="lang-toggle"><input type="checkbox" id="lang-empty"> Show languages without clips yet</label>
       <ul id="lang-list" class="lang-list" role="listbox" aria-label="Languages"></ul>
     </div>
   </div>
@@ -61,6 +63,7 @@
 </section>
 
 <p id="status" class="status" role="status" aria-live="polite">Open a run folder, or drop audio files or folders anywhere on this page.</p>
+<p id="run-live" class="status" role="status" aria-live="polite" hidden></p>
 
 <main id="main">
   <section id="grid" role="tabpanel" aria-labelledby="tab-grid"></section>

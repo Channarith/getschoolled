@@ -40,10 +40,26 @@ def load_manifest(path: Path = MANIFEST) -> dict:
 
 
 def voice_cfg(voice: str) -> dict:
+    base, _, tone = voice.partition("~")   # 'stock-f-young-warm~professional': a tone variant of a stock voice
     for v in json.loads(VOICES.read_text(encoding="utf-8"))["voices"]:
-        if v["id"] == voice:
+        if v["id"] == base:
+            if tone:
+                if v.get("kind") != "stock":
+                    raise SystemExit(f"{voice!r}: only stock voices have tone variants")
+                return {**v, "id": voice, "tone": tone, "label": f"{v['label']} ({tone})"}
             return v
     raise SystemExit(f"unknown voice {voice!r}: add it to tts_manifest/voices.json")
+
+
+def is_stock(cfg: dict) -> bool:
+    """A designed VoxCPM2 voice: no person, so no consent record; it is gated on its frozen reference instead."""
+    return cfg.get("kind") == "stock"
+
+
+def stock_ready(cfg: dict, root: Path | None = None) -> bool:
+    from tts_bakeoff.voice_design import registry as stock
+
+    return stock.frozen_meta(cfg["id"], root) is not None
 
 
 def in_shard(h: str, shard: str | None) -> bool:
@@ -94,7 +110,8 @@ def publish(root: Path, manifest: dict | None = None, check_consent=consent_ok, 
     root.mkdir(parents=True, exist_ok=True)
     out = []
     for v in manifest["voices"]:
-        active = bool(v.get("active", True)) and check_consent(v["speaker"])
+        stock = is_stock(v)
+        active = bool(v.get("active", True)) and (stock_ready(v, root) if stock else check_consent(v["speaker"]))
         index: dict[str, list[str]] = {}
         for p in sorted((root / v["id"]).glob("*/*.mp3")) if active else []:
             if reviewed_only and _unreviewed(p):
@@ -103,8 +120,8 @@ def publish(root: Path, manifest: dict | None = None, check_consent=consent_ok, 
         if (root / v["id"]).is_dir() or active:
             (root / v["id"]).mkdir(parents=True, exist_ok=True)
             (root / v["id"] / "index.json").write_text(json.dumps({"voice": v["id"], "ext": "mp3", "clips": index}, indent=1), encoding="utf-8")
-        label = display_name(v["speaker"], v["label"]) if active else v["label"]
-        shown = f"{label} ({language_name(v['primary_lang'])})" if v.get("primary_lang") else label   # 'Wei (Cantonese)', 'Wei Miao (English)'
+        label = display_name(v["speaker"], v["label"]) if (active and not stock) else v["label"]
+        shown = (f"{label} (designed)" if stock else f"{label} ({language_name(v['primary_lang'])})" if v.get("primary_lang") else label)   # 'Wei (Cantonese)', 'Wei Miao (English)', 'Sage (designed)'
         entry = {"id": v["id"], "label": shown, "ai_label": v.get("ai_label", f"AI-generated voice of {label}"), "active": active}
         if v.get("primary_lang"):
             entry["primary_lang"] = v["primary_lang"]
@@ -119,6 +136,8 @@ def publish(root: Path, manifest: dict | None = None, check_consent=consent_ok, 
 def prune_revoked(root: Path, check_consent=consent_ok) -> list[str]:
     gone = []
     for v in json.loads(VOICES.read_text(encoding="utf-8"))["voices"]:
+        if is_stock(v):
+            continue   # a designed voice has no consent to lose
         if not check_consent(v["speaker"]) and (root / v["id"]).is_dir():
             shutil.rmtree(root / v["id"])
             gone.append(v["id"])
@@ -130,10 +149,20 @@ def run(voice: str, root: Path, shard: str | None, langs: set[str] | None, limit
         adapter=None, convert=wav_to_mp3, reviewed_only: bool = False, own: set[str] | None = None) -> dict:
     manifest = manifest or load_manifest()
     cfg = voice_cfg(voice)
-    registry.require_consent(cfg["speaker"], "course_narration")
+    stock = is_stock(cfg)
+    if stock:
+        if not stock_ready(cfg, root):
+            raise SystemExit(f"{voice}: no frozen reference yet (python3 -m tts_bakeoff.voice_design freeze --voices {voice})")
+    else:
+        registry.require_consent(cfg["speaker"], "course_narration")
     if adapter is None:
-        from tts_bakeoff.voice_clone.synth import build_adapter
-        adapter = build_adapter(cfg["model"], cfg["speaker"])
+        if stock:
+            from tts_bakeoff.voice_design.design import build_adapter as build_stock
+
+            adapter = build_stock(cfg["id"], root)
+        else:
+            from tts_bakeoff.voice_clone.synth import build_adapter
+            adapter = build_adapter(cfg["model"], cfg["speaker"])
     supported = set(getattr(adapter, "languages", set()) or set())
     stats = {"ok": 0, "skipped_existing": 0, "skipped_unsupported": 0, "failed": 0}
     todo = [c for c in manifest["clips"] if in_shard(c["hash"], shard) and (not langs or c["lang"] in langs)]
@@ -157,8 +186,9 @@ def run(voice: str, root: Path, shard: str | None, langs: set[str] | None, limit
                 adapter.synthesize(c["text"], c["lang"], wav)
                 convert(wav, mp3)
             mp3.with_suffix(".json").write_text(json.dumps({
-                "text": c["text"], "lang": c["lang"], "demo": c["demo"], "model": cfg["model"], "speaker": cfg["speaker"],
+                "text": c["text"], "lang": c["lang"], "demo": c["demo"], "model": cfg["model"], "speaker": cfg.get("speaker") or cfg["id"],
                 "ai_generated": True, "label": cfg.get("ai_label", f"AI-generated voice of {cfg['label']}"),
+                **({"designed": True, "stock": cfg["id"]} if stock else {}),
                 **({"translation_status": c["status"]} if c.get("status") else {}),
                 **({"cross_lingual": True} if own and c["lang"] not in own else {}),
             }, ensure_ascii=False, indent=1), encoding="utf-8")
@@ -172,7 +202,12 @@ def run(voice: str, root: Path, shard: str | None, langs: set[str] | None, limit
 
 
 def own_langs(cfg: dict) -> set[str]:
-    """The languages this voice was enrolled in (falls back to the voice's primary_lang, then English)."""
+    """The languages this voice was enrolled in (falls back to the voice's primary_lang, then English). A stock voice has no enrolment: its
+    cleared languages come from tts_manifest/stock_voices.json ('langs')."""
+    if is_stock(cfg):
+        from tts_bakeoff.voice_design import registry as stock
+
+        return set(stock.get(stock.split_id(cfg["id"])[0]).get("langs") or [cfg.get("primary_lang", "en")])
     try:
         langs = speaker_languages(cfg["speaker"])
     except registry.ConsentError:
@@ -215,14 +250,14 @@ def main(argv=None) -> int:
         voices = [v["id"] for v in json.loads(VOICES.read_text(encoding="utf-8"))["voices"] if v.get("active", True)] if args.voice == "all" else [args.voice]
         bad = 0
         for voice in voices:
-            if not consent_ok(voice_cfg(voice)["speaker"]):
-                print(f"{voice}: no valid consent right now, skipped", flush=True)
+            cfg = voice_cfg(voice)
+            if (not stock_ready(cfg, root)) if is_stock(cfg) else (not consent_ok(cfg["speaker"])):
+                print(f"{voice}: {'no frozen reference yet' if is_stock(cfg) else 'no valid consent right now'}, skipped", flush=True)
                 bad += args.voice != "all"
                 continue
-            cfg = voice_cfg(voice)
             langs = None if args.langs == "all" else set(args.langs.split(",")) if args.langs else own_langs(cfg)
             print(f"{voice}: languages {'all' if langs is None else ','.join(sorted(langs))}", flush=True)
-            stats = run(voice, root, args.shard, langs, args.limit, reviewed_only=args.reviewed_only, own=own_langs(cfg))
+            stats = run(voice, root, args.shard, langs, args.limit, reviewed_only=args.reviewed_only, own=None if is_stock(cfg) else own_langs(cfg))
             print(voice, json.dumps(stats), flush=True)
             bad += stats["failed"] > 0
         return 0 if bad == 0 else 1

@@ -11,6 +11,12 @@ Rules the planner enforces (see docs/fleet-work-split.txt):
   * Then demo translation (km, th, vi, es, zh first) and demo voice rendering (tier 1), then the rest (tier 2).
   * CPU-only work (edge-tts renders, validation) goes to the Mac or iBuyPower first, so the Spark's CPU and memory stay for training.
   * A CUDA job never lands on a machine without CUDA (the Mac has none), and the Mac never takes a GPU lane.
+  * GPU memory is a separate limit from RAM: a job that needs more VRAM than the card has is never placed there. The translation
+    jobs have a "lite" variant (NLLB_PROFILE=8gb) for cards under 12 GB, so the iBuyPower's 8 GB RTX 5060 Ti can take shards.
+  * Voice samples never leave the Spark (the enrollment page promises "recordings stay on this machine"): jobs tagged
+    voice-samples are denied on kalel and the Mac, and kalel only takes translate / asr / cpu-work / scrape jobs (ALLOW_TAGS).
+    (voice-ingest stays pinned to the Spark by its job manifest: its 12 GB speech-recognition budget does not fit an 8 GB card.
+    harvest-crawl is scrape work that the queue already runs on kalel.)
   * Every job runs under scripts/gs_run.sh, so the memory gate, GPU lock and no-orphan cleanup still apply.
     The planner also keeps the summed memory of the jobs it starts now under (available - reserve) per machine.
 Key-based ssh only: no passwords are read, stored or sent. A machine that does not answer is skipped.
@@ -35,7 +41,11 @@ import _bootstrap  # noqa: E402,F401  (stdlib-only import of aoep_shared)
 JOBS_DIR = ROOT / "scripts" / "fleet" / "jobs"
 HOSTS_CONF = ROOT / "scripts" / "fleet" / "hosts.conf"
 BUDGETS = ROOT / "scripts" / "fleet" / "budgets.conf"
-SPEED = {"spark": 1.0, "kalel": 0.5, "mac": 0.15}  # relative throughput; only used to balance, not to gate
+SPEED = {"spark": 1.0, "kalel": 0.3, "mac": 0.15}  # relative throughput; only used to balance, not to gate. kalel is a guess until
+# scripts/nllb_profile_bench.py has been run on it (8 GB card, smaller model)
+# Job tags a machine may run (None = unrestricted) and tags it must never run. Untagged jobs are refused on a restricted machine.
+ALLOW_TAGS: dict[str, set[str]] = {"kalel": {"translate", "asr", "cpu-work", "scrape"}}
+DENY_TAGS: dict[str, set[str]] = {"kalel": {"voice-samples", "train", "finetune"}, "mac": {"voice-samples"}}
 DEFAULT_RESERVE_GB = 8.0
 REPO_ON = {"spark": "~/code/gs-main", "kalel": "~/getschoolled", "mac": str(ROOT)}  # override: FLEET_REPO_<NAME>
 CPU_OFF_SPARK_MIN = 10_000  # planning penalty, not a limit: the Spark still takes CPU work when nothing else can
@@ -58,6 +68,10 @@ class Item:
     priority: int = 50
     env: tuple[tuple[str, str], ...] = ()
     self_wrapped: bool = False  # the command already goes through gs_run.sh itself
+    tags: tuple[str, ...] = ()  # translate | asr | cpu-work | train | finetune | voice-samples (see ALLOW_TAGS / DENY_TAGS)
+    vram_gb: float = 0.0  # GPU memory the full variant needs (0 = no limit)
+    lite_vram_gb: float = 0.0  # GPU memory of the smaller variant, run with lite_env (0 = no lite variant)
+    lite_env: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass
@@ -76,6 +90,16 @@ class Machine:
         return bool(self.inv.get("cuda")) and self.inv.get("os") != "Darwin"
 
     @property
+    def vram_gb(self) -> float | None:
+        """GPU memory in GiB. Unified-memory machines (the Spark's GB10 reports none) have all their RAM. None = unknown."""
+        gpu = self.inv.get("gpu") or {}
+        if gpu.get("mem_total_gb"):
+            return float(gpu["mem_total_gb"])
+        if gpu.get("unified_memory"):
+            return self.total_gb
+        return None
+
+    @property
     def avail_gb(self) -> float:
         return float(self.inv.get("mem_avail_gb") or 0)
 
@@ -89,14 +113,33 @@ class Machine:
         return max(0.0, self.avail_gb - self.reserve_gb)
 
 
+def variant_for(item: Item, m: Machine) -> tuple[Item | None, str]:
+    """(the item as it would run on m, '') or (None, why not). A card too small for the full variant gets the lite one."""
+    vram = m.vram_gb
+    if not item.cuda or not item.vram_gb or vram is None or vram >= item.vram_gb:
+        return item, ""
+    if item.lite_vram_gb and vram >= item.lite_vram_gb:
+        return replace(item, env=item.env + item.lite_env, vram_gb=item.lite_vram_gb), ""
+    return None, f"needs {item.lite_vram_gb or item.vram_gb:g} GB of GPU memory, {m.name} has {vram:g}"
+
+
 def eligible(item: Item, m: Machine) -> str:
     """'' when the machine can run the item, else the reason it cannot."""
     if not m.usable:
         return "unreachable"
     if item.roles and m.name not in item.roles:
         return f"only on {','.join(item.roles)}"
+    tags = set(item.tags)
+    if tags & DENY_TAGS.get(m.name, set()):
+        return f"{'/'.join(sorted(tags & DENY_TAGS[m.name]))} jobs never run on {m.name}"
+    allow = ALLOW_TAGS.get(m.name)
+    if allow is not None and not (tags & allow):
+        return f"{m.name} only takes {'/'.join(sorted(allow))} jobs"
     if item.cuda and not m.has_cuda:
         return "needs CUDA"
+    _variant, why = variant_for(item, m)
+    if why:
+        return why
     if m.caps.get(item.lane, 0) <= 0:
         return f"no {item.lane} lane"
     if item.mem_gb > m.total_gb - m.reserve_gb:
@@ -125,8 +168,9 @@ def build_catalog(jobs_dir: Path = JOBS_DIR, langs: list[str] | None = None, day
                     spec.timeout_s, spec.priority, env)
 
     items = [
-        from_manifest("finetune-nightly", "voice-agent-train", "Voice-agent / STEM training cycle", 0, 40, 480),
-        from_manifest("frozen-eval", "voice-agent-eval", "Frozen exam on the current base", 0, 20, 60),
+        replace(from_manifest("finetune-nightly", "voice-agent-train", "Voice-agent / STEM training cycle", 0, 40, 480),
+                tags=("train", "finetune"), vram_gb=24.0),
+        replace(from_manifest("frozen-eval", "voice-agent-eval", "Frozen exam on the current base", 0, 20, 60), tags=("train",)),
     ]
     ordered, demo = _languages()
     wanted = langs or ordered
@@ -136,18 +180,20 @@ def build_catalog(jobs_dir: Path = JOBS_DIR, langs: list[str] | None = None, day
         items.append(Item(
             f"translate-{'-'.join(group)}", f"Translate all courses into {', '.join(group)}", tier,
             ("scripts/translate_on_machine.sh", "run", "langs:" + ",".join(group)), "gpu", True, (), 14,
-            MINUTES_PER_LANG * len(group), 43200, 60 if tier == 1 else 40))
+            MINUTES_PER_LANG * len(group), 43200, 60 if tier == 1 else 40,
+            tags=("translate",), vram_gb=12.0, lite_vram_gb=6.5, lite_env=(("NLLB_PROFILE", "8gb"),)))
     items += [
         Item("demo-voice-clone", "Render the demo in the enrolled company voice (VoxCPM2)", 1,
              ("scripts/run_voice_clone.sh",), "gpu", True, ("spark",), 16, 30, 7200, 70,
-             (("MODELS", "voxcpm2"), ("LANGS", "en,es,zh,vi,th,km,sw,hi")), self_wrapped=True),
+             (("MODELS", "voxcpm2"), ("LANGS", "en,es,zh,vi,th,km,sw,hi")), self_wrapped=True, tags=("voice-samples",)),
         Item("demo-edge-voices", "Render demo voice choices with edge-tts (every tone and blend)", 1,
              ("python3", "-m", "tts_bakeoff.voice_types", "--out", f"runs/{day}-all", "--groups", "blends,styles",
-              "--delay", "0.5"), "cpu", False, (), 2, 90, 21600, 65),
-        from_manifest("voice-ingest", "voice-ingest", "Voice-data ingest (resumable, yields the GPU)", 2, 14, 600),
+              "--delay", "0.5"), "cpu", False, (), 2, 90, 21600, 65, tags=("cpu-work",)),
+        replace(from_manifest("voice-ingest", "voice-ingest", "Voice-data ingest (resumable, yields the GPU)", 2, 14, 600),
+                tags=("asr",), vram_gb=6.0),
         # Reads data/_incoming_<machine>, which `collect` fills on the Mac, so it is pinned there.
         replace(from_manifest("validate-translations", "validate-translations", "Validate the incoming translations", 2, 2, 20),
-                roles=("mac",)),
+                roles=("mac",), tags=("cpu-work",)),
     ]
     return items
 
@@ -197,7 +243,8 @@ def plan(items: list[Item], machines: dict[str, Machine]) -> dict:
             continue
         _, m, k, start, finish = best
         slots[(m.name, item.lane)][k] = finish
-        assigned[m.name].append({"item": item, "start_min": round(start), "finish_min": round(finish)})
+        run_item, _why = variant_for(item, m)
+        assigned[m.name].append({"item": run_item or item, "start_min": round(start), "finish_min": round(finish)})
     waves: dict[str, list[dict]] = {}
     for name, rows in assigned.items():
         m = machines[name]
@@ -236,13 +283,15 @@ def render(result: dict, machines: dict[str, Machine]) -> str:
     out = []
     for name, w in result["waves"].items():
         m = machines[name]
-        out.append(f"== {name}: avail {m.avail_gb:.0f} GB (reserve {m.reserve_gb:.0f}), cuda={m.has_cuda}, "
+        vram = f", gpu memory {m.vram_gb:g} GB" if m.vram_gb is not None and m.has_cuda else ""
+        out.append(f"== {name}: avail {m.avail_gb:.0f} GB (reserve {m.reserve_gb:.0f}){vram}, cuda={m.has_cuda}, "
                    f"gpu lock {'HELD' if m.inv.get('gpu_lock_held') else 'free'}")
         for label in ("now", "next"):
             for row in w[label]:
                 it: Item = row["item"]
+                lite = " (lite model: NLLB_PROFILE=8gb)" if ("NLLB_PROFILE", "8gb") in it.env else ""
                 out.append(f"  [{label:4}] t{it.tier} {it.id:34} {it.lane:3} {it.mem_gb:>3.0f}GB "
-                           f"start+{row['start_min']}m ~{row['finish_min'] - row['start_min']}m")
+                           f"start+{row['start_min']}m ~{row['finish_min'] - row['start_min']}m{lite}")
     for u in result["unplaced"]:
         out.append(f"  [none] t{u['tier']} {u['id']}: {u['reasons']}")
     return "\n".join(out)

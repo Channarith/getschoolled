@@ -55,6 +55,7 @@ async function run(engine, name, url) {
 
   // 1. the picker lists every language (27 platform + extras + the no-voice ones), is searchable by English, native name and code
   await page.click("#lang-btn");
+  await page.check("#lang-empty");   // languages without clips are hidden by default; this test is about the whole catalog
   const groups = await page.$$eval("#lang-list .lang-group", (g) => g.map((x) => x.textContent));
   assert.ok(groups[0].startsWith("Platform languages (27)"), "platform group: " + groups);
   assert.ok(groups.some((g) => g.startsWith("Extra languages")) && groups.some((g) => g.startsWith("No edge voice")), "groups: " + groups);

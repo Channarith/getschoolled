@@ -52,3 +52,53 @@ Safety
     schedules it on the Spark, which is where ~/voices lives.
   * edge-tts is an unofficial client of Microsoft's Edge service: internal listening only (licensed route:
     Azure AI Speech).
+
+The iBuyPower ("kalel"): RTX 5060 Ti, 8 GB
+  Inventory (read-only, 2026-10-25): Ubuntu x86_64, user cvanthin, 192.168.1.118 (DHCP), NVIDIA GeForce RTX 5060 Ti with
+  8151 MiB, driver 595.99, 30 GB RAM, 1.1 TB free disk, system Python 3.14.4 (too new for ML wheels).
+
+  What it takes (planner rules, scripts/fleet/work_split.py)
+    * GPU memory is its own limit next to RAM: Machine.vram_gb is the card (the Spark's GB10 has unified memory, so all its RAM).
+      A job needing more VRAM than the card is never placed there. Translation jobs have a lite variant: on a card under
+      12 GB they run with NLLB_PROFILE=8gb (shown in `plan` as "lite model").
+    * kalel only takes jobs tagged translate, asr, cpu-work or scrape (ALLOW_TAGS). Training, fine-tunes (7B and up)
+      and anything tagged voice-samples are denied (DENY_TAGS); untagged jobs are refused on kalel.
+    * Voice samples never leave the Spark: the enrollment page tells people "recordings stay on this machine", so the
+      company-voice jobs are pinned to the Spark and also denied on kalel and the Mac by tag.
+    * voice-ingest stays on the Spark: its manifest assumes a 12 GB speech-recognition budget and its exports are the
+      internal research corpus. kalel's ASR allowance is for jobs that fit 8 GB (whisper large-v3 in fp16/int8 is about
+      3-6 GB); there is no such catalog job yet. harvest-crawl is scrape work the queue already runs on kalel (2 of 3 shards).
+    * The Spark stays first: its training is tier 0 and the planner only fills kalel behind it. kalel still obeys the
+      gs_run memory gate and its single GPU lock, and its "now" wave fits (available - reserve).
+    * SPEED["kalel"] is 0.3 (a guess used only to balance). Run the bench below, then adjust.
+
+  Set it up (on kalel; nothing needs sudo)
+    scripts/fleet/kalel_setup.sh                    dry run: read-only checks and the exact steps
+    scripts/fleet/kalel_setup.sh --apply            uv + private Python 3.12 venv (~/venvs/gs-worker), PyTorch, deps, repo wiring
+    scripts/fleet/kalel_setup.sh --apply --convert-ct2   also converts NLLB-200-3.3B to int8 CTranslate2 (one time)
+    scripts/fleet/kalel_setup.sh --smoke            real kernel test on sm_120 + the repo's CUDA policy (aoep_shared.devices)
+  PyTorch: Blackwell (sm_120) needs a CUDA >= 12.8 build. The script tries the cu128, cu129, cu130 indexes in that order and
+  keeps the first whose wheel runs a real kernel on this GPU. cu128 is first because CTranslate2 is built for CUDA 12
+  libraries. If nothing passes it stops with an error instead of leaving a broken venv. bitsandbytes is not installed
+  (8-bit on Blackwell is unverified); 8-bit comes from CTranslate2 int8 instead.
+
+  Translation profiles for 8 GB (aoep_shared/nllb_profile.py; NLLB_PROFILE=..., explicit NLLB_* variables still win)
+    profile    model                         backend  weights    est. peak (batch 16, 4 beams)
+    8gb        nllb-200-distilled-1.3B fp16  hf       ~2.6 GiB   ~4-5 GiB
+    8gb-ct2    nllb-200-3.3B int8_float16    ct2      ~3.5 GiB   ~5-6 GiB, needs the one-time conversion
+    (rejected) nllb-200-3.3B fp16            hf       ~6.2 GiB   leaves ~1 GiB for activations on 8 GiB: too tight
+  These figures are ESTIMATES from parameter counts. Measure before choosing:
+    python3 scripts/nllb_profile_bench.py --profiles 8gb,8gb-ct2 --langs km,th,vi,es,zh --n 200 --save-outputs ~/bench
+  It reports sentences/s, load time, peak GPU memory (from nvidia-smi, includes the CUDA context) and chrF against a
+  reference, and recommends the best-agreeing profile whose peak stays under 6.5 GiB. The reference is the Spark's 3.3B output:
+    (Spark)  NLLB_MODEL=facebook/nllb-200-3.3B NLLB_DTYPE=bf16 python3 scripts/nllb_profile_bench.py --profiles default \
+             --langs km,th,vi,es,zh --n 200 --save-outputs ~/bench-ref
+    (kalel)  copy ~/bench-ref/default to kalel, then add  --reference ~/bench-ref/default
+  chrF measures agreement with the reference model, not translation quality: a native speaker checks km, th and vi first.
+  Without --reference the profiles are only compared with each other, and the output says so.
+
+  Then plan and collect from the Mac
+    FLEET_HOST_KALEL=<ip if it moved> scripts/fleet/work_split.py gather
+    scripts/fleet/work_split.py plan
+    scripts/fleet/work_split.py apply --yes
+    scripts/fleet/work_split.py collect --machine kalel --yes   (rsync ~/translations, merges only files translation_v2 calls current)

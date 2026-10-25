@@ -1,0 +1,67 @@
+VoxCPM2 stock voices (voice design)
+===================================
+
+Why
+  VoxCPM2 (OpenBMB) is Apache-2.0 and "free for commercial use". Its card forbids impersonation, fraud and disinformation and says
+  AI-generated content should be clearly labeled. It clones a given voice; it has no catalogue of named stock voices like edge-tts. A stock
+  voice here is DESIGNED from a text description, so no person's recording or consent is involved. This is the replacement path for the
+  edge-tts voices (edge-tts is an unofficial client of Microsoft's service; the licensed route to those voices is Azure AI Speech).
+
+What the model card says (read 2026-10-25, huggingface.co/openbmb/VoxCPM2 and github.com/OpenBMB/VoxCPM)
+  * Voice design: put the description in parentheses at the start of the text, no reference audio:
+      model.generate(text="(A young woman, gentle and sweet voice)Hello, welcome to VoxCPM2!", cfg_value=2.0, inference_timesteps=10, seed=42)
+    Description parameters named on the card: gender, age, tone, emotion, pace.
+  * Controllable cloning: the same prefix plus reference_wav_path. Ultimate cloning: prompt_wav_path + prompt_text.
+  * "Voice Design and Controllable Voice Cloning results can vary between runs - you may try to generate 1~3 times to obtain the desired voice."
+  * 30 languages (ar my zh da nl en fi fr de el he hi id it ja km ko lo ms no pl pt ru es sw sv tl th tr vi) plus Chinese dialects including
+    Cantonese. No language tag is needed. The card says quality follows each language's training data.
+  * seed is an argument of generate() in the project README. The adapter passes it only when the installed voxcpm accepts it.
+
+How a stock voice is made stable: design once, freeze, clone
+  1. design: a fixed English sentence is synthesized from the description with a fixed seed, 3 takes (seed, seed+1, seed+2).
+  2. pick the cleanest take (audio/text ratio, noise, clicks) that is 5-20 s long; clean it lightly (kept only if the timbre did not move).
+  3. freeze: <assets>/_stock/<id>/ref.wav + ref.json (sha256, description, seed, take). The wav is not in git.
+  4. every later clip clones from the frozen wav in 'reference' mode (audio only), in every language.
+  A fixed seed alone is NOT relied on: the card warns about run-to-run variation, and a seed may not give the same voice on another build.
+
+Files
+  tts_manifest/stock_voices.json   the definitions: id, label, gender, age, timbre, tones, seed, cleared languages, quality notes, license.
+  tts_manifest/voices.json         one entry per stock voice, kind "stock", active=false until the owner has listened.
+  tts_bakeoff/voice_design/        prompt.py (vocabulary + guard), registry.py, design.py (design/freeze/build_adapter), grid.py, __main__.py.
+  tts_bakeoff/adapters/voxcpm2.py  'design' and 'seed' options.
+  tts_bakeoff/demo_voice/render.py renders a stock voice for the demo exactly like Channarith (no consent step; gated on the frozen reference).
+
+Rules
+  * Descriptions are built from a closed vocabulary (gender, age, timbre, optional accent, one of the nine tones of voice_types.PRESETS), never
+    free text. A free-text description (voice_design check "...") must pass validate_description: it rejects 'sounds like', 'like <name>', 'in the
+    style of', 'famous', 'celebrity', names (capitalised words that are not accents/languages), parentheses, anything over 240 characters.
+    This is a best-effort guard; lowercase names are caught only after 'like'. Review any hand-written description.
+  * Labels are plain words (Sage, Lark, Wren, Willow, Reed, Cedar, Slate, Ridge), not people's names.
+  * 'child' exists in the vocabulary but validate_registry rejects it: a child-like synthetic voice for a children's platform is the owner's call.
+  * Every clip carries the label "AI-generated voice (designed with VoxCPM2)" in its sidecar and in voices.json; keep it visible in the product.
+
+Commands (Spark; every GPU job under gs_run.sh so the lock and the memory gate apply; the GPU may be busy with another job: it waits)
+  cd ~/code/gs-main && git fetch -q origin && git checkout -q --detach origin/main
+  P="env TORCHDYNAMO_DISABLE=1 PYTHONPATH=$PWD:$PWD/packages/shared/src $HOME/venvs/voxcpm/bin/python"
+  $P -m tts_bakeoff.voice_design list                                  # read-only
+  scripts/gs_run.sh --name stock-voice-small --gpu -- $P -m tts_bakeoff.voice_design grid --out runs/2026-10-25-clones --preset small --freeze-missing
+      small = 2 voices (Sage, Cedar) x en, es, km x 3 sentences, neutral tone: 18 clips, plus freezing 2 voices (3 takes each)
+  scripts/gs_run.sh --name stock-voice-grid --gpu -- $P -m tts_bakeoff.voice_design grid --out runs/2026-10-25-clones --freeze-missing
+      the full grid: 8 voices x the 9 demo languages x 3 sentences (216 clips); add --tones all for 9 tones each (1,944 clips + 72 freezes)
+  Then reload http://localhost:8790/ : the voices are 'Sage . designed' etc., badge 'VoxCPM2 designed'; tones nest under their voice.
+  Head-to-head with edge-tts: rsync the run folder to the Mac library (runs/...-clones-spark) as for the clones; the edge voices are there.
+  Demo clips from a stock voice (after listening):
+      scripts/gs_run.sh --name stock-render --gpu -- $P -m tts_bakeoff.demo_voice.render run --voice stock-f-young-warm [--langs es,zh]
+  Publish: set "active": true for the voice in tts_manifest/voices.json, add the cleared languages to 'langs' in stock_voices.json, then
+      $P -m tts_bakeoff.demo_voice.render publish ; scripts/sync_voice_assets.sh sync --dry-run
+  A voice stays inactive in voices.json (the picker never lists it) until it has a frozen, hash-checked reference AND active=true.
+
+What to listen for, per language (the owner or a native speaker; write the verdict into 'quality' and the cleared languages into 'langs')
+  * Does it say the words, and only the words? Truncation, repeated syllables, skipped words, a clip much longer than the text ('Badcase' retries
+    in the log) mean the language is weak for that voice.
+  * Tone languages first: zh, yue, vi, th: wrong tones change the meaning. Cantonese is a listed dialect, not a language, and is the least certain.
+  * Khmer, Swahili, Hindi: listed, but the card says quality follows training data: listen to numbers, names and long sentences.
+  * Voice: same gender, age and timbre as described in every sentence and every language (no drift to another speaker), no hiss or clicks.
+  * Tones (professional, cute, anime...): do they sound like the tone without turning into a caricature or a different person?
+  Languages that fail are the ones to fill from elsewhere (Azure AI Speech, a hired and consented voice actor, or a consented company voice).
+  Nobody has listened yet. The registry clears only 'en' as a starting point, and even that is unverified until someone listens.

@@ -261,4 +261,7 @@ def test_run_script_defaults_to_each_speakers_own_language_and_all_includes_cant
     assert 'LANGS="${LANGS:-}"' in script and '${LANGS:+--langs "$LANGS"}' in script     # no --langs unless asked: own language(s)
     from tts_bakeoff.voice_clone.profile import ALL_LANGS
 
-    assert "yue" in ALL_LANGS and "en,es,zh,yue,vi,th,km,sw,hi" in script                # LANGS=all still covers Cantonese
+    from tts_bakeoff.adapters.voxcpm2 import VoxCPM2Adapter
+
+    assert "yue" in ALL_LANGS and "yue" in VoxCPM2Adapter.languages and "every language the model supports" in script   # LANGS=all still covers Cantonese (VoxCPM2)
+    assert '${GS_CLONE_WORKERS:+--workers "$GS_CLONE_WORKERS"}' in script

@@ -169,3 +169,25 @@ def test_aggregate_still_rejects_unknown_panels_without_a_key(tmp_path):
     f.write_text(json.dumps({"panel": "nope", "lang": "km", "rater": "x", "ratings": []}), encoding="utf-8")
     with pytest.raises(ValueError):
         panel.aggregate(tmp_path, [f])
+
+
+def test_list_run_rev_changes_when_clips_are_added_and_status_serves_progress(tmp_path):
+    from tts_bakeoff.lab import run_progress
+
+    run = tmp_path / "run"
+    (run / "v~x" / "en").mkdir(parents=True)
+    (run / "v~x" / "en" / "S01.wav").write_bytes(b"RIFF" + b"0" * 4000)
+    first = list_run(run)
+    assert list_run(run)["rev"] == first["rev"]                       # unchanged folder: same token, the page does nothing
+    (run / "v~x" / "en" / "M01.wav").write_bytes(b"RIFF" + b"1" * 4000)
+    assert list_run(run)["rev"] != first["rev"]                       # a new clip: the page rescans
+    assert run_progress(run) is None
+    (run / "progress.json").write_text(json.dumps({"clips_total": 6, "clips_done": 2, "running": True}))
+    assert run_progress(run)["clips_done"] == 2
+    (run / "progress.json").write_text("{not json")
+    assert run_progress(run) is None                                  # a half-written file must not break the page
+
+
+def test_status_endpoint(server, demo_run):
+    resp, body = get(server, "/api/status")
+    assert resp.status == 200 and "progress" in json.loads(body)

@@ -94,12 +94,24 @@ def list_run(root: Path, sub: str = "") -> dict:
     if base is None or not base.is_dir():
         return {"files": [], "error": "not a directory"}
     files = []
+    newest = total = 0
     for p in sorted(base.rglob("*")):
         if len(files) >= MAX_LISTED:
             break
         if p.is_file() and p.suffix.lower() in LISTED_EXT and not any(part.startswith((".", "_")) for part in p.relative_to(base).parts):   # ".x" hidden, "_x" set aside (e.g. _cross-lingual-wei)
-            files.append({"path": p.relative_to(base).as_posix(), "size": p.stat().st_size})
-    return {"files": files, "root": (sub or "").strip("/"), "truncated": len(files) >= MAX_LISTED}
+            st = p.stat()
+            files.append({"path": p.relative_to(base).as_posix(), "size": st.st_size})
+            newest, total = max(newest, st.st_mtime_ns), total + st.st_size
+    # rev changes whenever a clip is added, replaced or a manifest grows: the page compares it to decide whether to rescan (no restart needed)
+    return {"files": files, "root": (sub or "").strip("/"), "truncated": len(files) >= MAX_LISTED, "rev": f"{len(files)}-{total}-{newest}"}
+
+
+def run_progress(root: Path) -> dict | None:
+    """The run's progress.json (written by `bakeoff run`), or None: shown by the page as a live status line."""
+    try:
+        return json.loads((root / "progress.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
 
 
 def parse_range(header: str | None, size: int) -> tuple[int, int] | None | str:
@@ -191,6 +203,9 @@ def make_handler(out_dir: Path | None):
                     return self._send(200, b'{"files": []}', MIME[".json"], head=head)
                 data = list_run(root, (query.get("sub") or [""])[0])
                 return self._send(200, json.dumps(data).encode("utf-8"), MIME[".json"], head=head)
+            if path == "/api/status":
+                body = {"progress": run_progress(root) if root is not None else None}
+                return self._send(200, json.dumps(body).encode("utf-8"), MIME[".json"], head=head)
             if path.startswith("/run/") and root is not None:
                 target = safe_join(root, path[len("/run/"):])
                 if target is None:

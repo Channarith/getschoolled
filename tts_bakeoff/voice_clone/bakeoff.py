@@ -3,6 +3,8 @@
   python3 -m tts_bakeoff.voice_clone.bakeoff consent  --speaker alice --name "Alice Tran" --role employee --signed-form ~/Downloads/alice-signed.pdf
   python3 -m tts_bakeoff.voice_clone.bakeoff enroll   --speaker alice --audio ~/alice.m4a --transcript-file ~/alice.txt --lang en
   python3 -m tts_bakeoff.voice_clone.bakeoff run      --out runs/2026-10-25-clones [--speakers alice,bob] [--models voxcpm2,cosyvoice2] [--langs en,es,zh] [--limit 3] [--takes 3] [--no-clean]
+                                                  [--workers 2] [--post-threads 2] [--force] [--langs all]
+  python3 -m tts_bakeoff.voice_clone.bakeoff status   --out runs/2026-10-25-clones      (read-only: progress, ETA, DONE/RUNNING)
   python3 -m tts_bakeoff.voice_clone.bakeoff say      --speaker alice --model voxcpm2 --lang en --text-file words.txt --out say/alice/one.wav
   python3 -m tts_bakeoff.voice_clone.bakeoff revoke   --speaker alice
   python3 -m tts_bakeoff.voice_clone.bakeoff grant-scope --speaker alice --signed-form alice-stylized-addendum.pdf   (CONSENT_ADDENDUM_STYLIZED.txt)
@@ -22,10 +24,7 @@ import sys
 import time
 from pathlib import Path
 
-from tts_bakeoff.build_sentences import load
-
-from . import clean as audio_clean
-from . import enroll, profile, registry, synth, tones
+from . import enroll, profile, registry, runner, status, synth, tones
 
 
 def cmd_consent(a) -> int:
@@ -49,50 +48,15 @@ def cmd_enroll(a) -> int:
 
 
 def synthesize_all(out: Path, speakers: list[str], models: list[str], langs: list[str] | None, limit: int | None,
-                   base: Path | None = None, gpu: bool = True, takes: int | None = None, clean: bool | None = None) -> dict:
-    counts = {"ok": 0, "failed": 0, "skipped_unsupported": 0, "refused": 0}
-    for speaker in speakers:
-        try:
-            rec = registry.require_consent(speaker, "course_narration", base)
-        except registry.ConsentError as exc:
-            print(f"REFUSED {speaker}: {exc}")
-            counts["refused"] += 1
-            continue
-        enrolled = profile.speaker_languages(speaker, base) or ["en"]
-        own = langs or enrolled   # no --langs: each speaker speaks the language(s) they were enrolled in; anything else is cross-lingual
-        label = profile.display_label(speaker, rec["name"], base)
-        for model in models:
-            adapter = synth.build_adapter(model, speaker, base, gpu=gpu)
-            vid = f"{model}~{speaker}"
-            root = out / vid
-            root.mkdir(parents=True, exist_ok=True)
-            (root / "meta.json").write_text(json.dumps({
-                "model": vid, "clone": True, "consented": True, "base_model": model, "speaker": speaker,
-                "role": rec["role"], "consent_date": rec["date"], "host": socket.gethostname(),
-                "started": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "label": f"{label} · {model}", "primary_lang": enrolled[0], "langs": enrolled,
-            }, indent=2, ensure_ascii=False), encoding="utf-8")
-            (root / "scores.jsonl").touch()
-            with (root / "manifest.jsonl").open("a", encoding="utf-8") as mf:
-                for lang in own:
-                    if not adapter.supports(lang):
-                        counts["skipped_unsupported"] += 1
-                        continue
-                    for item in load(lang, limit):
-                        wav = root / lang / f"{item['id']}.wav"
-                        row = {"model": vid, "lang": lang, "id": item["id"], "text": item["text"], "wav": wav.relative_to(out).as_posix()}
-                        if lang not in enrolled:
-                            row["cross_lingual"] = True   # the lab badges these: the voice was enrolled in another language
-                        try:
-                            row.update(audio_clean.synthesize_best_of(adapter, item["text"], lang, wav, takes=takes, clean=clean))
-                            row["status"] = "ok"
-                            counts["ok"] += 1
-                        except Exception as exc:  # noqa: BLE001 - record and carry on
-                            row.update({"status": "failed", "error": f"{type(exc).__name__}: {str(exc)[:300]}"})
-                            counts["failed"] += 1
-                        mf.write(json.dumps(row, ensure_ascii=False) + "\n")
-                        mf.flush()
-                        print(f"[{vid}] {lang} {item['id']} {row['status']}")
-    return counts
+                   base: Path | None = None, gpu: bool = True, takes: int | None = None, clean: bool | None = None,
+                   workers: int = 1, shard: tuple[int, int] | None = None, force: bool = False, post_threads: int = 2,
+                   strict_workers: bool = False) -> dict:
+    """The clone run (see runner.py): skips clips already done unless ``force``; ``workers`` > 1 shards the work over subprocesses.
+
+    Returns counts: ok, failed, skipped_unsupported, refused, skipped_existing.
+    """
+    return runner.run_clone(out, speakers, models, langs, limit, base=base, gpu=gpu, takes=takes, clean=clean, workers=workers,
+                            shard=shard, force=force, post_threads=post_threads, strict_workers=strict_workers)
 
 
 def say_once(speaker: str, model: str, lang: str, text: str, out: Path, base: Path | None = None, gpu: bool = True,
@@ -131,11 +95,14 @@ REF_HELP = ("VoxCPM2 reference mode: continue = audio + its exact transcript (sa
             "or a transcript that may not match); auto (default) picks per sentence. Logged per clip.")
 
 
-def _langs_arg(arg: str) -> list[str] | None:
-    """None = each speaker's own languages (the default); 'all' = every demo language; else the explicit list."""
+def _langs_arg(arg: str, supported: bool = False) -> list[str] | None:
+    """None = each speaker's own languages (the default); 'all' = every demo language (tones) or, with supported=True (run),
+    every language the model supports; else the explicit list."""
     if not arg:
         return None
-    return list(profile.ALL_LANGS) if arg == "all" else [x for x in arg.split(",") if x]
+    if arg == "all":
+        return list(runner.SUPPORTED) if supported else list(profile.ALL_LANGS)
+    return [x for x in arg.split(",") if x]
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -146,9 +113,17 @@ def main(argv: list[str] | None = None) -> int:
     e = sub.add_parser("enroll"); e.add_argument("--speaker", required=True); e.add_argument("--audio", required=True)
     e.add_argument("--lang", required=True); e.add_argument("--transcript", default=""); e.add_argument("--transcript-file"); e.add_argument("--no-clean", action="store_true", help="keep the recording exactly as imported")
     r = sub.add_parser("run"); r.add_argument("--out", required=True); r.add_argument("--speakers", default="")
-    r.add_argument("--models", default="voxcpm2,cosyvoice2"); r.add_argument("--langs", default="", help="comma list, or 'all'; default: each speaker's own language(s) from their enrollment")
+    r.add_argument("--models", default="voxcpm2,cosyvoice2"); r.add_argument("--langs", default="", help="comma list, or 'all' = every language the model supports; default: each speaker's own language(s) from their enrollment")
     r.add_argument("--ref-mode", choices=profile.REF_MODES, help=REF_HELP); r.add_argument("--limit", type=int, default=3); r.add_argument("--takes", type=int, default=None, help="takes per sentence, cleanest kept (default 3; 1 = single take)")
     r.add_argument("--no-clean", action="store_true", help="skip post-processing (best-of-N still applies unless --takes 1)"); r.add_argument("--no-gpu", action="store_true", help="tests only (mock model)")
+    r.add_argument("--workers", type=int, default=int(os.environ.get("GS_CLONE_WORKERS") or 2), help="worker processes sharing the work under this one job (default 2, env GS_CLONE_WORKERS); reduced to what fits above the 16 GB memory gate")
+    r.add_argument("--strict-workers", action="store_true", help="refuse (exit 75) instead of reducing --workers when they would not fit in memory")
+    r.add_argument("--post-threads", type=int, default=int(os.environ.get("GS_CLONE_POST_THREADS") or 2), help="threads for the CPU stage (scoring, cleaning) that overlap the next synthesis")
+    r.add_argument("--force", action="store_true", help="regenerate clips that already exist (default: skip finished clips)")
+    r.add_argument("--shard", default="", help=argparse.SUPPRESS)
+    st = sub.add_parser("status", help="read-only: what is done, what is running, ETA"); st.add_argument("--out", required=True); st.add_argument("--speakers", default="")
+    st.add_argument("--models", default=""); st.add_argument("--langs", default="", help="what the run was asked for (comma list or 'all'); default: the plan the run recorded")
+    st.add_argument("--limit", type=int, default=3)
     y = sub.add_parser("say"); y.add_argument("--speaker", required=True); y.add_argument("--model", required=True, choices=synth.CLONE_MODELS)
     y.add_argument("--lang", required=True); y.add_argument("--text-file", required=True); y.add_argument("--out", required=True)
     y.add_argument("--ref-mode", choices=profile.REF_MODES, help=REF_HELP)
@@ -192,6 +167,8 @@ def main(argv: list[str] | None = None) -> int:
                             tone=a.tone, mechanism=a.mechanism)
             print(f"said {len(meta['text'])} characters as {meta['label']}: {a.out}")
             return 0
+        if a.cmd == "status":
+            return status.main(a)
         speakers = [s for s in a.speakers.split(",") if s] or registry.list_speakers()
         if a.cmd == "tones":
             if a.tones == "all":
@@ -205,9 +182,14 @@ def main(argv: list[str] | None = None) -> int:
                                      clean=False if a.no_clean else None)
             print(counts)
             return 0 if counts["failed"] == 0 else 1
-        counts = synthesize_all(Path(a.out), speakers, a.models.split(","), _langs_arg(a.langs), a.limit, gpu=not a.no_gpu,
-                                takes=a.takes, clean=False if a.no_clean else None)
+        shard = tuple(int(x) for x in a.shard.split("/")) if a.shard else None
+        counts = synthesize_all(Path(a.out), speakers, a.models.split(","), _langs_arg(a.langs, supported=True), a.limit, gpu=not a.no_gpu,
+                                takes=a.takes, clean=False if a.no_clean else None, workers=a.workers, shard=shard, force=a.force,
+                                post_threads=a.post_threads, strict_workers=a.strict_workers)
         print(counts)
+        if counts.pop("refused_workers", 0):
+            print("refused: not enough free memory for that many workers (--strict-workers)", file=sys.stderr)
+            return 75
         return 0 if counts["failed"] == 0 and counts["refused"] == 0 else 1
     except (registry.ConsentError, enroll.SampleError, ValueError) as exc:
         print(f"refused: {exc}", file=sys.stderr)
