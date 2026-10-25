@@ -32,6 +32,10 @@ for (const [name, opts] of MATRIX) {
     await page.screenshot({ path: `${SHOTS}/dw-${name}-1-tutorial.png` });
     await page.keyboard.press("Escape");
     await page.locator(".sala-tutorial").waitFor({ state: "detached", timeout: 5000 });
+    // The camera question follows the tutorial (once); answer it so the page can be used.
+    const camCard = page.getByTestId("camera-consent");
+    await camCard.waitFor({ state: "visible", timeout: 5000 });
+    await camCard.getByRole("button", { name: /not now/i }).click();
     // Same session, reload: the tutorial does not nag again. A brand new session shows it first again.
     await page.reload({ waitUntil: "networkidle" });
     await page.waitForTimeout(800);

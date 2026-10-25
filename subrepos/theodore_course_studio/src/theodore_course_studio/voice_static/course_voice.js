@@ -404,6 +404,44 @@ function writeConsent(value) {
   } catch { /* non-fatal */ }
 }
 
+// ---- Camera choice (shared with the studio page, which owns the camera) ---------------------------------------------
+const CAM_PREF_KEY = "salareen_camera_pref_v1";   // "yes" allowed | "no" declined | "off" turned off in the widget
+function readCamPref() {
+  try { return window.localStorage.getItem(CAM_PREF_KEY) || ""; } catch { return ""; }
+}
+function writeCamPref(value) {
+  try {
+    if (value) window.localStorage.setItem(CAM_PREF_KEY, value);
+    else window.localStorage.removeItem(CAM_PREF_KEY);
+  } catch { /* not kept */ }
+}
+// One short card before the browser's own camera prompt. English is the fallback for any language not listed.
+// (Written for the demo: have a native speaker review before wider use.)
+const CAM_TEXT = {
+  en: ["Turn on your camera?", "Salareen uses your camera on this device to follow your face and hands in the lesson. Video stays on your device and is never uploaded or recorded.", "Turn on camera", "Not now"],
+  es: ["¿Activar la cámara?", "Salareen usa la cámara de este dispositivo para seguir tu cara y tus manos en la lección. El video se queda en tu dispositivo y nunca se sube ni se graba.", "Activar cámara", "Ahora no"],
+  fr: ["Activer la caméra ?", "Salareen utilise la caméra de cet appareil pour suivre votre visage et vos mains pendant la leçon. La vidéo reste sur votre appareil et n'est jamais envoyée ni enregistrée.", "Activer la caméra", "Pas maintenant"],
+  de: ["Kamera einschalten?", "Salareen nutzt die Kamera dieses Geräts, um in der Lektion Ihr Gesicht und Ihre Hände zu verfolgen. Das Video bleibt auf Ihrem Gerät und wird nie hochgeladen oder aufgezeichnet.", "Kamera einschalten", "Jetzt nicht"],
+  it: ["Attivare la fotocamera?", "Salareen usa la fotocamera di questo dispositivo per seguire il tuo viso e le tue mani durante la lezione. Il video resta sul tuo dispositivo e non viene mai caricato né registrato.", "Attiva la fotocamera", "Non ora"],
+  pt: ["Ligar a câmera?", "O Salareen usa a câmera deste dispositivo para acompanhar seu rosto e suas mãos na aula. O vídeo fica no seu dispositivo e nunca é enviado nem gravado.", "Ligar a câmera", "Agora não"],
+  zh: ["开启摄像头?", "Salareen 会使用此设备的摄像头,在课程中跟踪您的面部和双手。视频只保留在您的设备上,绝不会上传或录制。", "开启摄像头", "暂不"],
+  yue: ["開啟相機?", "Salareen 會用呢部裝置嘅相機,喺課堂入面追蹤你嘅面同雙手。影片只會留喺你部裝置度,絕對唔會上載或者錄影。", "開啟相機", "而家唔使"],
+  ja: ["カメラをオンにしますか?", "Salareen は、レッスン中にあなたの顔と手を追跡するために、この端末のカメラを使います。映像は端末の中にだけ残り、アップロードや録画は一切されません。", "カメラをオンにする", "今はしない"],
+  ko: ["카메라를 켤까요?", "Salareen은 수업 중 얼굴과 손을 따라가기 위해 이 기기의 카메라를 사용합니다. 영상은 기기에만 남으며 업로드되거나 녹화되지 않습니다.", "카메라 켜기", "나중에"],
+  ar: ["تشغيل الكاميرا؟", "يستخدم Salareen كاميرا هذا الجهاز لتتبّع وجهك ويديك أثناء الدرس. يبقى الفيديو على جهازك ولا يُرفع ولا يُسجَّل أبدًا.", "تشغيل الكاميرا", "ليس الآن"],
+  hi: ["कैमरा चालू करें?", "Salareen पाठ के दौरान आपके चेहरे और हाथों को ट्रैक करने के लिए इस डिवाइस के कैमरे का उपयोग करता है। वीडियो आपके डिवाइस पर ही रहता है, कभी अपलोड या रिकॉर्ड नहीं होता।", "कैमरा चालू करें", "अभी नहीं"],
+  vi: ["Bật camera?", "Salareen dùng camera của thiết bị này để theo dõi khuôn mặt và đôi tay của bạn trong bài học. Video ở lại trên thiết bị của bạn và không bao giờ được tải lên hay ghi lại.", "Bật camera", "Để sau"],
+  th: ["เปิดกล้องไหม?", "Salareen ใช้กล้องของอุปกรณ์นี้เพื่อติดตามใบหน้าและมือของคุณในบทเรียน วิดีโออยู่บนอุปกรณ์ของคุณเท่านั้น ไม่มีการอัปโหลดหรือบันทึก", "เปิดกล้อง", "ไว้ก่อน"],
+  km: ["បើកកាមេរ៉ា?", "Salareen ប្រើកាមេរ៉ានៃឧបករណ៍នេះ ដើម្បីតាមដានមុខ និងដៃរបស់អ្នកក្នុងមេរៀន។ វីដេអូស្ថិតនៅលើឧបករណ៍របស់អ្នក ហើយមិនត្រូវបានផ្ទុកឡើង ឬថតទុកឡើយ។", "បើកកាមេរ៉ា", "មិនទាន់"],
+};
+export function cameraConsentText(locale) {
+  const full = String(locale || "en").toLowerCase().replace("_", "-");
+  if (CAM_TEXT[full]) return CAM_TEXT[full];
+  const base = full.split("-")[0];
+  if (full === "zh-hk" || full === "zh-yue") return CAM_TEXT.yue;
+  return CAM_TEXT[base] || CAM_TEXT.en;
+}
+
 export function initCourseVoiceOverlay(opts = {}) {
   const options = {
     typeToAsk: Boolean(opts.typeToAsk),
@@ -480,6 +518,17 @@ export function initCourseVoiceOverlay(opts = {}) {
   }
 
   function handleUtterance(transcript) {
+    // A learning check is open: what was said is an answer first. It is never sent to the course as a question; if it does not
+    // match an option, the page shows what it heard and asks again, and the usual voice commands (pause, mute...) still work.
+    const activity = window.salaActivity;
+    if (options.demo && activity && typeof activity.open === "function" && activity.open()) {
+      let handled = false;
+      try { handled = activity.handle(transcript) === true; } catch { handled = false; }
+      if (handled) return;
+      const command = parseDemoCommand(transcript);
+      if (command) dispatchDemoCommand(command);
+      return;
+    }
     // Easter egg: a short "dance" request never reaches Q&A (no paid call).
     if (matchDanceIntent(transcript, options.locale)) { danceNow(); return; }
     // Sound, volume and camera commands work in every mode (the tutorial lists "louder" and "mute").
@@ -533,6 +582,19 @@ export function initCourseVoiceOverlay(opts = {}) {
     recognizer = null;
     listening = false;
   }
+
+  // The "Speak your answer" button listens with its own recogniser: this one steps aside meanwhile (one at a time).
+  let recognitionPaused = false;
+  window.addEventListener("sala:pause-recognition", () => {
+    if (!recognizer) return;
+    recognitionPaused = true;
+    stopRecognizer();
+  });
+  window.addEventListener("sala:resume-recognition", () => {
+    if (!recognitionPaused) return;
+    recognitionPaused = false;
+    if (consented && !muted) startRecognizer();
+  });
 
   function setMuted(value) {
     muted = Boolean(value);
@@ -746,9 +808,78 @@ export function initCourseVoiceOverlay(opts = {}) {
     if (node.parentNode !== host) host.appendChild(node);
   }
   document.addEventListener("fullscreenchange", () => {
-    for (const node of document.querySelectorAll(".sala-help, .sala-rotate, .sala-tutorial, #course-widget")) mountOnTop(node);
+    for (const node of document.querySelectorAll(".sala-help, .sala-rotate, .sala-tutorial, #course-widget, .sala-mascot, .sala-cam-consent")) mountOnTop(node);
     showRotateHint();
   });
+
+  // Camera consent card: shown once per browser, BEFORE the browser asks for the camera and never on top of the tutorial (the page
+  // asks for the camera as soon as the lesson loads, so the gate waits for the tutorial to be done). One card at a time; every
+  // way of closing it counts as "Not now" (audio-only), and the widget menu can reset the choice.
+  let camAsk = null;
+  function tutorialBusy() {
+    if (!options.demo) return false;
+    if (document.querySelector(".sala-tutorial")) return true;
+    try { return tutorialStore().getItem(TUTORIAL_KEY) !== "1"; } catch { return false; }
+  }
+  function waitForTutorialDone() {
+    return new Promise((resolve) => {
+      if (!tutorialBusy()) { resolve(); return; }
+      const timer = window.setInterval(() => {
+        if (tutorialBusy()) return;
+        window.clearInterval(timer);
+        resolve();
+      }, 150);
+    });
+  }
+  function showCameraCard() {
+    return new Promise((resolve) => {
+      const [title, body, yes, no] = cameraConsentText(options.locale);
+      const card = el("div", { class: "card" }, [
+        el("h2", { id: "sala-cam-title" }, [title]),
+        el("p", { id: "sala-cam-body" }, [body]),
+        el("div", { class: "actions" }, [
+          el("button", { type: "button", class: "primary", "data-act": "yes" }, [yes]),
+          el("button", { type: "button", "data-act": "no" }, [no]),
+        ]),
+      ]);
+      const overlay = el("div", { class: "sala-cam-consent", role: "dialog", "aria-modal": "true", "aria-labelledby": "sala-cam-title", "aria-describedby": "sala-cam-body", "data-testid": "camera-consent" }, [card]);
+      const done = (allowed) => {
+        document.removeEventListener("keydown", onKey, true);
+        overlay.remove();
+        writeCamPref(allowed ? "yes" : "no");
+        resolve(allowed);
+      };
+      const onKey = (event) => {
+        if (event.key === "Escape") { event.preventDefault(); done(false); return; }
+        if (event.key !== "Tab") return;
+        const buttons = Array.from(overlay.querySelectorAll("button"));
+        const at = buttons.indexOf(document.activeElement);
+        const next = event.shiftKey ? (at <= 0 ? buttons.length - 1 : at - 1) : (at + 1) % buttons.length;
+        event.preventDefault();
+        buttons[next]?.focus();
+      };
+      overlay.querySelector('[data-act="yes"]').addEventListener("click", () => done(true));
+      overlay.querySelector('[data-act="no"]').addEventListener("click", () => done(false));
+      document.addEventListener("keydown", onKey, true);
+      mountOnTop(overlay);
+      overlay.querySelector('[data-act="yes"]')?.focus?.({ preventScroll: true });
+    });
+  }
+  function askCameraConsent() {
+    const saved = readCamPref();
+    if (saved === "yes") return Promise.resolve(true);
+    if (saved === "no" || saved === "off") return Promise.resolve(false);
+    if (camAsk) return camAsk;
+    camAsk = (async () => {
+      await waitForTutorialDone();
+      const again = readCamPref();
+      if (again === "yes") return true;
+      if (again === "no" || again === "off") return false;
+      return showCameraCard();
+    })().finally(() => { camAsk = null; });
+    return camAsk;
+  }
+  window.salaCamConsent = { ensure: askCameraConsent, status: readCamPref };
 
   function showRotateHint() {
     if (!phoneQuery || !phoneQuery.matches) return;
@@ -789,6 +920,8 @@ export function initCourseVoiceOverlay(opts = {}) {
   const INTRO_SEEN_KEY = "salareen.driversEdIntro.seen.v1";
   let tutorialState = "pending";
   let pendingLessonStart = false;
+  let introNeedsTap = false;   // autoplay was blocked: Sala shows "Tap to start" (never a Next button)
+  let mascotNode = null;
   const introHolding = () => document.documentElement.classList.contains("sala-intro-hold");
   function reportTutorial(state) {
     tutorialState = state;
@@ -813,8 +946,9 @@ export function initCourseVoiceOverlay(opts = {}) {
   window.addEventListener("message", (event) => {
     if (event.origin !== window.location.origin || event.source !== window.parent) return;
     const kind = event.data && event.data.type;
-    if (kind === "sala-intro-done") releaseIntroHold();
+    if (kind === "sala-intro-done") { introNeedsTap = false; syncMascot(); releaseIntroHold(); }
     else if (kind === "sala-intro-query") reportTutorial(tutorialState);
+    else if (kind === "sala-intro-needs-tap") { introNeedsTap = true; syncMascot(); }
   });
   // Safety net if the message is missed: let go once the page has marked the video as seen.
   if (introHolding()) {
@@ -912,11 +1046,20 @@ export function initCourseVoiceOverlay(opts = {}) {
       document.removeEventListener("keydown", onKey);
       overlay.remove();
       (document.querySelector(".sala-help") || document.querySelector("#course-widget .cw-menu-btn"))?.focus?.({ preventScroll: true });
-      reportTutorial("closed");
-      if (startLesson) {
-        if (introHolding()) pendingLessonStart = true;
-        else startLessonNow();
-      }
+      const proceed = () => {
+        reportTutorial("closed");
+        if (startLesson) {
+          if (introHolding()) pendingLessonStart = true;
+          else startLessonNow();
+        }
+      };
+      if (options.demo && startLesson) {
+        // The camera question comes right after the tutorial, before the opening video, so nothing starts behind the learner's back.
+        askCameraConsent().then((allowed) => {
+          if (allowed) void window.salaCamera?.turnOn?.();
+          proceed();
+        });
+      } else proceed();
     };
     render();
     mountOnTop(overlay);
@@ -937,6 +1080,53 @@ export function initCourseVoiceOverlay(opts = {}) {
     else reportTutorial("closed");
   }
 
+  function syncMascot() {
+    if (!mascotNode) return;
+    mascotNode.dataset.listen = !consented ? "off" : muted ? "muted" : listening ? "on" : "wait";
+    const tap = mascotNode.querySelector(".sala-tap");
+    if (tap) tap.hidden = !introNeedsTap;
+  }
+
+  // Salareen's golden Sala: always on screen in the demo (over the opening video and over the lesson), bottom-left. Tap to
+  // start the lesson / ask a question; tap again to mute or unmute the mic.
+  function onSalaTap() {
+    if (!mascotNode) return;
+    salaHandles.get(mascotNode)?.giggle();
+    if (introNeedsTap) {
+      introNeedsTap = false;
+      syncMascot();
+      try { window.parent.postMessage({ type: "sala-intro-tap" }, window.location.origin); } catch { /* standalone page */ }
+      return;
+    }
+    goFullScreenOnPhone();
+    if (introHolding()) {
+      pendingLessonStart = true;
+      if (!consented) setConsented(true);
+      syncMascot();
+      return;
+    }
+    const welcome = document.getElementById("page-welcome");
+    if (welcome && !welcome.hidden) clickById("btn-start-voice");
+    if (!consented) setConsented(true);
+    else setMuted(!muted);
+    syncMascot();
+  }
+
+  function buildMascot() {
+    if (mascotNode || document.querySelector(".sala-mascot")) return;
+    mascotNode = el("button", {
+      type: "button", class: "sala-mascot", "data-testid": "sala-mascot", "data-sala-avatar": "", "data-listen": "off",
+      "aria-label": "Ask Sala a question. Tap to start, or to mute and unmute the mic.", title: "Ask Sala",
+    }, [
+      el("span", { class: "sala-art", "aria-hidden": "true" }),
+      el("span", { class: "sala-dot", "aria-hidden": "true" }),
+      el("span", { class: "sala-tap", hidden: "" }, ["Tap to start"]),
+    ]);
+    mascotNode.addEventListener("click", onSalaTap);
+    document.body.appendChild(mascotNode);
+    syncMascot();
+  }
+
   // Sala's giggle and the dance easter egg (see sala_interactions.js). One handle per avatar element, found now or when it appears.
   const salaHandles = new Map();
   function danceNow() {
@@ -946,11 +1136,15 @@ export function initCourseVoiceOverlay(opts = {}) {
   }
   function wireSalaInteractions() {
     observeAvatars((node) => {
-      salaHandles.set(node, attachSalaInteractions(node, {
+      const own = {
         isNarrating: () => document.body.classList.contains("is-speaking"),
         isMicListening: () => Boolean(listening && !muted),
         isMuted: () => audioGain === 0,
-      }));
+      };
+      // The demo's Sala is itself a <button> (keyboard and screen-reader friendly): the shared module would skip pointer movement
+      // over any button, so for her the ignore-list is only the avatar's own handles.
+      if (node.classList && node.classList.contains("sala-mascot")) own.ignoreSelector = ".avatar-handle, .avatar-grip";
+      salaHandles.set(node, attachSalaInteractions(node, own));
     });
     const stage = document.querySelector(options.stageSelector);
     if (stage) attachTouchDoubleTap(stage);
@@ -959,27 +1153,16 @@ export function initCourseVoiceOverlay(opts = {}) {
   function wireAvatarGesture() {
     buildCourseWidget();
     wireDemoHelp();
+    buildMascot();
     wireSalaInteractions();
     document.addEventListener("click", (event) => {
       const wrap = event.target.closest && event.target.closest("#theodore-avatar-wrap");
       if (!wrap) return;
       event.stopPropagation();
-      wrap.classList.remove("sala-giggle");
-      void wrap.offsetWidth;
-      wrap.classList.add("sala-giggle");
-      window.setTimeout(() => wrap.classList.remove("sala-giggle"), 720);
       salaHandles.get(wrap)?.giggle();
-      goFullScreenOnPhone();
-      const welcome = document.getElementById("page-welcome");
-      if (welcome && !welcome.hidden) clickById("btn-start-voice");
-      if (!consented) setConsented(true);
-      else setMuted(!muted);
+      onSalaTap();
     }, true);
-    const sync = () => {
-      const wrap = document.getElementById("theodore-avatar-wrap");
-      if (wrap) wrap.classList.toggle("sala-listening", Boolean(listening && !muted));
-    };
-    setInterval(sync, 400);
+    setInterval(syncMascot, 400);
   }
 
   // ---- Full course (course-clean): ONE movable widget ------------------------------------
@@ -991,6 +1174,19 @@ export function initCourseVoiceOverlay(opts = {}) {
   const CW_HINT_KEY = "aoep.courseWidget.hint.v1";
   let cw = null;
   let presenceLine = "";
+  // "Show captions" brings back the two bars under the lesson (the spoken question and any notes). Off by default; the same text
+  // is always available to screen readers.
+  const CAPTIONS_KEY = "aoep.captions.shown.v1";
+  let captionsShown = false;
+  try { captionsShown = window.localStorage.getItem(CAPTIONS_KEY) === "1"; } catch { captionsShown = false; }
+  document.body.classList.toggle("sala-captions", captionsShown);
+  function applyCaptions(value, persist) {
+    captionsShown = Boolean(value);
+    document.body.classList.toggle("sala-captions", captionsShown);
+    if (persist) { try { window.localStorage.setItem(CAPTIONS_KEY, captionsShown ? "1" : "0"); } catch { /* not kept */ } }
+    const lessonSwitch = document.getElementById("btn-captions");
+    if (lessonSwitch && lessonSwitch.classList.contains("is-off") === captionsShown) lessonSwitch.click();
+  }
 
   function readJson(key) {
     try { return JSON.parse(window.localStorage.getItem(key) || "null"); } catch { return null; }
@@ -1066,16 +1262,40 @@ export function initCourseVoiceOverlay(opts = {}) {
     const status = el("p", { class: "cw-status", "aria-live": "polite" });
     const collapse = el("button", { type: "button", class: "cw-btn cw-collapse", "aria-expanded": "true", "aria-label": "Tuck away camera and voice", title: "Tuck away" }, ["–"]);
     const menuBtn = el("button", { type: "button", class: "cw-btn cw-menu-btn", "aria-haspopup": "menu", "aria-expanded": "false", "aria-label": "Lesson menu", title: "Menu" }, ["⋯"]);
-    bar.append(grip, status, collapse, menuBtn);
-    const body = el("div", { class: "cw-body" });
+    // The timer lives in the bar (never over the picture), so the folded widget is a small pill: dot, time, expand, menu.
     const clockMount = el("div", { class: "cw-clock" });
+    bar.append(grip, status, clockMount, collapse, menuBtn);
+    const body = el("div", { class: "cw-body" });
     const camMount = el("div", { class: "cw-cam" });
+    const camLabel = el("span", { class: "cw-camlabel" }, ["Camera off"]);
+    const camToggle = el("button", { type: "button", class: "cw-camtoggle", "data-testid": "camera-toggle", "aria-pressed": "false", "aria-label": "Turn camera on", title: "Camera" }, ["\u{1F4F7}"]);
+    camMount.append(camLabel, camToggle);
     const voiceMount = el("div", { class: "cw-voice" });
-    body.append(clockMount, camMount, voiceMount);
+    body.append(camMount, voiceMount);
     const menu = el("div", { class: "cw-menu", role: "menu", hidden: "" });
     root.append(bar, body, menu);
     document.body.prepend(root);
-    cw = { root, status, menu, menuBtn, collapse, camMount, voiceMount };
+    cw = { root, status, menu, menuBtn, collapse, camMount, voiceMount, camToggle, camLabel };
+
+    // Camera on/off lives on the picture itself: visible when on, and one tap to turn it off (or on again).
+    const camState = () => (window.salaCamera && window.salaCamera.state && window.salaCamera.state()) || "";
+    const showCamState = (state) => {
+      if (state === "on" || state === "off" || state === "denied") camMount.dataset.cam = state;
+      else delete camMount.dataset.cam;
+      const on = state === "on";
+      camToggle.setAttribute("aria-pressed", String(on));
+      camToggle.setAttribute("aria-label", on ? "Turn camera off" : "Turn camera on");
+      camToggle.title = on ? "Camera is on. Tap to turn it off." : "Camera is off. Tap to turn it on.";
+      camToggle.textContent = on ? "\u{1F4F7}" : "\u{1F6AB}";
+      camLabel.textContent = state === "denied" ? "Camera blocked" : "Camera off";
+      syncWidgetStatus();
+    };
+    window.addEventListener("sala-camera", (event) => showCamState((event.detail && event.detail.state) || ""));
+    camToggle.addEventListener("click", () => {
+      if (camState() === "on") window.salaCamera?.turnOff?.();
+      else void window.salaCamera?.turnOn?.();
+    });
+    showCamState(camState());
 
     // Position: remembered, else a corner clear of the lesson text (which sits along the bottom): top-right in the demo, top-left in the full course.
     const saved = readJson(CW_POS_KEY);
@@ -1151,11 +1371,10 @@ export function initCourseVoiceOverlay(opts = {}) {
       menu.appendChild(el("div", { class: "cw-info", role: "presentation" }, [`Progress: ${percent || "0%"}`]));
       const plan = document.getElementById("course-price")?.textContent?.trim();
       if (plan) menu.appendChild(el("div", { class: "cw-info", role: "presentation" }, [`Plan: ${plan}`]));
-      const captions = document.getElementById("btn-captions");
-      if (captions) {
-        const off = captions.classList.contains("is-off");
-        menu.appendChild(item(off ? "Captions on" : "Captions off", () => captions.click()));
-      }
+      menu.appendChild(item(captionsShown ? "Hide captions" : "Show captions", () => applyCaptions(!captionsShown, true)));
+      const camOn = camState() === "on";
+      menu.appendChild(item(camOn ? "Turn camera off" : "Turn camera on", () => (camOn ? window.salaCamera?.turnOff?.() : void window.salaCamera?.turnOn?.())));
+      if (readCamPref()) menu.appendChild(item("Reset camera choice", () => window.salaCamera?.reset?.()));
       const langSource = document.getElementById("teach-lang-stage") || document.getElementById("teach-lang");
       if (langSource && langSource.options && langSource.options.length > 1) {
         const select = el("select", { "aria-label": "Lesson language" });
@@ -1265,7 +1484,7 @@ export function initCourseVoiceOverlay(opts = {}) {
     if (params.get("voicefirst") === "0") return;
     const stage = document.getElementById("teach-stage");
     if (!stage) return;
-    initCourseVoiceOverlay({
+    window.salaVoice = initCourseVoiceOverlay({
       typeToAsk: params.get("typemode") === "1",
       locale: params.get("lang") || "en-US",
       demo: params.get("demo") === "1",

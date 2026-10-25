@@ -9,18 +9,22 @@ const POSTER_SRC = "/video/drivers-ed-intro-poster.jpg";
 const CREDITS_HREF = "/video/drivers-ed-intro-credits.txt";
 // If the lesson frame never reports its tutorial (blocked, slow), do not leave the video waiting forever.
 const NO_REPORT_MS = 8000;
+// The opening scene never holds the learner longer than this: the lesson starts by itself (there is no Next or Skip button).
+const MAX_INTRO_MS = 15000;
 
-const iconButton = {
-  width: 48,
-  height: 48,
+const creditsLink = {
+  width: 28,
+  height: 28,
   borderRadius: "50%",
   border: "2px solid rgba(255,255,255,.75)",
   background: "rgba(8,12,24,.55)",
   color: "#fff",
   display: "grid",
   placeItems: "center",
-  cursor: "pointer",
-  padding: 0,
+  fontSize: 14,
+  fontWeight: 700,
+  opacity: 0.65,
+  textDecoration: "none",
 } as const;
 
 function lessonFrames(): HTMLIFrameElement[] {
@@ -34,8 +38,9 @@ function tellFrames(message: Record<string, unknown>) {
 /**
  * Opening of the Driver's Ed demo, once per session:
  * 1. the tutorial shows first, with this video waiting (paused) behind it,
- * 2. when the tutorial is closed the video plays on top,
- * 3. when the video ends or is skipped the lesson page appears.
+ * 2. when the tutorial is closed the video plays as the opening scene BEHIND the lesson page: the combined widget (camera,
+ *    voice, timer) and Sala are already there, on top of it,
+ * 3. when the video ends (or after MAX_INTRO_MS) the lesson starts by itself. There is no Next or Skip button.
  */
 export function DriversEdIntro() {
   const [active, setActive] = useState(false);
@@ -59,6 +64,8 @@ export function DriversEdIntro() {
     window.setTimeout(() => setActive(false), 350);
   }, []);
 
+  const phase = introPhase(tutorial, finished);
+
   // The lesson frame reports whether its tutorial is open or closed.
   useEffect(() => {
     if (!active) return;
@@ -67,6 +74,11 @@ export function DriversEdIntro() {
       if (event.origin !== window.location.origin) return;
       const state = tutorialStateFrom(event.data);
       if (state) setTutorial(state);
+      // Autoplay was blocked: the learner tapped Sala ("Tap to start") inside the lesson frame.
+      if (event.data && typeof event.data === "object" && (event.data as { type?: string }).type === "sala-intro-tap") {
+        setNeedsTap(false);
+        void videoRef.current?.play().catch(() => finish());
+      }
     };
     window.addEventListener("message", onMessage);
     ask();
@@ -78,9 +90,7 @@ export function DriversEdIntro() {
       for (const frame of frames) frame.removeEventListener("load", ask);
       window.clearTimeout(giveUp);
     };
-  }, [active]);
-
-  const phase = introPhase(tutorial, finished);
+  }, [active, finish]);
 
   // Play only after the tutorial; pause again if it is reopened.
   useEffect(() => {
@@ -101,36 +111,36 @@ export function DriversEdIntro() {
     if (attempt && typeof attempt.catch === "function") attempt.catch(() => setNeedsTap(true));
   }, [active, phase]);
 
+  // Blocked autoplay: Sala (in the lesson frame) shows one clear "Tap to start", not a Next button.
+  useEffect(() => {
+    if (needsTap) tellFrames({ type: "sala-intro-needs-tap" });
+  }, [needsTap]);
+
+  // The opening scene is short: whatever happens, the lesson starts by itself after MAX_INTRO_MS of playing.
+  useEffect(() => {
+    if (!active || phase !== "play" || needsTap) return;
+    const timer = window.setTimeout(finish, MAX_INTRO_MS);
+    return () => window.clearTimeout(timer);
+  }, [active, phase, needsTap, finish]);
+
   // While the video waits, the lesson frame sits above it with a see-through background.
   useEffect(() => {
     if (!active) return;
-    const hold = phase === "hold";
-    document.body.classList.toggle("drivers-ed-hold", hold);
+    const behind = phase !== "done";
+    document.body.classList.toggle("drivers-ed-hold", behind);
     return () => document.body.classList.remove("drivers-ed-hold");
   }, [active, phase]);
 
-  useEffect(() => {
-    if (!active) return;
-    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape" && phase === "play") finish(); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [active, phase, finish]);
-
   if (!active) return null;
-
-  const playing = phase === "play" || phase === "done";
 
   return (
     <div
       data-testid="drivers-ed-intro"
       data-phase={phase}
-      role={playing ? "dialog" : undefined}
-      aria-modal={playing ? true : undefined}
-      aria-label="Driver's Ed welcome video"
-      aria-hidden={playing ? undefined : true}
+      aria-hidden
       style={{
-        position: "fixed", inset: 0, zIndex: playing ? 2000 : 1, background: "#000",
-        pointerEvents: playing ? "auto" : "none",
+        position: "fixed", inset: 0, zIndex: 1, background: "#000",
+        pointerEvents: "none",
         opacity: leaving ? 0 : 1, transition: "opacity .35s ease",
       }}
     >
@@ -148,37 +158,14 @@ export function DriversEdIntro() {
         onError={finish}
         style={{ width: "100%", height: "100%", objectFit: "cover", background: "#000" }}
       />
-      {playing && needsTap && (
-        <button
-          type="button"
-          data-testid="drivers-ed-intro-play"
-          aria-label="Play"
-          onClick={() => { setNeedsTap(false); void videoRef.current?.play().catch(() => finish()); }}
-          style={{ ...iconButton, position: "absolute", inset: 0, margin: "auto", width: 88, height: 88 }}
-        >
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
-        </button>
-      )}
-      {playing && (
-        <button
-          type="button"
-          data-testid="drivers-ed-intro-skip"
-          aria-label="Skip intro"
-          title="Skip"
-          onClick={finish}
-          style={{ ...iconButton, position: "absolute", right: "max(16px, env(safe-area-inset-right))", top: "max(16px, env(safe-area-inset-top))" }}
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5 5v14l9-7zM15 5h3v14h-3z" /></svg>
-        </button>
-      )}
-      {playing && (
+      {phase === "play" && (
         <a
           href={CREDITS_HREF}
           target="_blank"
           rel="noopener noreferrer"
           aria-label="Footage credits"
           title="Footage credits"
-          style={{ ...iconButton, width: 28, height: 28, fontSize: 14, fontWeight: 700, opacity: 0.65, textDecoration: "none", position: "absolute", left: "max(16px, env(safe-area-inset-left))", bottom: "max(16px, env(safe-area-inset-bottom))" }}
+          style={{ ...creditsLink, pointerEvents: "auto", position: "fixed", right: "max(16px, env(safe-area-inset-right))", bottom: "max(16px, env(safe-area-inset-bottom))", zIndex: 2001 }}
         >
           i
         </a>

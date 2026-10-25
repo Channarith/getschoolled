@@ -65,7 +65,7 @@ from .studio_tuning import (
 )
 from .studio_languages import list_languages, normalize_language
 from .studio_page import render_studio_page
-from .teach import TeachEngine
+from .teach import SampleTrialExpired, TeachEngine
 from .training_run import run_training_pass
 from .tts_client import build_tts_get_url, tts_client_hints, tts_status
 from .neural_tts import (
@@ -925,6 +925,12 @@ def teach_start(
             voice_gender=req.voice_gender,
             access=access,
         )
+    except SampleTrialExpired as exc:
+        raise HTTPException(
+            status_code=403,
+            detail=f"trial_expired: {exc.message}",
+            headers={"X-AOEP-Gate": "trial_expired"},
+        ) from exc
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=f"missing: {exc}") from exc
     except ValueError as exc:

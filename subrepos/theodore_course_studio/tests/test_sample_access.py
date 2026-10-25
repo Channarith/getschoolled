@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import time
 
+import pytest
 from fastapi.testclient import TestClient
 
 from theodore_course_studio.generate import CourseBuilder
-from theodore_course_studio.teach import TeachEngine
+from theodore_course_studio.teach import SampleTrialExpired, TeachEngine
 from theodore_course_studio.types import CourseSlide, StudioCourse
 
 
@@ -45,8 +46,9 @@ def test_sample_stops_at_ten_minutes_and_does_not_extend(tmp_path):
     before = session.path_pos
     stopped = engine.advance("sample-1")
     assert stopped["sample"]["complete"] is True
-    assert "trial" in stopped["sample"]["message"].lower()
-    assert "pay for the course" in stopped["sample"]["message"].lower()
+    assert "demo" in stopped["sample"]["message"].lower()
+    assert "create an account or log in" in stopped["sample"]["message"].lower()
+    assert "$" not in stopped["sample"]["message"]
     assert session.path_pos == before
     assert engine.continue_past_checkpoint("sample-1")["sample"]["complete"] is True
     assert session.soft_limit_minutes == 10
@@ -66,16 +68,15 @@ def test_starting_over_does_not_reset_a_finished_trial(tmp_path):
     session = engine._sessions["sticky-1"]
     session.started_at_ms = int(time.time() * 1000) - 11 * 60_000
     engine._persist_live(session, status="in_progress")
-    again = engine.start(
-        session_id="sticky-2",
-        course_id=course.course_id,
-        learner_id="learner-a",
-        access="sample",
-        resume=False,
-        use_voice_agent=False,
-    )
-    assert again["sample"]["complete"] is True
-    assert again["session"]["started_at_ms"] == session.started_at_ms
+    with pytest.raises(SampleTrialExpired):
+        engine.start(
+            session_id="sticky-2",
+            course_id=course.course_id,
+            learner_id="learner-a",
+            access="sample",
+            resume=False,
+            use_voice_agent=False,
+        )
 
 
 def test_audio_trial_is_a_separate_ten_minutes(tmp_path):
@@ -242,3 +243,64 @@ def test_studio_page_offers_the_sample_banner():
     assert "grid-template-columns:minmax(260px, 0.9fr)" not in page
     assert "public-course .library-panel { display:none" not in page
     assert "library.filter((row) => row.id === pinnedCourse)" not in STUDIO_JS
+
+
+def test_changing_language_or_course_keeps_the_same_trial_clock(tmp_path):
+    """The Driver's Ed program is rebuilt per language under a new course id: the 10 minutes must not start over."""
+    builder = CourseBuilder(data_dir=tmp_path)
+    engine = TeachEngine(builder)
+    _mini(builder, "program-en")
+    _mini(builder, "program-es")
+    engine.start(session_id="lang-1", course_id="program-en", learner_id="browser-abc", access="sample",
+                 language="en", use_voice_agent=False)
+    first = engine._sessions["lang-1"]
+    first.started_at_ms = int(time.time() * 1000) - 4 * 60_000
+    engine._persist_live(first, status="in_progress")
+    spanish = engine.start(session_id="lang-2", course_id="program-es", learner_id="browser-abc", access="sample",
+                           language="es", use_voice_agent=False)
+    assert spanish["session"]["started_at_ms"] == first.started_at_ms
+    # ...and it cannot be used to dodge the end of the trial either.
+    first.started_at_ms = int(time.time() * 1000) - 11 * 60_000
+    engine._persist_live(first, status="in_progress")
+    with pytest.raises(SampleTrialExpired):
+        engine.start(session_id="lang-3", course_id="program-es", learner_id="browser-abc", access="sample",
+                     language="km", resume=False, use_voice_agent=False)
+    # A different learner still gets their own full 10 minutes.
+    other = engine.start(session_id="lang-4", course_id="program-es", learner_id="browser-other", access="sample",
+                         language="es", use_voice_agent=False)
+    assert other["sample"]["complete"] is False
+
+
+def test_a_day_after_the_demo_ended_the_same_browser_gets_a_fresh_demo(tmp_path):
+    builder = CourseBuilder(data_dir=tmp_path)
+    engine = TeachEngine(builder)
+    _mini(builder, "cool-mini")
+    engine.start(session_id="c-1", course_id="cool-mini", learner_id="browser-cool", access="sample", use_voice_agent=False)
+    first = engine._sessions["c-1"]
+    first.started_at_ms = int(time.time() * 1000) - 25 * 3600 * 1000
+    engine._persist_live(first, status="in_progress")
+    fresh = engine.start(session_id="c-2", course_id="cool-mini", learner_id="browser-cool", access="sample", use_voice_agent=False)
+    assert fresh["sample"]["complete"] is False
+    assert fresh["session"]["started_at_ms"] > first.started_at_ms
+
+
+def test_teach_start_endpoint_refuses_an_expired_demo_with_a_code(tmp_path, monkeypatch):
+    from theodore_course_studio import main as studio_main
+
+    builder = CourseBuilder(data_dir=tmp_path)
+    engine = TeachEngine(builder)
+    _mini(builder, "http-mini")
+    monkeypatch.setattr(studio_main, "_builder", builder)
+    monkeypatch.setattr(studio_main, "_teach", engine)
+    client = TestClient(studio_main.app)
+    body = {"session_id": "h-1", "course_id": "http-mini", "learner_id": "browser-http", "access": "sample", "use_voice_agent": False}
+    ok = client.post("/api/studio/teach/start", json=body)
+    assert ok.status_code == 200
+    session = engine._sessions["h-1"]
+    session.started_at_ms = int(time.time() * 1000) - 11 * 60_000
+    engine._persist_live(session, status="in_progress")
+    refused = client.post("/api/studio/teach/start", json={**body, "session_id": "h-2", "resume": False})
+    assert refused.status_code == 403
+    assert refused.json()["detail"].startswith("trial_expired")
+    assert refused.headers.get("x-aoep-gate") == "trial_expired"
+    assert "$" not in refused.json()["detail"]
