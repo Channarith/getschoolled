@@ -187,3 +187,21 @@ Zero-shot cloning is not training
   for wei, English for wei-miao and channarith), in 5-10 sessions of 60-90 s each, read from varied text, quiet room, same microphone,
   the transcript saved exactly. Add each one with: python3 -m tts_bakeoff.voice_clone.bakeoff enroll --speaker wei
   --audio session2.m4a --transcript-file session2.txt --lang yue (the enrollment page records one 8-line set per language today).
+
+Faster, resumable clone runs (v0.97.58)
+  Re-running is cheap: a clip that exists (not tiny) with an "ok" manifest row is skipped; --force regenerates. A failed or truncated clip is redone.
+  scripts/run_voice_clone.sh OUT [--speakers a,b] [--force]      LANGS=all (every language the model supports) or a comma list
+  Workers: GS_CLONE_WORKERS / --workers N (default 2) shard the (speaker, language) units across N processes under the ONE gs_run lock and job
+           (the one-job-per-name rule and the GPU lock are unchanged). N is reduced to what fits above the 16 GB gate (about 10 GB per worker; --strict-workers
+           refuses instead). One model load per process; synthesis is serialized per process (one GPU) while the CPU stage (scoring, cleaning) of a clip
+           overlaps the next synthesis (--post-threads, default 2). Whether N > 1 is faster on a single GPU must be measured on the Spark:
+           scripts/measure_clone_workers.sh 1 2 3      (same clips for each N, prints seconds, clips/min and speedup)
+  Languages (read from the model cards 2026-10-25): VoxCPM2 31 = ar my zh da nl en fi fr de el he hi id it ja km ko lo ms nb pl pt ru es sw sv fil th tr vi + yue.
+           CosyVoice 2 9 = zh en fr es ja ko it ru de (the card text is shared with Fun-CosyVoice 3.0 and the paper evaluates zh/en/ja/ko, so fr/it/ru/de
+           are unverified; no Cantonese). Sentences: the same 3 per language as the edge-tts lab (tts_bakeoff/sentences, 75 languages). A voice's own
+           language(s) run by default; --langs all or an explicit list add the others, labelled cross-lingual.
+  Progress:   python3 -m tts_bakeoff.voice_clone.bakeoff status --out OUT       (read-only: per voice and language, bar, workers, ETA, GPU lock, and a
+              last line RUNNING / DONE / INCOMPLETE). The run writes OUT/progress.json and OUT/progress/worker-N.json; the lab shows them too.
+  Lab:        python3 -m tts_bakeoff.lab --out OUT    rescans the folder by itself every 20 s while a run changes it (or press "Refresh clips"): no restart
+              for new clips. The language picker shows voices and clips per language, and hides languages without clips behind "Show languages without clips yet".
+

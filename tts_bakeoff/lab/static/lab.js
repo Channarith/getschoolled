@@ -44,10 +44,11 @@ const state = {
   gender: '', region: '', type: '', compare: new Set(),   // voice filters; compare = base voices ticked in "Compare these voices"
   blind: !!SAVED.blind, seed: SAVED.seed ?? 7, norm: SAVED.norm !== false, wave: !!SAVED.wave, speed: SAVED.speed || 1,
   rater: SAVED.rater || '', ratings: SAVED.ratings || {},
+  showEmpty: !!SAVED.showEmpty, rev: '', loose: new Set(),   // showEmpty: list languages that have no clips yet; rev: the served folder's change token; loose: audio files already placed
   tab: 'grid', focus: {row: 0, col: 0}, now: null, queue: [], loop: null, rows: [], labelMaps: {},
 };
 function persist() {
-  try { store.set('ttslab.v1', JSON.stringify({lang: state.lang, blind: state.blind, seed: state.seed, norm: state.norm, wave: state.wave, speed: state.speed, rater: state.rater, ratings: state.ratings})); } catch (_) { /* quota */ }
+  try { store.set('ttslab.v1', JSON.stringify({lang: state.lang, blind: state.blind, seed: state.seed, norm: state.norm, wave: state.wave, speed: state.speed, rater: state.rater, ratings: state.ratings, showEmpty: state.showEmpty})); } catch (_) { /* quota */ }
 }
 function say(msg) { $('#status').textContent = msg; }
 
@@ -158,7 +159,8 @@ async function ingest(entries) {
   }
   for (let i = 0; i < manifests.length; i += 24) await Promise.all(manifests.slice(i, i + 24).map(loadManifest));   // hundreds of voice folders: fetch in parallel batches
   for (const e of entries) {
-    if (used.has(e) || !AUDIO_RE.test(e.name)) continue;
+    if (used.has(e) || !AUDIO_RE.test(e.name) || state.loose.has(e.path)) continue;
+    state.loose.add(e.path);
     const g = inferFromPath(e.path);
     if (g.model && g.lang && g.sid) { addClipEntry(e, g.model, g.lang, g.sid); added++; }
     else pendingLabel.push({e, guess: g});
@@ -240,16 +242,48 @@ window.addEventListener('drop', async e => {
   ingest(out);
 });
 
+function servedEntries(r, sub) {
+  const base = LAB.run.base + (sub ? sub.replace(/^\/+|\/+$/g, '') + '/' : '');
+  return (r.files || []).map(f => ({path: f.path, name: f.path.split('/').pop(), size: f.size, file: null, url: base + f.path.split('/').map(encodeURIComponent).join('/')}));
+}
+function showProgress(p) {
+  const el = $('#run-live');
+  if (!p || !p.clips_total) { el.hidden = true; return; }
+  const done = (p.clips_done || 0) + (p.clips_skipped_existing || 0), total = p.clips_total;
+  el.hidden = false;
+  el.textContent = p.running ? `Clone run in progress: ${done}/${total} clips (${(p.workers || []).filter(w => !w.finished).length || 1} worker(s)). New clips appear here by themselves.`
+    : `Last clone run: ${done}/${total} clips${p.clips_failed ? `, ${p.clips_failed} failed` : ''}.`;
+}
 async function loadServed() {
   if (!LAB.run || !LAB.run.base) return;
   const sub = new URLSearchParams(location.search).get('run') || '';
   try {
     const r = await fetch('/api/run' + (sub ? '?sub=' + encodeURIComponent(sub) : '')).then(x => x.json());
-    const base = LAB.run.base + (sub ? sub.replace(/^\/+|\/+$/g, '') + '/' : '');
-    const entries = (r.files || []).map(f => ({path: f.path, name: f.path.split('/').pop(), size: f.size, file: null, url: base + f.path.split('/').map(encodeURIComponent).join('/')}));
+    state.rev = r.rev || '';
+    const entries = servedEntries(r, sub);
     if (entries.length) await ingest(entries); else say('The served run folder has no audio yet.');
   } catch (err) { say('Could not list the run folder: ' + err.message); }
+  pollStatus();
 }
+/* Rescan: ask the server whether the folder changed (its rev token) and reload only then. No lab restart is needed for new clips. */
+async function pollStatus() {
+  try { const s = await fetch('/api/status').then(x => x.json()); showProgress(s.progress); } catch (_) { /* optional */ }
+}
+async function rescan(manual) {
+  if (!LAB.run || !LAB.run.base) return;
+  const sub = new URLSearchParams(location.search).get('run') || '';
+  try {
+    const r = await fetch('/api/run' + (sub ? '?sub=' + encodeURIComponent(sub) : '')).then(x => x.json());
+    pollStatus();
+    if (r.rev && r.rev === state.rev) { if (manual) say('No new clips.'); return; }
+    state.rev = r.rev || '';
+    const before = state.clips.size;
+    await ingest(servedEntries(r, sub));
+    say(`Updated: ${state.clips.size - before} new clip(s), ${state.clips.size} in total.`);
+  } catch (err) { if (manual) say('Could not rescan: ' + err.message); }
+}
+$('#rescan').addEventListener('click', () => rescan(true));
+if (LAB.run && LAB.run.base) setInterval(() => { if (!document.hidden && !state.now) rescan(false); }, 20000);
 
 /* ---------- filters ---------- */
 /* Languages: the catalog (27 platform languages, then extras, then those with no edge voice) plus anything else that has clips. */
@@ -314,29 +348,34 @@ function langLabel(m) { return m.native && m.native !== m.name ? `${m.name} · $
 function renderLangList() {
   const q = fold($('#lang-q').value.trim()), list = $('#lang-list'), items = [];
   const groups = [['Platform languages', m => m.platform], ['Extra languages', m => !m.platform && m.status === 'voice'], ['No edge voice', m => m.status === 'no_voice']];
-  const all = pickerLanguages().filter(m => !q || [m.code, m.name, m.native].some(x => fold(x).includes(q)));
+  const hideEmpty = !state.showEmpty && !q && state.voices.size > 0;   // languages without clips are behind the toggle, unless you are searching
+  const everyone = pickerLanguages(), withAny = everyone.filter(m => clipsIn(m.code)).length;
+  const all = everyone.filter(m => (!q || [m.code, m.name, m.native].some(x => fold(x).includes(q))) && (!hideEmpty || clipsIn(m.code) || m.code === state.lang));
+  if (state.voices.size) items.push(h('li', {class: 'lang-summary', role: 'presentation', text: `${withAny} of ${everyone.length} languages have clips` + (hideEmpty ? ' (the rest are hidden)' : '')}));
   for (const [title, test] of groups) {
     const ms = all.filter(test).sort((a, b) => a.name.localeCompare(b.name));
     if (!ms.length) continue;
     items.push(h('li', {class: 'lang-group', role: 'presentation', text: `${title} (${ms.length})`}));
     for (const m of ms) {
       const p = progressOf(m.code), n = clipsIn(m.code);
-      items.push(h('li', {role: 'option', class: 'lang-opt' + (m.status === 'no_voice' ? ' novoice' : ''), 'data-code': m.code, id: `lang-opt-${m.code}`, tabindex: '-1', 'aria-selected': String(m.code === state.lang),
+      const nv = (state.byLang.get(m.code) || new Set()).size;
+      items.push(h('li', {role: 'option', class: 'lang-opt' + (m.status === 'no_voice' ? ' novoice' : '') + (n ? '' : ' noclips'), 'data-code': m.code, id: `lang-opt-${m.code}`, tabindex: '-1', 'aria-selected': String(m.code === state.lang),
         onclick: () => chooseLang(m.code)},
         h('span', {class: 'ln', lang: m.code === 'yue' ? 'yue-Hant' : m.code, dir: m.rtl ? 'rtl' : 'ltr', text: m.native || m.name}),
         h('span', {class: 'le', text: `${m.name} · ${m.code}`}),
-        h('span', {class: 'lc', text: m.status === 'no_voice' ? 'no voice' : n ? `${p.done}/${p.total} rated` : 'no clips yet'})));
+        h('span', {class: 'lc', text: m.status === 'no_voice' && !n ? 'no voice' : n ? `${nv} voice${nv === 1 ? '' : 's'} · ${n} clip${n === 1 ? '' : 's'}` + (p.done ? ` · ${p.done}/${p.total} rated` : '') : 'no clips yet'})));
     }
   }
   if (!items.length) items.push(h('li', {class: 'lang-group', role: 'presentation', text: 'No language matches.'}));
   list.replaceChildren(...items);
   const first = $('.lang-opt', list); $$('.lang-opt', list).forEach(o => o.classList.remove('active')); if (first && q) first.classList.add('active');
 }
-function openLangPop() { $('#lang-pop').hidden = false; $('#lang-btn').setAttribute('aria-expanded', 'true'); $('#lang-q').value = ''; renderLangList(); $('#lang-q').focus(); const cur = $('.lang-opt[aria-selected=true]'); if (cur) cur.scrollIntoView({block: 'center'}); }
+function openLangPop() { $('#lang-pop').hidden = false; $('#lang-btn').setAttribute('aria-expanded', 'true'); $('#lang-q').value = ''; $('#lang-empty').checked = state.showEmpty; renderLangList(); $('#lang-q').focus(); const cur = $('.lang-opt[aria-selected=true]'); if (cur) cur.scrollIntoView({block: 'center'}); }
 function closeLangPop(refocus = true) { $('#lang-pop').hidden = true; $('#lang-btn').setAttribute('aria-expanded', 'false'); if (refocus) $('#lang-btn').focus(); }
 function chooseLang(code) { state.lang = code; state.cat = ''; state.region = ''; state.compare = new Set(); persist(); closeLangPop(); refreshAll(); }
 $('#lang-btn').addEventListener('click', () => ($('#lang-pop').hidden ? openLangPop() : closeLangPop()));
 $('#lang-q').addEventListener('input', renderLangList);
+$('#lang-empty').addEventListener('change', e => { state.showEmpty = e.target.checked; persist(); renderLangList(); });
 $('#lang-q').addEventListener('keydown', e => {
   const opts = $$('.lang-opt', $('#lang-list')), cur = opts.findIndex(o => o.classList.contains('active'));
   const go = i => { opts.forEach(o => o.classList.remove('active')); const o = opts[Math.max(0, Math.min(opts.length - 1, i))]; if (o) { o.classList.add('active'); o.scrollIntoView({block: 'nearest'}); $('#lang-q').setAttribute('aria-activedescendant', o.id); } };

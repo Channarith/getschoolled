@@ -1,4 +1,4 @@
-"""CosyVoice 2 0.5B, our incumbent. Apache-2.0. No km/vi/th/sw/hi in the base model.
+"""CosyVoice 2 0.5B, our incumbent. Apache-2.0. zh, en, fr, es, ja, ko, it, ru, de per the model card; no km/vi/th/sw/hi/yue.
 
 Two ways to run it, whichever works on the machine:
   - in-process (needs the CosyVoice repo on PYTHONPATH and Python 3.10): options model_dir, prompt_wav
@@ -52,7 +52,9 @@ def load_prompt_wav(path: str, target_sr: int = 16000):
 
 class CosyVoice2Adapter(Adapter):
     name = "cosyvoice2"
-    languages = {"en", "es", "zh"}
+    # FunAudioLLM/CosyVoice2-0.5B card metadata (read 2026-10-25) lists zh, en, fr, es, ja, ko, it, ru, de; the card text is shared with Fun-CosyVoice 3.0, and the
+    # CosyVoice 2 paper only evaluates zh/en/ja/ko, so fr/it/ru/de are unverified: listen before relying on them. No Cantonese (that is VoxCPM2 only).
+    languages = {"zh", "en", "fr", "es", "ja", "ko", "it", "ru", "de"}
 
     def model_dir(self) -> str:
         """option model_dir, else $COSYVOICE_MODEL_DIR, else <repo>/pretrained_models/CosyVoice2-0.5B (repo = $COSYVOICE_REPO or ~/code/CosyVoice).
