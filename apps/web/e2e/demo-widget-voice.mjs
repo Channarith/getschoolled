@@ -52,6 +52,34 @@ for (const [name, opts] of MATRIX) {
     assert.equal(await page.locator(".sala-help:visible").count(), 0, `${name}: the ? button is in the widget menu now`);
     await page.screenshot({ path: `${SHOTS}/dw-${name}-2-widget.png` });
 
+    // 2b. Minimal widget: a status dot with the words in its tooltip, no sentences, no Hide button, no "FREE TRIAL" caption.
+    const status = await page.evaluate(() => {
+      const s = document.querySelector("#course-widget .cw-status");
+      const live = document.getElementById("theodore-live-audio")?.shadowRoot;
+      const small = (el) => { if (!el) return true; const r = el.getBoundingClientRect(); return r.width <= 2 && r.height <= 2; };
+      const vis = (sel) => [...document.querySelectorAll(sel)].some((e) => { const r = e.getBoundingClientRect(); return r.width > 2 && r.height > 2 && getComputedStyle(e).display !== "none"; });
+      return {
+        title: s?.title || "", dot: s ? s.getBoundingClientRect().width : 0,
+        voiceCopyHidden: small(live?.querySelector(".copy")), captionHidden: small(live?.querySelector(".caption")),
+        hideButton: vis("#course-widget .student-cam-hide"), camNote: vis("#course-widget .student-cam-status, #course-widget .student-cam-note"),
+        freeTrialSmall: vis("#course-widget #sample-clock small"),
+      };
+    });
+    assert.ok(status.title.length > 3, `${name}: the status words live in the tooltip`);
+    assert.ok(status.voiceCopyHidden && status.captionHidden, `${name}: the voice name and status sentences are not shown in the panel`);
+    assert.ok(!status.hideButton && !status.camNote && !status.freeTrialSmall, `${name}: no Hide button, camera caption or FREE TRIAL text (${JSON.stringify(status)})`);
+
+    // 2c. The face-tracking canvas sits exactly over the camera picture, whatever the panel size.
+    await page.locator("#student-cam").waitFor({ state: "visible", timeout: 12000 }).catch(() => {});
+    if (await page.locator("#course-widget #student-cam:visible").count()) {
+      const geo = await page.evaluate(() => {
+        const v = document.getElementById("student-cam-video").getBoundingClientRect();
+        const c = document.getElementById("student-cam-track").getBoundingClientRect();
+        return { dx: Math.abs(v.left - c.left), dy: Math.abs(v.top - c.top), dw: Math.abs(v.width - c.width), dh: Math.abs(v.height - c.height) };
+      });
+      assert.ok(geo.dx <= 1.5 && geo.dy <= 1.5 && geo.dw <= 1.5 && geo.dh <= 1.5, `${name}: tracking canvas aligned with the video (${JSON.stringify(geo)})`);
+    } else console.log(`  note ${name}: no camera tile in this environment (alignment is also covered by the CSS unit test)`);
+
     // 3. Drag it; the spot is remembered.
     const grip = page.locator("#course-widget .cw-grip");
     const g = await grip.boundingBox();
@@ -68,11 +96,12 @@ for (const [name, opts] of MATRIX) {
     // 4. The picked voice is the one used. Company voice: its pre-rendered clip; edge voice: only for its own language.
     const text = "Slow down in fog.";
     const hash = await hashOf(page, "en", text);
-    await page.route("**/voice-assets/voices.json", (r) => r.fulfill({ json: { voices: [{ id: "channarith", label: "Channarith", active: true }] } }));
+    await page.route("**/voice-assets/voices.json", (r) => r.fulfill({ json: { voices: [{ id: "channarith", label: "Channarith", active: true, gender: "male" }] } }));
     await page.route("**/voice-assets/channarith/index.json", (r) => r.fulfill({ json: { ext: "mp3", clips: { en: [hash] } } }));
     await page.evaluate(() => { localStorage.setItem("aoep_demo_voice", "channarith"); localStorage.setItem("aoep_drive_voice", "en-GB-SoniaNeural"); });
     assert.equal(await page.evaluate((t) => window.SalaVoiceChoice.cloneClipUrl("en", t), text), `/voice-assets/channarith/en/${hash}.mp3`, `${name}: company voice clip found by hash`);
     assert.equal(await page.evaluate(() => window.SalaVoiceChoice.cloneClipUrl("en", "A line with no clip.")), null, `${name}: a missing clip falls back`);
+    assert.equal(await page.evaluate(() => window.SalaVoiceChoice.customGender()), "male", `${name}: the chosen company voice's gender is known`);
     assert.equal(await page.evaluate(() => window.SalaVoiceChoice.edgeVoiceFor("en")), "en-GB-SoniaNeural");
     assert.equal(await page.evaluate(() => window.SalaVoiceChoice.edgeVoiceFor("km")), "", `${name}: an English voice must not read a Khmer lesson`);
     await page.evaluate(() => localStorage.setItem("aoep_demo_voice", "default"));
@@ -91,6 +120,21 @@ for (const [name, opts] of MATRIX) {
     await page.waitForTimeout(6000);
     if (bodies.length) assert.equal(bodies[0].voice, "en-GB-SoniaNeural", `${name}: narration asked for the picked edge voice`);
     else console.log(`  note ${name}: the lesson did not request narration in this environment (voice routing is covered above)`);
+
+    // Company voice chosen but the line has no clip yet: the narration endpoint is asked for a MALE voice, not the default female one.
+    const missBodies = [];
+    await page.unroute("**/api/studio/tts");
+    await page.route("**/api/studio/tts", async (route) => { missBodies.push(JSON.parse(route.request().postData() || "{}")); await route.fulfill({ status: 204 }); });
+    await page.route("**/voice-assets/channarith/index.json", (r) => r.fulfill({ json: { ext: "mp3", clips: { en: [] } } }));
+    await page.evaluate(() => { localStorage.setItem("aoep_demo_voice", "channarith"); localStorage.setItem("aoep_drive_voice", "en-US-AriaNeural"); });
+    await page.reload({ waitUntil: "networkidle" });
+    await page.locator("#course-widget").waitFor({ state: "visible" });
+    await page.mouse.click(vw / 2, 300);
+    await page.waitForTimeout(6000);
+    if (missBodies.length) {
+      assert.equal(missBodies[0].gender, "male", `${name}: missing clip falls back to a male voice (${JSON.stringify(missBodies[0]).slice(0, 120)})`);
+      assert.equal(missBodies[0].voice || "", "", `${name}: the earlier female edge voice is not used`);
+    } else console.log(`  note ${name}: the lesson did not request narration in this environment`);
 
     assert.deepEqual(errors, [], `${name}: no page errors`);
     console.log(`ok   ${name}`);

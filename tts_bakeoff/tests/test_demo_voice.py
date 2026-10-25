@@ -160,3 +160,23 @@ def test_drivers_ed_capture_collapses_duplicates(monkeypatch) -> None:
     course = {"category": "driver_education", "language": "en", "slides": [slide]}
     monkeypatch.setattr(mf, "_get_json", lambda url: {"courses": [course, course, {"category": "food", "language": "en", "slides": [slide]}]})
     assert mf.drivers_ed_capture("https://example.test") == ["Slow down in fog.", "Name one rule.", "Why slow down?", "Less sight", "No reason"]
+
+
+def test_publish_carries_voice_gender_for_the_same_gender_fallback(tmp_path):
+    manifest = {"voices": [
+        {"id": "channarith", "label": "Channarith", "speaker": "channarith", "model": "voxcpm2", "active": True, "primary_lang": "en", "gender": "male"},
+        {"id": "wei", "label": "Wei", "speaker": "wei", "model": "voxcpm2", "active": True, "primary_lang": "yue", "gender": "female"},
+        {"id": "other", "label": "Other", "speaker": "other", "model": "voxcpm2", "active": True, "primary_lang": "en", "gender": "robot"},
+    ]}
+    doc = rd.publish(tmp_path, manifest=manifest, check_consent=lambda speaker: True)
+    by_id = {v["id"]: v for v in doc["voices"]}
+    assert by_id["channarith"]["gender"] == "male"
+    assert by_id["wei"]["gender"] == "female"
+    assert "gender" not in by_id["other"]   # only male/female are published
+
+
+def test_repo_voices_json_has_a_gender_for_every_voice():
+    import json
+    from tts_bakeoff.demo_voice.manifest import VOICES
+    voices = json.loads(VOICES.read_text(encoding="utf-8"))["voices"]
+    assert {v["id"]: v.get("gender") for v in voices} == {"channarith": "male", "wei-miao": "female", "wei": "female"}

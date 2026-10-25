@@ -7,7 +7,8 @@
       "model": "voxcpm2",
       "active": true,
       "primary_lang": "en",
-      "ai_label": "AI-generated voice of Channarith"
+      "ai_label": "AI-generated voice of Channarith",
+      "gender": "male"
     },
     {
       "id": "wei-miao",
@@ -16,7 +17,8 @@
       "model": "voxcpm2",
       "active": true,
       "primary_lang": "en",
-      "ai_label": "AI-generated voice of Wei Miao"
+      "ai_label": "AI-generated voice of Wei Miao",
+      "gender": "female"
     },
     {
       "id": "wei",
@@ -25,7 +27,8 @@
       "model": "voxcpm2",
       "active": true,
       "primary_lang": "yue",
-      "ai_label": "AI-generated voice of Wei"
+      "ai_label": "AI-generated voice of Wei",
+      "gender": "female"
     }
   ]
 }

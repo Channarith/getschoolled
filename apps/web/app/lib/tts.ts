@@ -8,7 +8,7 @@
 // human-grade audio, route narration through a neural TTS backend (XTTS / cloud
 // TTS via the speech service) — see speakNaturally's `audioUrl` hook.
 
-import { DEFAULT_VOICE_ID, cloneClipUrl, getSelectedVoice } from "./cloneVoice";
+import { DEFAULT_VOICE_ID, cloneClipUrl, getSelectedVoice, selectedCloneGender } from "./cloneVoice";
 import {
   prosodyForStyle, type NarrationVoiceStyle, voiceNameStyleBonus,
 } from "./voiceProfiles";
@@ -480,13 +480,15 @@ export function speakNaturally(text: string, opts: SpeakOptions): void {
   // A selected company voice plays its pre-rendered clip for this exact text; no clip, no consent or any
   // playback problem means the default voice speaks instead (never silent).
   if (getSelectedVoice() === DEFAULT_VOICE_ID) { void defaultVoice(); return; }
+  // A missing clip falls back to a default voice of the SAME gender as the chosen company voice, never the other one.
+  const fallback = () => { void selectedCloneGender().then((g) => { if (g && !opts.voiceGender) opts.voiceGender = g; void defaultVoice(); }, () => { void defaultVoice(); }); };
   cloneClipUrl(opts.locale, text).then((url) => {
     if (finished || _epoch !== myEpoch) return;
-    if (!url) { void defaultVoice(); return; }
+    if (!url) { fallback(); return; }
     playCloneClip(url, opts, done, myEpoch).then((ok) => {
-      if (!ok && !finished && _epoch === myEpoch) void defaultVoice();
+      if (!ok && !finished && _epoch === myEpoch) fallback();
     });
-  }).catch(() => { if (!finished && _epoch === myEpoch) void defaultVoice(); });
+  }).catch(() => { if (!finished && _epoch === myEpoch) fallback(); });
 }
 
 // Play one pre-rendered clip. Resolves true once it is playing (or was cancelled), false if it never started.
