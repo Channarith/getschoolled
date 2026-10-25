@@ -1,5 +1,5 @@
-// Checks the Driver's Ed demo opening order: tutorial first, video waiting paused behind it,
-// course title page held back, then video, then the lesson page.
+// Checks the Driver's Ed demo opening order: tutorial first, video waiting paused behind it, course title page held back, then the
+// camera question (once), then the video plays BEHIND the widget and Sala (no Skip/Next button) and the lesson starts by itself.
 //   node apps/web/e2e/drivers-ed-intro-order.mjs http://127.0.0.1:3100 /tmp/shots
 import { createRequire } from "node:module";
 import assert from "node:assert/strict";
@@ -72,22 +72,31 @@ for (const [name, engine, opts] of MATRIX) {
     }
     await next.click();
 
-    // 5. Video plays now (or shows a play button where autoplay is blocked).
+    // 4b. The camera question comes after the tutorial and before the video; answer it ("Not now": the test needs no camera).
+    const consent = frameOf(page).getByTestId("camera-consent");
+    await consent.waitFor({ state: "visible", timeout: 10000 });
+    await consent.getByRole("button", { name: /not now|ahora no|pas maintenant/i }).click();
+
+    // 5. Video plays now, behind the widget and Sala (a browser without the video codec skips straight on).
     await page.waitForFunction(
-      () => document.querySelector('[data-testid="drivers-ed-intro"]')?.getAttribute("data-phase") === "play",
+      () => document.querySelector('[data-testid="drivers-ed-intro"]')?.getAttribute("data-phase") !== "hold",
       null,
       { timeout: 10000 },
     );
     await page.waitForTimeout(1200);
-    const after = await videoState(page);
-    const tapNeeded = (await page.getByTestId("drivers-ed-intro-play").count()) > 0;
-    assert.ok(after.paused === false || tapNeeded, `${name}: video plays or offers play`);
-    await page.screenshot({ path: `${SHOTS}/dv-${name}-2-video.png` });
-    assert.equal((await lessonVisible(page)).visible, false, `${name}: lesson still hidden while video plays`);
+    assert.equal(await page.getByTestId("drivers-ed-intro-skip").count(), 0, `${name}: no Skip/Next button, ever`);
+    const stillIntro = (await page.getByTestId("drivers-ed-intro").count()) > 0;
+    if (stillIntro) {
+      const after = await videoState(page);
+      assert.ok(after.paused === false || after.ended, `${name}: video plays`);
+      assert.ok(await frameOf(page).getByTestId("sala-mascot").isVisible(), `${name}: Sala is on screen over the video`);
+      assert.ok(await frameOf(page).locator("#course-widget").isVisible(), `${name}: the widget is on screen over the video`);
+      await page.screenshot({ path: `${SHOTS}/dv-${name}-2-video.png` });
+      assert.equal((await lessonVisible(page)).visible, false, `${name}: lesson still hidden while video plays`);
+    }
 
-    // 6. Skip: the lesson page appears.
-    await page.getByTestId("drivers-ed-intro-skip").click();
-    await page.getByTestId("drivers-ed-intro").waitFor({ state: "detached", timeout: 5000 });
+    // 6. The lesson starts by itself (video end or the cap): no click.
+    await page.getByTestId("drivers-ed-intro").waitFor({ state: "detached", timeout: 30000 });
     await page.waitForTimeout(500);
     const done = await lessonVisible(page);
     assert.equal(done.hold, false, `${name}: hold released`);
