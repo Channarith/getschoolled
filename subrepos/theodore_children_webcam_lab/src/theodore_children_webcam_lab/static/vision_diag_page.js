@@ -1,7 +1,7 @@
 // Camera check page (/diag/vision): camera -> MediaPipe load -> a few seconds of live detection -> verdict + report.
 import {diag} from "./vision_diag.js";
 import {loadVisionAssets} from "./vision_assets.js";
-import {FACE_VARIANTS, HAND_VARIANTS, createFace, createFeeder, createFirstWorking, createHands, runVariantTest, variantOf} from "./vision_detectors.js";
+import {FACE_BLEND_VARIANT, buildLadders, createFace, createFeeder, createFirstWorking, createHands, createRecipeCache, detectEnv, memoryStorage, runVariantTest, variantOf} from "./vision_detectors.js";
 
 const $ = (id) => document.getElementById(id);
 const VISION = {
@@ -19,6 +19,11 @@ let detectCtx = null;
 let modelVariants = { face: null, hands: null };
 let variantTests = null;
 const frameFor = createFeeder();
+// The same device rules, ladders and recipe cache as the game: this page is the regression harness for the game, and a Hand test
+// that finds a recipe that works writes it to the cache, so running the check also fixes the game on this phone.
+const env = detectEnv();
+const recipeCache = createRecipeCache((() => { try { return localStorage; } catch (_) { return memoryStorage(); } })());
+let ladders = buildLadders(env, recipeCache.load(env));
 const nextFrame = (video) => new Promise((resolve) => (video.requestVideoFrameCallback ? video.requestVideoFrameCallback(() => resolve()) : requestAnimationFrame(() => resolve())));
 
 function setRow(key, label, value, level) {
@@ -99,9 +104,11 @@ async function loadModels() {
       ? { model: run.model, delegate: run.variant.delegate, variant: run.variant.id, index: run.index, ms, fellBack: run.index > 0 }
       : { model: null, delegate: "none", variant: "", index: -1, ms: 0 };
   };
-  const face = await make("face", FACE_VARIANTS, (variant) => createFace(ctx, variant));
-  const hands = await make("hand", HAND_VARIANTS, (variant) => createHands(ctx, variant));
-  modelVariants = { face: variantOf(FACE_VARIANTS, face.index), hands: variantOf(HAND_VARIANTS, hands.index) };
+  ladders = buildLadders(env, recipeCache.load(env));
+  diag.log("env", `renderer=${env.renderer.slice(0, 90)} browser=${env.browser} mobile=${env.mobile} rules=[${env.rules.join("; ")}] remembered=${JSON.stringify(recipeCache.load(env))} ignored=${JSON.stringify(ladders.ignored)}`);
+  const face = await make("face", ladders.face, (variant) => createFace(ctx, variant));
+  const hands = await make("hand", ladders.hands, (variant) => createHands(ctx, variant));
+  modelVariants = { face: variantOf(ladders.face, face.index), hands: variantOf(ladders.hands, hands.index) };
   const segment = lowMemory
     ? { model: null, delegate: "skipped (low memory)", ms: 0 }
     : await (async () => {
@@ -202,6 +209,7 @@ function renderReport() {
   ].join("\n") : "";
   const tests = variantTests ? [
     "== Hand / face setting test",
+    `device rules: ${env.rules.join("; ") || "none"}   renderer: ${env.renderer.slice(0, 80) || "?"}   browser: ${env.browser}${env.ios ? "   (iOS: Safari engine)" : ""}`,
     ...[variantTests.face, variantTests.hands].flatMap((t) => t.rows.map((r) => `${t.kind} ${r.id}: ${r.created ? `${r.withHit}/${r.frames} frames, max ${r.max}` : "could not start"} (${r.delegate}, conf ${r.conf}, feed ${r.feed}${r.error ? `, ${r.error}` : ""})`)),
     `winner: face ${variantTests.face.winner || "none"}, hands ${variantTests.hands.winner || "none"}`,
     "",
@@ -232,12 +240,19 @@ async function variantTest() {
     if (!detectCtx) detectCtx = (await loadContext()).ctx;
     const show = (label) => (row) => setRow(`vt-${row.kind}-${row.id}`, `${label}: ${row.id}`,
       row.created ? `${row.withHit}/${row.frames} frames saw one${row.error ? ` (${row.error})` : ""}` : `could not start (${row.error || "unknown"})`, row.withHit ? "ok" : "warn");
-    const face = await runVariantTest({ kind: "face", ctx: detectCtx, video, seconds: 2, nextFrame, onProgress: show("Face setting") });
-    const hands = await runVariantTest({ kind: "hands", ctx: detectCtx, video, seconds: 3, nextFrame, onProgress: show("Hand setting") });
+    ladders = buildLadders(env, {});   // test in the platform's preference order (first working one wins), ignoring what was remembered
+    const face = await runVariantTest({ kind: "face", ctx: detectCtx, video, seconds: 3, nextFrame, variants: [...ladders.face, FACE_BLEND_VARIANT], onProgress: show("Face setting") });   // each variant is warmed up before timing (the first inference compiles shaders), so order does not confound; the opt-in blendshape recipe is never the winner
+    const hands = await runVariantTest({ kind: "hands", ctx: detectCtx, video, seconds: 4, nextFrame, variants: ladders.hands, onProgress: show("Hand setting") });   // 4 s each: the first frames after a model is built can be slow (iOS)
     variantTests = { face, hands };
     window.__gsDiagVariantTests = variantTests;
     for (const t of [face, hands]) for (const row of t.rows) diag.log("variant-test", `${t.kind} ${row.id} delegate=${row.delegate} conf=${row.conf} feed=${row.feed}${row.blendshapes !== undefined ? ` blend=${row.blendshapes}` : ""}: ${row.withHit}/${row.frames} frames, max ${row.max}, create ${row.ms} ms${row.error ? ` error=${row.error}` : ""}`);
     diag.log("variant-test", `winner face=${face.winner || "none"} hands=${hands.winner || "none"}`);
+    // Remember what worked on THIS device (keyed by GPU renderer + browser version) so the game starts on it next time.
+    const saved = [];
+    if (face.winner) { recipeCache.save(env, "face", face.winner); saved.push(`face=${face.winner}`); }
+    if (hands.winner) { recipeCache.save(env, "hands", hands.winner); saved.push(`hands=${hands.winner}`); }
+    diag.log("variant-test", saved.length ? `saved to this device's recipe cache: ${saved.join(", ")}` : "nothing saved (no setting saw a face or hand)");
+    if (saved.length) setRow("vt-saved", "Remembered for the game", saved.join(", "), "ok");
     setRow("vt-winner", "Hand setting that worked", hands.saw ? hands.winner : "none saw a hand", hands.saw ? "ok" : "bad");
     status(hands.saw ? `Done. Hands were seen with the "${hands.winner}" setting.` : "Done. No setting saw a hand: if an open hand was in view, please send this report.");
   } catch (error) {

@@ -23,7 +23,7 @@ def test_game_and_diag_share_one_detector_builder():
     diag = (STATIC / "vision_diag_page.js").read_text(encoding="utf-8")
     for source in (game, diag):
         assert 'from "./vision_detectors.js"' in source
-        assert "createFirstWorking" in source and "createFace" in source and "createHands" in source
+        assert "createDetectorController" in source or "createFirstWorking" in source
     # Neither builds a landmarker on its own any more: one recipe ladder, so /diag/vision is a faithful harness for the game.
     assert "FaceLandmarker.createFromOptions" not in game.replace("ctx.vision.FaceLandmarker", "")
     assert "HandLandmarker.createFromOptions" not in diag
@@ -37,9 +37,13 @@ def test_app_wires_the_health_checks():
     # The "you left the camera" pause must wait until a face was seen AND the detector is running right now.
     assert "health.presenceAllowed()" in js
     # A model that fails or stays blind walks down its recipe ladder, and failures reach the triage log.
-    assert "rebuildVariant" in js
-    assert 'trace.stage("detector variant"' in js
-    assert 'trace.stage("detector found"' in js
+    assert "createDetectorController" in js and "detectors?.tick()" in js
+    # Models load and pre-warm while the camera prompt is open (the first iOS inference takes 7-9 s), and the status waits for the camera.
+    assert "visionReady" in js and "reportVisionStatus" in js and "warmModel" in js
+    assert "trace.stage(type, detail)" in js   # every controller event reaches the triage log
+    detectors = (STATIC / "vision_detectors.js").read_text(encoding="utf-8")
+    for event in ("detector variant", "detector found", "detector warmed", "detector env"):
+        assert f'onEvent("{event}"' in detectors
     # Detection runs once per NEW camera frame, like /diag/vision (with a timer fallback for web views that never call back).
     assert "requestVideoFrameCallback" in js and "state.frameGateOn" in js
     # While tracking is unavailable the game is playable by touch, without a banner.

@@ -22,12 +22,16 @@ import {cloneClipUrl, mountVoiceSelect} from "./clone_voice.js";
 import {diag as trace} from "./vision_diag.js";
 import {loadVisionAssets} from "./vision_assets.js";
 import {createDetectHealth} from "./detect_health.js";
-import {FACE_VARIANTS, HAND_VARIANTS, createFace, createHands, createFeeder, createFirstWorking, variantOf} from "./vision_detectors.js";
+import {EXPRESSION_GAMES, FACE_VARIANTS, HAND_VARIANTS, buildLadders, createDetectorController, createRecipeCache, detectEnv, memoryStorage, blankFrame, warmModel} from "./vision_detectors.js";
 
 const $ = (id) => document.getElementById(id);
 // Does the phone's detector really work? Decides when to rebuild on the CPU, when to play by touch, and when "you left the camera" may be said.
-const health = createDetectHealth({variants: {face: FACE_VARIANTS.length, hands: HAND_VARIANTS.length}});
-const frameFor = createFeeder();
+// This device (GPU renderer, browser, iOS or Android) decides the recipes, the known-bad rules and how long a model may take to warm up.
+const deviceEnv = detectEnv();
+const health = createDetectHealth({variants: {face: FACE_VARIANTS.length, hands: HAND_VARIANTS.length}, warmupMs: deviceEnv.warmupMs});
+// This device: its GPU and browser decide the detector recipes (known-bad rules), and a recipe that has really seen someone is remembered.
+let detectors = null;
+const recipeCache = createRecipeCache((() => { try { return localStorage; } catch (_) { return memoryStorage(); } })());
 const labEmit = (type, detail) => { try { window.dispatchEvent(new CustomEvent(`lab:${type}`, {detail})); } catch (_) {} };
 
 // Static files reload from disk but the HTML shell is rendered by the running
@@ -150,7 +154,7 @@ const state = {
   touchMode:"air", touchLatch:{key:"",until:0}, lastTouchTips:[],
   crayon:null, ink:[], inkDown:false, screenDown:false, screenPointerId:null,
   voiceAway:false, heldPrompt:"", missingFaceAt:0, chaseLeft:false, bopDir:0, flapDir:0,
-  presenceNoteUntil:0, presenceCueUntil:0, pace:"patient", lastDetectAt:0, faceVariantIdx:0, handVariantIdx:0,
+  presenceNoteUntil:0, presenceCueUntil:0, pace:"patient", lastDetectAt:0,
   glanceNote:false, poseOpen:false, standBase:null, sitLow:null,
   
   playStartedAt:0, playEndsAt:0, playTick:0, playEnded:false,
@@ -380,6 +384,9 @@ async function start(camera=true) {
   resizeCanvas(); loadLocalAnalytics();
   armPlayClock();
   if (camera) {
+    // Load and pre-warm the detectors WHILE the browser's camera prompt is open: the first inference compiles shaders (7-9 s on an iPhone),
+    // and the models do not need the camera to do that. Nothing is shown for it.
+    const visionReady = initVision().catch((error) => { trace.stage("detector init failed", {message: String(error?.message || error).slice(0, 120)}); });
     try {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error("insecure-context");
       setStatus("Asking for your camera… tap Allow when your phone asks");
@@ -406,7 +413,8 @@ async function start(camera=true) {
         armFrameGate();
       }
       setStatus("Camera live · loading face & hands…");
-      await initVision();
+      await visionReady;
+      if (state.visionLoaded) reportVisionStatus();
     } catch (error) {
       state.demo = true;
       state.cameraError = String(error?.name || error?.message || "blocked");
@@ -439,6 +447,7 @@ function visionSources(selfHosted) {
 }
 
 async function initVision() {
+  state.visionLoaded = false; state.visionReported = false;
   const diag = state.visionDiag = {source: "", library: "pending", face: "pending", hands: "pending", segment: "pending", errors: []};
   let selfHosted = false;
   try {
@@ -476,29 +485,26 @@ async function initVision() {
       state.face = null; state.hands = null;
       state.visionCtx = {vision, files, modelBase, source};
       diag.face = "pending"; diag.hands = "pending";
-      // The same builder /diag/vision uses (vision_detectors.js): one recipe ladder per model, so the diagnostic page is a faithful harness.
-      const detectors = state.visionCtx;
-      const endFace = trace.begin("face model");
-      const faceRun = await createFirstWorking(FACE_VARIANTS, (variant) => createFace(detectors, variant), {note: (variant, error) => note(`face ${variant.id}`, error)});
-      endFace({ok: Boolean(faceRun.model), variant: faceRun.variant?.id || "", reason: faceRun.errors.slice(-1)[0] || ""});
-      if (faceRun.model) {
-        state.face = faceRun.model; state.faceVariantIdx = faceRun.index;
-        diag.face = `ready (${faceRun.variant.id})`;
-        health.register("face", faceRun.variant.delegate, faceRun.index, faceRun.variant.id);
-      }
-      if (!state.face) { diag.face = "failed"; health.fail("face", diag.errors.slice(-1)[0] || "model unavailable"); trace.stage("detector load failed", {model: "face", reason: diag.errors.slice(-1)[0] || ""}); }
-      const endHands = trace.begin("hand model");
-      const handRun = await createFirstWorking(HAND_VARIANTS, (variant) => createHands(detectors, variant), {note: (variant, error) => note(`hands ${variant.id}`, error)});
-      endHands({ok: Boolean(handRun.model), variant: handRun.variant?.id || "", reason: handRun.errors.slice(-1)[0] || ""});
-      if (handRun.model) {
-        state.hands = handRun.model; state.handVariantIdx = handRun.index;
+      // The same builder, ladders and rules /diag/vision uses (vision_detectors.js). On Android/mobile Chromium and on Adreno GPUs the hand
+      // model starts on the CPU (the GPU hand landmarker returns nothing there); a recipe proven on this device goes first.
+      const env = state.detectEnv = deviceEnv;
+      const ladders = buildLadders(env, recipeCache.load(env));
+      const endModels = trace.begin("detector models");
+      detectors = createDetectorController({
+        ctx: state.visionCtx, env, ladders, health, cache: recipeCache,
+        onModel: (name, model) => { state[name] = model; diag[name] = `ready (${detectors?.variantId?.(name) || "?"})`; },
+        onEvent: (type, detail) => { trace.stage(type, detail); },
+      });
+      await detectors.init();
+      detectors.setExpressions(EXPRESSION_GAMES.has(state.game));
+      endModels({face: detectors.variantId("face"), hands: detectors.variantId("hands"), rules: env.rules});
+      diag.face = state.face ? `ready (${detectors.variantId("face")})` : "failed";
+      diag.hands = state.hands ? `ready (${detectors.variantId("hands")})` : "failed";
+      if (state.hands) {
         state.handConnections = (vision.HandLandmarker.HAND_CONNECTIONS || []).map((c) => (
           Array.isArray(c) ? [c[0], c[1]] : [c.start, c.end]
         )).filter((pair) => Number.isFinite(pair[0]) && Number.isFinite(pair[1]));
-        diag.hands = `ready (${handRun.variant.id})`;
-        health.register("hands", handRun.variant.delegate, handRun.index, handRun.variant.id);
       }
-      if (!state.hands) { diag.hands = "failed"; health.fail("hands", diag.errors.slice(-1)[0] || "model unavailable"); trace.stage("detector load failed", {model: "hands", reason: diag.errors.slice(-1)[0] || ""}); }
       if (lowMemory && !state.segmenter) { diag.segment = "off (low memory)"; trace.stage("outline skipped", {deviceMemory: navigator.deviceMemory}); }
       if (!state.segmenter && source.segment && !lowMemory) {
         diag.segment = "waiting";
@@ -515,6 +521,7 @@ async function initVision() {
                 baseOptions: modelBase("segment", source.segment, delegate),
                 runningMode: "VIDEO", outputCategoryMask: true, outputConfidenceMasks: false,
               });
+              warmModel(state.segmenter, blankFrame(), "segment");
               diag.segment = `ready (${delegate})`;
               endSeg({ok: true, delegate});
               break;
@@ -536,6 +543,13 @@ async function initVision() {
   const lastReason = diag.errors.slice(-1)[0] || "model unavailable";
   if (!state.face) { health.fail("face", lastReason); trace.stage("detector load failed", {model: "face", reason: lastReason}); }
   if (!state.hands) { health.fail("hands", lastReason); trace.stage("detector load failed", {model: "hands", reason: lastReason}); }
+  state.visionLoaded = true;
+  if (state.stream) reportVisionStatus();
+}
+// The status line (and the camera check when no model loaded) waits for the camera, because the models now load while its prompt is open.
+function reportVisionStatus() {
+  if (state.visionReported) return;
+  state.visionReported = true;
   if (state.face && state.hands) {
     setStatus("Face + two hands ready");
   } else if (state.face || state.hands) {
@@ -713,28 +727,28 @@ function detectFrame() {
   try {
     if (state.face) {
       const t0 = performance.now();
-      const result=state.face.detectForVideo(frameFor(video, variantOf(FACE_VARIANTS, state.faceVariantIdx)),now);
-      const points=result.faceLandmarks?.[0];
-      state.faceData=faceMetrics(points,blendshapeMap(result));
-      sample.faceMs = performance.now() - t0; sample.face = Boolean(points);
-      health.run("face", {ok: true, found: Boolean(points)});
-      if (points) noteFound("face");
+      const result=detectors?.detect("face",video,now);
+      if (result) {
+        const points=result.faceLandmarks?.[0];
+        state.faceData=faceMetrics(points,blendshapeMap(result));
+        sample.faceMs = performance.now() - t0; sample.face = Boolean(points);
+      }
     }
-  } catch (error) { console.warn("[children-lab] face frame skipped",error); health.run("face", {ok: false, error: error?.message || error}); noteDetectError("face", error); }
+  } catch (error) { console.warn("[children-lab] face frame skipped",error); }
   try {
     if (state.hands && (!screenTouch() || state.autoScreen || state.game === "ninja-weave")) {
       const t1 = performance.now();
-      const result=state.hands.detectForVideo(frameFor(video, variantOf(HAND_VARIANTS, state.handVariantIdx)),now);
-      sample.handsMs = performance.now() - t1;
-      const labels=(result.handedness||[]).map(row=>row?.[0]?.categoryName||"");
-      const previous=state.handData.map(hand=>hand.tip);
-      state.handData=(result.landmarks||[]).map((points,i)=>handMetrics(points,labels[i])).filter(Boolean);
-      state.handMotion=state.handData.reduce((max,hand,i)=>Math.max(max,previous[i]?distance(hand.tip,previous[i]):0),0);
-      sample.hands = state.handData.length;
-      health.run("hands", {ok: true, found: state.handData.length > 0});
-      if (state.handData.length) noteFound("hands");
+      const result=detectors?.detect("hands",video,now);
+      if (result) {
+        sample.handsMs = performance.now() - t1;
+        const labels=(result.handedness||[]).map(row=>row?.[0]?.categoryName||"");
+        const previous=state.handData.map(hand=>hand.tip);
+        state.handData=(result.landmarks||[]).map((points,i)=>handMetrics(points,labels[i])).filter(Boolean);
+        state.handMotion=state.handData.reduce((max,hand,i)=>Math.max(max,previous[i]?distance(hand.tip,previous[i]):0),0);
+        sample.hands = state.handData.length;
+      }
     }
-  } catch (error) { console.warn("[children-lab] hand frame skipped",error); health.run("hands", {ok: false, error: error?.message || error}); noteDetectError("hands", error); }
+  } catch (error) { console.warn("[children-lab] hand frame skipped",error); }
   try {
     if (state.segmenter && switchedOn("show-outline")) {
       const t2 = performance.now();
@@ -745,41 +759,6 @@ function detectFrame() {
   trace.frame(sample);
 }
 
-let detectErrorsLogged = 0;
-function noteDetectError(name, error) {
-  if (detectErrorsLogged++ < 6) trace.stage("detector error", {model: name, message: String(error?.message || error).slice(0, 140)});
-}
-const loggedFound = {};
-function noteFound(name) {
-  if (loggedFound[name]) return;
-  loggedFound[name] = true;
-  const info = health.summary()[name] || {};
-  trace.stage("detector found", {model: name, variant: info.variant, delegate: info.delegate, tried: info.tried});
-}
-// A model that throws or stays blind walks down its variant ladder (delegate, thresholds, blendshapes, frame feed). Phones differ;
-// the GPU hand model returning nothing is a known failure class. Which variant first sees something is logged for the triage report.
-const rebuilding = {};
-async function rebuildVariant(name, index) {
-  const ctx = state.visionCtx;
-  if (!ctx || rebuilding[name]) return;
-  rebuilding[name] = true;
-  const list = name === "face" ? FACE_VARIANTS : HAND_VARIANTS;
-  const variant = variantOf(list, index);
-  trace.stage("detector variant", {model: name, to: variant.id, from: health.summary()[name]});
-  try {
-    const old = state[name];
-    const next = name === "face" ? await createFace(ctx, variant) : await createHands(ctx, variant);
-    state[name] = next;
-    state[name === "face" ? "faceVariantIdx" : "handVariantIdx"] = index;
-    try { old?.close?.(); } catch (_) { /* already closed */ }
-    health.markVariant(name, index, variant.id, variant.delegate);
-    if (state.visionDiag) state.visionDiag[name === "face" ? "face" : "hands"] = `ready (${variant.id}, rebuilt)`;
-    trace.stage("detector variant ready", {model: name, variant: variant.id});
-  } catch (error) {
-    health.markVariant(name, index, variant.id, variant.delegate);   // skip it: the next tick tries the following variant
-    trace.stage("detector variant failed", {model: name, variant: variant.id, message: String(error?.message || error).slice(0, 140)});
-  } finally { rebuilding[name] = false; }
-}
 // Called every frame. While the models load, fail, or stay blind, the game is playable by touching the screen
 // (silently: no banner), and it hands control back to the camera as soon as a person has been seen.
 let lastHealthAt = 0;
@@ -788,10 +767,7 @@ function healthTick() {
   const nowMs = performance.now();
   if (nowMs - lastHealthAt < 400) return;
   lastHealthAt = nowMs;
-  for (const name of ["face", "hands"]) {
-    const nextVariant = health.fallbackWanted(name);
-    if (nextVariant >= 0) rebuildVariant(name, nextVariant);
-  }
+  detectors?.tick();   // rebuilds a model that is blind or throwing, or that matches a known-bad rule; forgets a stale remembered recipe
   if (state.loadOutlineWhenSeen && health.sawPerson()) { state.loadOutlineWhenSeen = false; state.loadOutline?.(); }
   const reason = health.touchFallback();
   const waiting = !state.demo && Boolean(state.stream) && !health.sawPerson();
@@ -2309,6 +2285,8 @@ function chooseGame() {
   if (!select) return;
   const previousGame=state.game;
   state.game=select.value;
+  // Expression blendshapes are opt-in per game (popcorn, wow, wink, blow-kiss, oh-behave): everything else runs the plain, stall-free face model.
+  detectors?.setExpressions(EXPRESSION_GAMES.has(state.game));
   document.body.classList.toggle("ninja-play", state.game === "ninja-weave");
   gameTutorial?.onGameChosen(state.game);
   if (previousGame==="pop-quiz-toss" && state.game!=="pop-quiz-toss") popQuiz.teardown();
