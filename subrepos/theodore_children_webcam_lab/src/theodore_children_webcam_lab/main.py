@@ -67,10 +67,21 @@ install_live_audio_routes(
         "by the game."
     ),
 )
+class VisionStaticFiles(StaticFiles):
+    """The WASM and model files are ~20 MB and change only with a release. Without Cache-Control a phone guesses a lifetime
+    and then re-checks every file on a cold start; say how long to keep them (files are not content-hashed, so a day)."""
+
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        if response.status_code in (200, 206, 304):
+            response.headers.setdefault("Cache-Control", "public, max-age=86400, stale-while-revalidate=604800")
+        return response
+
+
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 if VISION_ASSET_DIR.is_dir():
     mimetypes.add_type("application/octet-stream", ".task")
-    app.mount("/vendor/vision", StaticFiles(directory=VISION_ASSET_DIR), name="vision-assets")
+    app.mount("/vendor/vision", VisionStaticFiles(directory=VISION_ASSET_DIR), name="vision-assets")
 
 _analytics = AggregateAnalytics()
 
