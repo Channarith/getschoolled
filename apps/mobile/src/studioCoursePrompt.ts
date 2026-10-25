@@ -1,16 +1,16 @@
 import { Alert } from "react-native";
 
-import { getPortfolio, purchaseCourse } from "./api";
+import { getCourseEntitlement } from "./api";
+import { buyCourse, restorePurchases, storePlatform, storePriceLabel, type IapResult } from "./storeIap";
 import type { StringKey } from "./i18n";
 import type { PublicDemo } from "./publicDemos";
 import {
-  fullClassAllowed,
   studioCourseById,
   studioCourseDemo,
   type StudioCourseId,
 } from "./studioCourses";
 
-type AccountLike = { id: string; is_admin?: boolean } | null;
+type AccountLike = { id: string } | null;
 type Translate = (key: StringKey, vars?: Record<string, string | number>) => string;
 
 function ask(
@@ -41,7 +41,10 @@ function courseCopy(t: Translate, courseId: StudioCourseId) {
   return { title: t("studio.foodTitle"), blurb: t("studio.foodBlurb") };
 }
 
-/** Open the full xAI course, or the free demo, using the same pay rule as the website. */
+/**
+ * Open the full course or the free demo. The SERVER decides (GET /api/studio/entitlement): free (admin, VIP, premium) and paid
+ * go straight in with no price anywhere; only must_pay sees the store purchase. Purchases are App Store / Google Play only.
+ */
 export async function promptStudioCourse(
   courseId: StudioCourseId,
   account: AccountLike,
@@ -54,7 +57,6 @@ export async function promptStudioCourse(
   const heard = presentation === "audio";
   const open = (access: "sample" | "full") => studioCourseDemo(courseId, access, {
     accountId: account?.id,
-    isAdmin: Boolean(account?.is_admin),
     presentation,
     title: heard ? t("studio.audioTitle", { title: copy.title }) : copy.title,
     subtitle: access === "full" ? t("studio.fullSub") : t("studio.demoSub"),
@@ -62,49 +64,37 @@ export async function promptStudioCourse(
   });
   const notNow = t("studio.notNow");
   const demoButton = { text: t("studio.demo10"), value: "demo" };
-
-  if (account?.is_admin) return open("full");
-
-  if (!account) {
-    if (!course.hasDemo) {
-      await ask(copy.title, t("studio.signIn"), [], notNow);
-      return null;
-    }
-    const choice = await ask(copy.title, copy.blurb, [demoButton], notNow);
+  const demoOrNothing = async (message: string): Promise<PublicDemo | null> => {
+    const choice = await ask(copy.title, message, course.hasDemo ? [demoButton] : [], notNow);
     return choice === "demo" ? open("sample") : null;
-  }
+  };
 
-  let status = "";
+  if (!account) return demoOrNothing(course.hasDemo ? copy.blurb : t("studio.signIn"));
+
+  let entitlement = "";
   try {
-    const portfolio = await getPortfolio();
-    status = portfolio.enrollments.find((row) => row.course_id === courseId)?.status || "";
+    entitlement = (await getCourseEntitlement(courseId)).entitlement;
   } catch (err) {
-    const message = err instanceof Error ? err.message : t("studio.checkFailed");
-    if (!course.hasDemo) {
-      await ask(copy.title, message, [], notNow);
-      return null;
-    }
-    const choice = await ask(copy.title, message, [demoButton], notNow);
-    return choice === "demo" ? open("sample") : null;
+    return demoOrNothing(err instanceof Error ? err.message : t("studio.checkFailed"));
   }
+  if (entitlement === "free" || entitlement === "paid") return open("full");
+  if (entitlement !== "must_pay") return demoOrNothing(t("studio.signIn"));
 
-  if (fullClassAllowed(true, status, false)) return open("full");
-
-  const buttons = [{ text: t("studio.pay"), value: "pay" }];
+  const price = await storePriceLabel(courseId);
+  const buttons = [{ text: price ? t("studio.buy", { price }) : t("studio.pay"), value: "buy" }, { text: t("studio.restore"), value: "restore" }];
   if (course.hasDemo) buttons.push(demoButton);
   const choice = await ask(copy.title, t("studio.paidNote"), buttons, notNow);
   if (choice === "demo") return open("sample");
-  if (choice !== "pay") return null;
+  if (choice !== "buy" && choice !== "restore") return null;
   try {
-    const enrollment = await purchaseCourse(courseId, copy.title);
-    if (!fullClassAllowed(true, enrollment.status, false)) {
-      await ask(copy.title, t("studio.paymentMissing"), [], notNow);
-      return course.hasDemo ? open("sample") : null;
-    }
-    return open("full");
+    if (!storePlatform()) throw new Error(t("studio.notInApp"));
+    const result: IapResult = choice === "buy" ? await buyCourse(courseId) : await restorePurchases(courseId);
+    if (result.status === "paid") return open("full");
+    if (result.status === "cancelled") return null;
+    await ask(copy.title, result.status === "pending" ? t("studio.pending") : t("studio.restoreNone"), [], notNow);
+    return null;
   } catch (err) {
-    const message = err instanceof Error ? err.message : t("studio.paymentMissing");
-    await ask(copy.title, message, [], notNow);
+    await ask(copy.title, err instanceof Error ? err.message : t("studio.paymentMissing"), [], notNow);
     return null;
   }
 }

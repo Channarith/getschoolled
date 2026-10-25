@@ -219,7 +219,7 @@ export type StringKey =
   | "studio.kicker" | "studio.lead" | "studio.leadAudio" | "studio.leadPaid" | "studio.open"
   | "studio.driversTitle" | "studio.driversBlurb" | "studio.foodTitle" | "studio.foodBlurb"
   | "studio.notNow" | "studio.demo10" | "studio.pay" | "studio.signIn" | "studio.paidNote"
-  | "studio.paymentMissing" | "studio.checkFailed" | "studio.fullSub" | "studio.demoSub" | "studio.audioTitle"
+  | "studio.paymentMissing" | "studio.buy" | "studio.restore" | "studio.restoreNone" | "studio.pending" | "studio.notInApp" | "studio.checkFailed" | "studio.fullSub" | "studio.demoSub" | "studio.audioTitle"
   | "search.hint" | "search.course" | "search.settings" | "search.subscription"
   | "kids.back" | "kids.backToList" | "kids.playAgain" | "kids.greatJob" | "kids.score"
   | "kids.readAgain" | "kids.finish" | "kids.next" | "kids.right" | "kids.wrong"
@@ -790,8 +790,13 @@ const EN: Record<StringKey, string> = {
   "studio.notNow": "Not now",
   "studio.demo10": "10-minute demo",
   "studio.pay": "Pay for this course",
-  "studio.signIn": "Sign in to take this course. Admins open the full course. Everyone else pays.",
-  "studio.paidNote": "This course is paid. An admin account takes the full course without paying.",
+  "studio.buy": "Buy ({price})",
+  "studio.restore": "Restore purchases",
+  "studio.restoreNone": "No earlier purchase of this course was found for this store account.",
+  "studio.pending": "Your payment is still pending. The course opens when it completes.",
+  "studio.notInApp": "This course is not sold in the app yet.",
+  "studio.signIn": "Sign in to take this course.",
+  "studio.paidNote": "The full course is a one-time purchase through the App Store or Google Play. Some accounts include it.",
   "studio.paymentMissing": "Payment was not recorded for this course.",
   "studio.checkFailed": "Could not check this course.",
   "studio.fullSub": "Full course · Serenity · Sala",
