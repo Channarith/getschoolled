@@ -19,6 +19,8 @@ RUN mkdir -p /app/vision /tmp/mp \
     && cp -r /tmp/mp/package/wasm /app/vision/wasm \
     && curl -fsSL --retry 3 -o /app/vision/face_landmarker.task "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task" \
     && curl -fsSL --retry 3 -o /app/vision/hand_landmarker.task "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task" \
+    && curl -fsSL --retry 3 -o /app/vision/selfie_segmenter.tflite "https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite" \
+    && test "$(wc -c < /app/vision/selfie_segmenter.tflite)" -gt 100000 \
     && test "$(wc -c < /app/vision/face_landmarker.task)" -gt 3000000 \
     && test "$(wc -c < /app/vision/hand_landmarker.task)" -gt 7000000 \
     && test "$(wc -c < /app/vision/tasks-vision.mjs)" -gt 100000 \

@@ -2307,7 +2307,7 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 48px 20px 72px;
+  padding: 24px 20px 40px;
   position: relative;
 }
 .dn-anon-content {
@@ -2328,8 +2328,11 @@ textarea {
   margin-bottom: 4px;
 }
 .dn-anon-mascot {
-  width: 220px;
-  height: auto;
+  /* The mascot is a tall portrait now: size by height so the two buttons stay above the fold. */
+  width: auto;
+  height: clamp(170px, 30vh, 300px);
+  max-width: 70vw;
+  object-fit: contain;
   filter: drop-shadow(0 20px 36px rgba(2, 6, 23, 0.28));
   margin-bottom: 4px;
 }
@@ -3125,4 +3128,65 @@ body.drivers-ed-hold .course-stage .course-stage-embed iframe {
 }
 @media (min-width: 761px) {
   body.drivers-ed-hold .course-stage .course-stage-embed { position: relative; z-index: 3; }
+}
+
+/* ---- Gold outline pass (quiet-v4 look) -------------------------------------------------------------------------
+   Reuses the gold of the camera-lab redesign (#d4af37 family). On cream the gold darkens so borders stay >= 3:1 and
+   gold text >= 4.5:1 (WCAG AA); on navy it glows softly. Cards stay quiet; controls (inputs, outline buttons) get the
+   full-strength gold line so they are easy to find. */
+:root,
+[data-theme="light"] {
+  --gold-line: #a8841f;                /* 3.1:1 on cream, 3.5:1 on white: control borders */
+  --gold-text: #7a5c0f;                /* 5.5:1 on cream: gold text */
+  --gold-glow: rgba(168, 132, 31, 0.28);
+}
+[data-theme="dark"] {
+  --gold-line: #d4af37;                /* 8.6:1 on navy */
+  --gold-text: #e5c76b;
+  --gold-glow: rgba(212, 175, 55, 0.35);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --gold-line: #d4af37;
+    --gold-text: #e5c76b;
+    --gold-glow: rgba(212, 175, 55, 0.35);
+  }
+}
+.card,
+.nav-menu,
+.nav-search-dropdown {
+  border-color: color-mix(in srgb, var(--gold-line) 38%, var(--border));
+}
+.site-header {
+  border-bottom: 1px solid color-mix(in srgb, var(--gold-line) 55%, transparent);
+}
+input,
+select,
+textarea,
+button.secondary,
+.btn-outline {
+  border-color: var(--gold-line);
+}
+input[type="checkbox"],
+input[type="radio"],
+select {
+  accent-color: var(--gold-line);
+}
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+button:focus-visible,
+.btn-outline:focus-visible,
+.btn-primary:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--gold-line);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--gold-glow);
+}
+.dn-anon-title em,
+.eyebrow {
+  color: var(--gold-text);
+}
+.dn-anon-mascot {
+  filter: drop-shadow(0 10px 22px var(--gold-glow));
 }

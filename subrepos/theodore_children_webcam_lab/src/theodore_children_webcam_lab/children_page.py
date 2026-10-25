@@ -115,6 +115,7 @@ _PAGE = """<!doctype html>
         <div class="vision-switches">
           <label><input id="show-guide" type="checkbox" checked> Letter / character</label>
           <label><input id="show-face" type="checkbox" checked> Face contour</label>
+          <label><input id="show-outline" type="checkbox" checked> Gold body outline</label>
           <label><input id="show-hands" type="checkbox" checked> Hand skeletons</label>
           <label><input id="show-trail" type="checkbox" checked> Hand movement trail</label>
           <label><input id="show-measures" type="checkbox" checked> Distance & measurements</label>

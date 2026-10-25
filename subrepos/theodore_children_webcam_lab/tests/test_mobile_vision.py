@@ -42,7 +42,7 @@ def test_setup_screen_has_the_camera_check_and_a_reachable_start_button():
 def test_image_bundles_the_vision_library_and_models():
     dockerfile = (LAB / "Dockerfile").read_text(encoding="utf-8")
     assert "AOEP_VISION_ASSET_DIR=/app/vision" in dockerfile
-    for name in ("tasks-vision.mjs", "face_landmarker.task", "hand_landmarker.task"):
+    for name in ("tasks-vision.mjs", "face_landmarker.task", "hand_landmarker.task", "selfie_segmenter.tflite"):
         assert name in dockerfile
 
 
@@ -59,3 +59,12 @@ def test_small_sala_is_a_cutout_not_a_white_box():
     assert "url(/static/sala-hero.png)" in css and "sala-giggle-hero.png" in css
     for name in ("sala-hero.png", "sala-giggle-hero.png"):
         assert (STATIC / name).stat().st_size > 10_000
+
+
+def test_quiet_v4_gold_body_outline_and_star():
+    js = (STATIC / "app.js").read_text(encoding="utf-8")
+    page = (LAB / "src" / "theodore_children_webcam_lab" / "children_page.py").read_text(encoding="utf-8")
+    assert "ImageSegmenter.createFromOptions" in js and "selfie_segmenter.tflite" in js
+    assert "function drawBodyOutline" in js and "drawBodyOutline(w,h);" in js and "function drawStar" in js
+    assert 'id="show-outline"' in page
+    assert "OUTLINE.avgMs > 90" in js  # gives up on a slow phone instead of stuttering

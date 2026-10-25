@@ -46,11 +46,13 @@ const signedIn = (page: Page) =>
   });
 
 test.describe("front page buttons", () => {
-  test("signed out: Login and the demo picker are both there", async ({ page }) => {
+  test("signed out: the simple page has exactly two buttons, Try the demo and Log in", async ({ page }) => {
     await page.goto("/");
     const cta = page.getByTestId("landing-guest-cta");
-    await expect(cta.getByRole("link", { name: "Login" })).toHaveAttribute("href", "/login");
-    await expect(cta.getByRole("link", { name: /see how it works/i })).toHaveAttribute("href", "/demo");
+    await expect(cta.getByRole("link", { name: /try the demo/i })).toHaveAttribute("href", "/demo");
+    await expect(cta.getByRole("link", { name: /^log in$/i })).toHaveAttribute("href", "/login");
+    await expect(cta.getByRole("link")).toHaveCount(2);
+    await expect(page.getByTestId("feature-tutor")).toHaveCount(0);   // the orbital hero is for signed-in visitors
   });
 
   test("signed in: the two buttons are hidden", async ({ page }) => {
@@ -68,14 +70,15 @@ test.describe("front page buttons", () => {
     await page.getByRole("button", { name: /profile|account|menu/i }).first().click();
     await page.getByRole("button", { name: /sign out/i }).click();
     await expect(page).toHaveURL(/\/$/);
-    await expect(page.getByTestId("landing-guest-cta").getByRole("link", { name: "Login" })).toBeVisible();
-    await expect(page.getByTestId("landing-guest-cta").getByRole("link", { name: /see how it works/i })).toBeVisible();
+    await expect(page.getByTestId("landing-guest-cta").getByRole("link", { name: /^log in$/i })).toBeVisible();
+    await expect(page.getByTestId("landing-guest-cta").getByRole("link", { name: /try the demo/i })).toBeVisible();
   });
 });
 
 test.describe("mascot narration", () => {
   test("clicking a card plays the pre-rendered Salane clip, not the browser voice", async ({ page }) => {
     await stubAudio(page);
+    await signedIn(page);
     await page.goto("/");
     await page.getByTestId("feature-tutor").click();
     await expect.poll(() => page.evaluate(() => (window as unknown as { __played: string[] }).__played.length)).toBe(1);
@@ -89,6 +92,7 @@ test.describe("mascot narration", () => {
 
   test("hovering before any click stays silent (no autoplay)", async ({ page }) => {
     await stubAudio(page);
+    await signedIn(page);
     await page.goto("/");
     await page.getByTestId("feature-play").hover();
     await page.waitForTimeout(700);
@@ -98,6 +102,7 @@ test.describe("mascot narration", () => {
 
   test("missing clip falls back to the browser voice", async ({ page }) => {
     await stubAudio(page);
+    await signedIn(page);
     await page.route("**/landing-voice/salane/index.json", (r) => r.fulfill({ status: 404, body: "" }));
     await page.goto("/");
     await page.getByTestId("feature-live").click();
@@ -107,6 +112,7 @@ test.describe("mascot narration", () => {
 
   test("a chosen consented voice plays its own clip for the line", async ({ page }) => {
     await stubAudio(page);
+    await signedIn(page);
     const index = await (await page.request.get("/landing-voice/salane/index.json")).json();
     const hash = index.clips.en[0];
     await page.route("**/voice-assets/voices.json", (r) => r.fulfill({ json: { voices: [{ id: "channarith", label: "Channarith", ai_label: "AI-generated voice of Channarith", active: true }] } }));
