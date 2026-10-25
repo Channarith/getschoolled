@@ -1,6 +1,7 @@
 // The voice the visitor picked in the account menu (same origin, so the same localStorage as the web app):
 //   aoep_demo_voice   = a consented company voice id, or "default"
 //   aoep_drive_voice  = an edge-tts voice id such as en-US-AriaNeural, or "" for the automatic voice
+//   aoep_demo_tone    = a tone id (professional, cute, anime, blend-professional50-cute50 ...) or "neutral"; edge voices only
 // Company voices are never cloned live: a clip is looked up by voice + language + a hash of the exact text and any miss
 // falls back to the edge voice (or the default narration). The hash must stay identical to apps/web/app/lib/cloneVoice.ts
 // and tts_bakeoff/demo_voice/clip_hash.py.
@@ -8,6 +9,8 @@
   "use strict";
   var CLONE_KEY = "aoep_demo_voice";
   var EDGE_KEY = "aoep_drive_voice";
+  var TONE_KEY = "aoep_demo_tone";
+  var TONE_ID = /^(neutral|[a-z]{3,20}|blend-[a-z0-9-]{3,60})$/;
   var EDGE_ID = /^[a-z]{2,3}(-[A-Za-z0-9]+)+Neural$/;
   var WS = /[ \t\n\r\f\v\u00a0\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+/g;
 
@@ -42,6 +45,13 @@
     return { custom: custom, edge: edge };
   }
 
+  // The tone picked in the account menu ("" = plain voice). Company voices ignore it: a stylized clone needs its own consent scope.
+  function tone() {
+    var t = "";
+    try { t = window.localStorage.getItem(TONE_KEY) || ""; } catch (_) { /* private mode */ }
+    return t && t !== "neutral" && TONE_ID.test(t) ? t : "";
+  }
+
   // The edge voice only counts when it speaks the lesson's language (an English voice must not read a Khmer lesson).
   function edgeVoiceFor(lang) {
     var edge = chosen().edge;
@@ -70,6 +80,45 @@
         .catch(function () { return null; });
     }
     return indexes[voice];
+  }
+
+  var edgeCatalogPromise = null;
+  function edgeCatalog() {
+    if (!edgeCatalogPromise) {
+      edgeCatalogPromise = fetch(assetsBase() + "/edge.json", { cache: "no-store" })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .catch(function () { return null; });
+    }
+    return edgeCatalogPromise;
+  }
+
+  // URL of a pre-rendered clip in the chosen EDGE voice: the chosen tone first, then the plain voice, else null (the caller renders live
+  // with the same voice and tone). Nothing is published until the owner uploads edge.json, so today this always resolves null.
+  function edgeClipUrl(lang, text) {
+    var voice = edgeVoiceFor(lang);
+    if (!voice || !String(text || "").trim()) return Promise.resolve(null);
+    var l = String(lang || "en").split(/[-_]/)[0].toLowerCase();
+    if (String(lang || "").toLowerCase().replace(/_/g, "-").indexOf("zh-hk") === 0) l = "yue";
+    var h = clipHash(l, text);
+    var wanted = tone();
+    return edgeCatalog().then(function (cat) {
+      var entry = cat && cat.voices && cat.voices[voice];
+      if (!entry) return null;
+      var tries = wanted ? [wanted, "neutral"] : ["neutral"];
+      function next(i) {
+        if (i >= tries.length) return null;
+        var t = tries[i];
+        if (!(entry.tones && entry.tones[t] && entry.tones[t].indexOf(l) >= 0)) return next(i + 1);
+        var dir = "edge." + voice + (t === "neutral" ? "" : "~" + t);
+        return loadIndex(dir).then(function (index) {
+          if (index && index.clips && index.clips[l] && index.clips[l].indexOf(h) >= 0) {
+            return assetsBase() + "/" + encodeURIComponent(dir) + "/" + l + "/" + h + "." + (index.ext || "mp3");
+          }
+          return next(i + 1);
+        });
+      }
+      return next(0);
+    });
   }
 
   // URL of the pre-rendered clip for the chosen company voice, or null.
@@ -103,5 +152,5 @@
     });
   }
 
-  window.SalaVoiceChoice = { chosen: chosen, edgeVoiceFor: edgeVoiceFor, cloneClipUrl: cloneClipUrl, clipHash: clipHash, customGender: customGender };
+  window.SalaVoiceChoice = { chosen: chosen, edgeVoiceFor: edgeVoiceFor, cloneClipUrl: cloneClipUrl, clipHash: clipHash, customGender: customGender, tone: tone, edgeClipUrl: edgeClipUrl };
 })();

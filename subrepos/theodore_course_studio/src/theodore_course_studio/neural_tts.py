@@ -176,19 +176,30 @@ def rate_percent(rate: float) -> str:
     return f"{stepped:+d}%"
 
 
-def clip_path(text: str, *, voice: str, rate: str) -> Path:
+def _prosody(rate: float, tone: str = "") -> tuple[str, str, str]:
+    """(rate %, pitch, volume) for a request: the visitor's tone when it is a known non-neutral one, else the plain rate."""
+    from aoep_shared.tone_presets import tone_prosody
+
+    chosen = tone_prosody(tone)
+    return chosen if chosen else (rate_percent(rate), "+0Hz", "+0%")
+
+
+def clip_path(text: str, *, voice: str, rate: str, pitch: str = "+0Hz", volume: str = "+0%") -> Path:
+    parts = [voice, rate, text]
+    if (pitch, volume) != ("+0Hz", "+0%"):   # a toned clip never shares a cache entry with the plain voice; plain keys are unchanged
+        parts += [pitch, volume]
     digest = hashlib.sha256(
-        "\u0000".join([voice, rate, text]).encode("utf-8")
+        "\u0000".join(parts).encode("utf-8")
     ).hexdigest()[:32]
     return cache_dir() / f"{digest}.mp3"
 
 
-def _render(text: str, path: Path, *, voice: str, rate: str) -> None:
+def _render(text: str, path: Path, *, voice: str, rate: str, pitch: str = "+0Hz", volume: str = "+0%") -> None:
     from aoep_shared.edge_speech import render_edge_mp3
 
     async def run() -> None:
         audio = await asyncio.wait_for(
-            render_edge_mp3(text, voice=voice, rate=rate),
+            render_edge_mp3(text, voice=voice, rate=rate, pitch=pitch, volume=volume),
             timeout=_TIMEOUT_SEC,
         )
         path.write_bytes(audio)
@@ -209,18 +220,19 @@ def cacheable_path(path: Path) -> Path | None:
     return path if os.access(path.parent, os.W_OK) else None
 
 
-def _render_bytes(text: str, *, voice: str, rate: str, target: Path | None) -> bytes:
+def _render_bytes(text: str, *, voice: str, rate: str, target: Path | None, pitch: str = "+0Hz", volume: str = "+0%") -> bytes:
     """MP3 bytes for one clip, cached at `target` when one is writable."""
+    extra = {} if (pitch, volume) == ("+0Hz", "+0%") else {"pitch": pitch, "volume": volume}   # plain voice: _render is called as before
     if target is None:
         with tempfile.TemporaryDirectory() as scratch:
             clip = Path(scratch) / "clip.mp3"
-            _render(text, clip, voice=voice, rate=rate)
+            _render(text, clip, voice=voice, rate=rate, **extra)
             if not clip.is_file() or clip.stat().st_size <= 0:
                 raise TTSUnavailable("empty audio file")
             return clip.read_bytes()
     partial = target.with_suffix(".part")
     try:
-        _render(text, partial, voice=voice, rate=rate)
+        _render(text, partial, voice=voice, rate=rate, **extra)
         if not partial.is_file() or partial.stat().st_size <= 0:
             raise TTSUnavailable("empty audio file")
         partial.replace(target)
@@ -338,26 +350,28 @@ def synthesize_course(
     rate: float = 1.0,
     gender: str = "female",
     voice: str = "",
+    tone: str = "",
 ) -> bytes:
     """One MP3 for a whole page, always in the locked course voice.
 
     Long pages are split and joined. A later page never switches to another
     speaker just because the line is longer or a request needs a retry.
     `voice` is the visitor's own pick (an edge voice id from the voice menu); '' keeps the course voice.
+    `tone` is the visitor's tone pick (aoep_shared.tone_presets id); '' / neutral / unknown keep the plain voice.
     """
     voice = voice_for(language, gender=gender, voice=valid_voice_id(voice))
     chunks = split_for_speech(text)
     if not chunks:
         raise TTSUnavailable("nothing to speak")
-    percent = rate_percent(rate)
-    combined_path = clip_path(text, voice=f"course:{voice}", rate=percent)
+    percent, pitch, volume = _prosody(rate, tone)
+    combined_path = clip_path(text, voice=f"course:{voice}", rate=percent, pitch=pitch, volume=volume)
     try:
         if combined_path.is_file() and combined_path.stat().st_size > 0:
             return combined_path.read_bytes()
     except OSError:
         pass
     rendered = [
-        synthesize(chunk, language, rate=rate, gender=gender, voice=voice)
+        synthesize(chunk, language, rate=rate, gender=gender, voice=voice, **({"tone": tone} if tone else {}))
         for chunk in chunks
     ]
     audio = stitch_mp3_chunks(rendered)
@@ -379,15 +393,16 @@ def synthesize(
     rate: float = 1.0,
     gender: str = "female",
     voice: str = "",
+    tone: str = "",
 ) -> bytes:
     """MP3 bytes for one narration. Raises TTSUnavailable when nothing can render it."""
     line = (text or "").strip()[:MAX_CHARS]
     if not line:
         raise TTSUnavailable("nothing to speak")
     candidates = voice_candidates(language, gender=gender, voice=voice)
-    percent = rate_percent(rate)
+    percent, pitch, volume = _prosody(rate, tone)
     for chosen in candidates:
-        path = clip_path(line, voice=chosen, rate=percent)
+        path = clip_path(line, voice=chosen, rate=percent, pitch=pitch, volume=volume)
         try:
             if path.is_file() and path.stat().st_size > 0:
                 return path.read_bytes()
@@ -398,10 +413,10 @@ def synthesize(
 
     errors: list[str] = []
     for chosen in candidates:
-        target = cacheable_path(clip_path(line, voice=chosen, rate=percent))
+        target = cacheable_path(clip_path(line, voice=chosen, rate=percent, pitch=pitch, volume=volume))
         for attempt in range(_RENDER_ATTEMPTS):
             try:
-                return _render_bytes(line, voice=chosen, rate=percent, target=target)
+                return _render_bytes(line, voice=chosen, rate=percent, target=target, pitch=pitch, volume=volume)
             except Exception as exc:  # noqa: BLE001 — network / voice flakiness
                 detail = str(exc).strip() or type(exc).__name__
                 errors.append(f"{chosen} attempt {attempt + 1}: {detail}")

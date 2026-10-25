@@ -35,7 +35,7 @@ class Voice:
         return {
             "id": self.id, "label": self.label, "language": self.language,
             "locale": self.locale, "accent": self.accent, "gender": self.gender,
-            "dialect": self.dialect,
+            "dialect": self.dialect, "edge_voice": self.edge_voice,   # the picker stores the edge name so stored clips and the course studio can find the voice
         }
 
 
