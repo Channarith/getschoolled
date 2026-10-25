@@ -75,6 +75,17 @@ class CosyVoice2Adapter(Adapter):
             problems.append(f"model weights not found at {self.model_dir()} (download iic/CosyVoice2-0.5B there, or set COSYVOICE_MODEL_DIR)")
         return {"ok": not problems, "problems": problems, "languages": sorted(self.languages), "model_dir": self.model_dir()}
 
+    def _prompt_arg(self, model):
+        """Newer CosyVoice loads the reference itself (frontend calls load_wav on a path); older versions take a 16 kHz tensor."""
+        import inspect
+
+        path = self.options["prompt_wav"]
+        try:
+            takes_path = "load_wav(" in inspect.getsource(type(model.frontend))
+        except (OSError, TypeError, AttributeError):
+            takes_path = False
+        return str(path) if takes_path else load_prompt_wav(path, 16000)
+
     def _infer(self, model, text: str, lang: str, prompt):
         if self.options.get("instruct"):
             return model.inference_instruct2(text, self.options["instruct"], prompt, stream=False)
@@ -103,7 +114,7 @@ class CosyVoice2Adapter(Adapter):
         from cosyvoice.cli.cosyvoice import CosyVoice2
 
         self._model = self._model or CosyVoice2(self.model_dir())
-        prompt = load_prompt_wav(self.options["prompt_wav"], 16000)
+        prompt = self._prompt_arg(self._model)
         gen = self._infer(self._model, text, lang, prompt)
         parts = [j["tts_speech"] for j in gen]
         import torch
