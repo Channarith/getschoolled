@@ -9,7 +9,7 @@
                                         render the bake-off the Listening Lab loads (GPU); python3 -m tts_bakeoff.lab --out RUN_DIR
   review-page --run RUN_DIR --lang yue [--out FILE]   a listening sheet for a native speaker (open it from the run folder; audio links are relative)
   apply-review decisions.json [--reviewer Wei]        record her decisions: clears the voices she approved in that language
-  clear --id stock-f-young-warm --lang yue --by Wei [--tones professional,cute] [--method yue-ref|en-ref] [--note ..] [--activate]
+  clear --id stock-f-young-warm --lang yue --by Wei [--tones professional,cute] [--method yue-ref|en-ref] [--note ..] [--activate] [--default]
   unclear --id ... --lang yue                          take a language back out
 To render a stock voice for the demo like Channarith:  python3 -m tts_bakeoff.demo_voice.render run --voice stock-f-young-warm
 """
@@ -71,6 +71,7 @@ def main(argv=None) -> int:
     cl.add_argument("--method", choices=tuple(registry.METHODS), default="en-ref")
     cl.add_argument("--note", default="")
     cl.add_argument("--activate", action="store_true", help="also set active=true in tts_manifest/voices.json (the picker may then list it)")
+    cl.add_argument("--default", action="store_true", help="also make it THE default Salane voice (default=true in voices.json; implies --activate)")
     args = ap.parse_args(argv)
     all_ids = [v["id"] for v in registry.voices()]
     assets = Path(args.assets) if getattr(args, "assets", None) else None
@@ -114,9 +115,12 @@ def main(argv=None) -> int:
             tones = [t for t in args.tones.split(",") if t.strip()]
             rec = registry.clear(args.id, args.lang, args.by, tones=tones, method=args.method, note=args.note)
             print(json.dumps({args.id: {args.lang: rec}}, ensure_ascii=False))
-            if args.activate:
+            if args.activate or args.default:
                 registry.activate(args.id)
                 print(f"{args.id}: active=true in tts_manifest/voices.json (re-run `python3 -m tts_bakeoff.demo_voice.manifest --offline` to refresh the demo manifest)")
+            if args.default:
+                registry.set_default(args.id)
+                print(f"{args.id}: default=true in tts_manifest/voices.json (the Salane Voice for visitors who have not chosen another)")
         except registry.StockError as exc:
             print("FAILED", exc, file=sys.stderr)
             return 1

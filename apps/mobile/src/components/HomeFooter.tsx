@@ -1,28 +1,15 @@
-import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
-import { LANGUAGES, languageInfo, useT, type LocaleCode } from "../i18n";
+import { useT } from "../i18n";
 import { theme } from "../theme";
-import DropdownListSelector from "./DropdownListSelector";
 import VoicePicker from "./VoicePicker";
 
-/** Bottom of the main page, like the site's footer: the app language, then the voices and genders we support. */
+/** Bottom of the main page, like the site's profile menu: the one voice control. The voice sets the app language, so there is no language list. */
 export default function HomeFooter() {
-  const { t, locale, setLocale } = useT();
-  const [open, setOpen] = useState(false);
-  const current = languageInfo(locale);
+  const { t } = useT();
   return (
     <View testID="home-footer" style={styles.wrap}>
       <Text style={styles.title}>{t("voice.footerTitle")}</Text>
-      <DropdownListSelector
-        title={t("settings.language")}
-        selectedLabel={`${current.flag} ${current.native}`}
-        selectedKey={locale}
-        options={LANGUAGES.map((lang) => ({ key: lang.code, label: `${lang.flag} ${lang.native}` }))}
-        open={open}
-        onToggle={() => setOpen((v) => !v)}
-        onSelect={(code) => { setLocale(code as LocaleCode); setOpen(false); }}
-      />
       <VoicePicker />
     </View>
   );

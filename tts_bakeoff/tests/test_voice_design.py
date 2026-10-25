@@ -85,7 +85,7 @@ def test_committed_registry_is_valid_and_consistent_with_voices_json():
     listed = [v for v in json.loads(render.VOICES.read_text(encoding="utf-8"))["voices"] if v.get("kind") == "stock"]
     assert {v["id"] for v in listed} == set(stock)
     for v in listed:
-        assert v["active"] is False, "stock voices ship inactive until the owner has listened"
+        assert v["active"] is False or stock[v["id"]].get("cleared"), "a stock voice ships inactive until someone has listened and cleared it"
         assert v["gender"] == stock[v["id"]]["gender"] and v["model"] == "voxcpm2" and "speaker" not in v
 
 

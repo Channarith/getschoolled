@@ -48,28 +48,95 @@ export function customVoiceLabel(name: string, lang: string, uiLocale: string): 
 
 export const CUSTOM_PREFIX = "clone:";
 
-export type VoiceOption = { key: string; label: string; header?: boolean };
+/** Option keys: "clone:<id>" (a company or designed voice), "auto:<language>" (the Salane Voice for that language), else a catalog voice id. */
+export const AUTO_PREFIX = "auto:";
+
+export type VoiceOption = { key: string; label: string; header?: boolean; locale?: string };
+/** One language of the picker: its header, the English name (for search) and its options (never includes the header row). */
+export type VoiceOptionGroup = { key: string; label: string; english: string; options: VoiceOption[] };
+export type PickerClone = { id: string; label: string; name?: string; primary_lang?: string; default?: boolean; active?: boolean; kind?: string };
+
+/** Same rule as languageFamily() in voiceLanguage.ts (a test keeps the two equal): "zh-HK" and "yue" are Cantonese, else the primary subtag. */
+export function groupKeyForVoice(locale: string): string {
+  const l = (locale || "").toLowerCase().replace(/_/g, "-");
+  if (l === "yue" || l.startsWith("yue-") || l === "zh-hk" || l.startsWith("zh-hk") || l === "zh-mo" || l.startsWith("zh-mo")) return "yue";
+  if (l === "singlish") return "en";
+  return l.split("-")[0];
+}
+
+function displayName(code: string, inLocale: string): string {
+  try {
+    const n = new Intl.DisplayNames([inLocale], { type: "language" }).of(code);
+    if (n && n !== code) return n;
+  } catch { /* unknown code or no Intl.DisplayNames on this engine */ }
+  return "";
+}
+
+export function englishLanguageName(code: string): string {
+  return displayName(code, "en") || code;
+}
+
+function stripMarks(text: string): string {
+  return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
 
 /**
- * The options of the one voice dropdown, in the same order as the web: Default (auto), the consented custom voices that have clips in the
- * current language, then every real catalog voice grouped by language. The (F)/(M) marker is part of each catalog label, so there is no
- * separate gender filter.
+ * Every voice in one list, one group per language (English first, then by English name), the same as the site's account menu. Each group
+ * opens with its Salane Voice ("Salane Voice (Sage)" for English while a default is published), then company/designed voices of that
+ * language, then the catalog voices. The (F)/(M) marker is part of each catalog label, so there is no separate gender filter.
  */
-export function buildVoiceOptions(args: {
-  defaultLabel: string;
-  customHeader: string;
-  custom: { id: string; label: string }[];
-  groups: VoiceGroup[];
-  savedVoiceId: string;
-}): VoiceOption[] {
-  const out: VoiceOption[] = [{ key: "", label: args.defaultLabel }];
-  if (args.custom.length) {
-    out.push({ key: "hdr:custom", label: args.customHeader.toUpperCase(), header: true });
-    for (const v of args.custom) out.push({ key: `${CUSTOM_PREFIX}${v.id}`, label: v.label });
+export function buildVoiceGroups(args: {
+  groups: VoiceGroup[]; clones: PickerClone[]; savedVoiceId?: string; salaneLabel?: string; hasDefault?: boolean; nativeNames?: Record<string, string>;
+}): VoiceOptionGroup[] {
+  const { groups, clones, savedVoiceId = "", salaneLabel = "Salane Voice", hasDefault = false, nativeNames = {} } = args;
+  const by = new Map<string, VoiceOptionGroup>();
+  const group = (key: string): VoiceOptionGroup => {
+    let g = by.get(key);
+    if (!g) {
+      const english = englishLanguageName(key);
+      g = { key, label: nativeNames[key] || displayName(key, key) || english, english, options: [] };
+      by.set(key, g);
+    }
+    return g;
+  };
+  for (const v of distinctVoiceGroups(groups, savedVoiceId).flatMap((g) => g.voices)) {
+    group(groupKeyForVoice(v.locale || v.language)).options.push({ key: v.id, label: `${v.accent} · ${v.label}`, locale: v.locale });
   }
-  for (const g of distinctVoiceGroups(args.groups, args.savedVoiceId)) {
-    out.push({ key: `hdr:${g.language}`, label: g.language.toUpperCase(), header: true });
-    for (const v of g.voices) out.push({ key: v.id, label: `${v.accent} · ${v.label}` });
+  for (const c of clones) {
+    if (c.active === false || (c.default && hasDefault)) continue;   // the default is the group's first entry, not a second copy
+    const name = c.kind === "stock" ? `${c.name || c.label} (designed)` : c.label;
+    group(groupKeyForVoice(c.primary_lang || "en")).options.unshift({ key: `${CUSTOM_PREFIX}${c.id}`, label: `${name} · AI-generated voice`, locale: c.primary_lang || "en" });
+  }
+  group("en");   // English always exists: it carries the default Salane Voice even when the catalog is offline
+  for (const g of by.values()) {
+    g.options.unshift({ key: `${AUTO_PREFIX}${g.key}`, label: g.key === "en" && hasDefault ? salaneLabel : "Salane Voice (default)", locale: g.key });
+  }
+  return [...by.values()].sort((a, b) => (a.key === "en" ? -1 : b.key === "en" ? 1 : a.english.localeCompare(b.english)));
+}
+
+/** Narrow the list by a search box (option text, the language's own and English names, the locale code); the selected option always stays. */
+export function filterVoiceGroups(groups: VoiceOptionGroup[], query: string, keepKey = ""): VoiceOptionGroup[] {
+  const q = stripMarks(query.trim());
+  if (!q) return groups;
+  const out: VoiceOptionGroup[] = [];
+  for (const g of groups) {
+    const headMatch = [g.label, g.english, g.key].some((x) => stripMarks(x).includes(q));
+    const options = g.options.filter((o) => o.key === keepKey || headMatch || stripMarks(`${o.label} ${o.locale || ""}`).includes(q));
+    if (options.length) out.push({ ...g, options });
   }
   return out;
+}
+
+/** The rows the dropdown shows: each language's header, then its options. */
+export function flattenVoiceGroups(groups: VoiceOptionGroup[]): VoiceOption[] {
+  return groups.flatMap((g) => [{ key: `hdr:${g.key}`, label: g.label, header: true }, ...g.options]);
+}
+
+/** The option that is selected: the picked company voice, else the deliberately chosen catalog voice, else the Salane Voice of the app's language. */
+export function selectedVoiceKey(args: { cloneId: string; cloneListed: boolean; savedVoiceId: string; locale: string; groups: VoiceOptionGroup[] }): string {
+  const { cloneId, cloneListed, savedVoiceId, locale, groups } = args;
+  if (cloneId && cloneListed) return `${CUSTOM_PREFIX}${cloneId}`;
+  if (savedVoiceId) return savedVoiceId;
+  const key = groupKeyForVoice(locale);
+  return groups.some((g) => g.key === key) ? `${AUTO_PREFIX}${key}` : `${AUTO_PREFIX}en`;
 }

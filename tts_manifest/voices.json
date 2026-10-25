@@ -36,10 +36,11 @@
       "kind": "stock",
       "stock": "stock-f-young-warm",
       "model": "voxcpm2",
-      "active": false,
+      "active": true,
       "primary_lang": "en",
       "ai_label": "AI-generated voice (designed with VoxCPM2)",
-      "gender": "female"
+      "gender": "female",
+      "default": true
     },
     {
       "id": "stock-f-young-bright",

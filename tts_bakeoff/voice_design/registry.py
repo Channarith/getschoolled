@@ -179,6 +179,51 @@ def activate(base_id: str, voices_path: Path = VOICES_JSON, path: Path = STOCK) 
     Path(voices_path).write_text(json.dumps(doc, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
+def set_default(base_id: str, voices_path: Path = VOICES_JSON, path: Path = STOCK) -> None:
+    """Make ``base_id`` the ONE default Salane voice in voices.json (default=true; every other voice loses the flag).
+
+    The default speaks every pre-rendered line the visitor has not overridden, so it must be switched on, cleared in English and frozen
+    like any published stock voice. Languages it is not cleared for fall back to an edge-tts voice of the same gender.
+    """
+    entry_stock = get(base_id, path)
+    if "en" not in ((entry_stock.get("cleared") or {})):
+        raise StockError(f"{base_id}: not cleared in English yet; the default voice must be (run `clear --lang en --by <name>` first)")
+    doc = json.loads(Path(voices_path).read_text(encoding="utf-8"))
+    entry = next((v for v in doc["voices"] if v["id"] == base_id), None)
+    if entry is None:
+        raise StockError(f"{base_id} is not in {voices_path}")
+    if not entry.get("active"):
+        raise StockError(f"{base_id}: switch it on first (clear --activate)")
+    for v in doc["voices"]:
+        v.pop("default", None)
+    entry["default"] = True
+    Path(voices_path).write_text(json.dumps(doc, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
+def validate_voices_json(voices_path: Path = VOICES_JSON, path: Path = STOCK) -> list[str]:
+    """Problems with tts_manifest/voices.json: at most one default, it is switched on, has a gender and primary_lang, and a designed
+    default is cleared in its primary language. Empty list = fine."""
+    problems = []
+    doc = json.loads(Path(voices_path).read_text(encoding="utf-8"))
+    defaults = [v for v in doc.get("voices", []) if v.get("default")]
+    if len(defaults) > 1:
+        problems.append(f"more than one default voice: {', '.join(v['id'] for v in defaults)}")
+    for v in defaults:
+        if not v.get("active"):
+            problems.append(f"{v['id']}: the default voice must be active")
+        if v.get("gender") not in ("male", "female"):
+            problems.append(f"{v['id']}: the default voice needs a gender (the same-gender fallback uses it)")
+        if not v.get("primary_lang"):
+            problems.append(f"{v['id']}: the default voice needs a primary_lang")
+        if v.get("kind") == "stock":
+            try:
+                if v.get("primary_lang") not in (get(v["stock"], path).get("cleared") or {}):
+                    problems.append(f"{v['id']}: the designed default is not cleared in {v.get('primary_lang')}")
+            except StockError as exc:
+                problems.append(str(exc))
+    return problems
+
+
 def unclear(base_id: str, lang: str, path: Path = STOCK) -> bool:
     doc = load(path)
     entry = next((v for v in doc["voices"] if v["id"] == base_id), None)

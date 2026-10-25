@@ -31,7 +31,7 @@ import { OPEN_LEARNING_PROFILE_EVENT } from "../components/LearningProfileSurvey
 import { playIntro, INTRO_AUTOPLAY_KEY } from "../components/IntroSequence";
 import { INTRO_VARIANTS } from "../lib/introAnimations";
 import { useT } from "../lib/i18n";
-import LanguagePicker from "../components/LanguagePicker";
+import VoicePrefsControls from "../components/VoicePrefsControls";
 import AdminAccountsTable from "../components/AdminAccountsTable";
 // AvatarPicker (the grid of ~20 face thumbnails + the "realistic" style
 // toggle) is intentionally NOT imported here. The user asked us to hide the
@@ -346,9 +346,9 @@ export default function AccountPage() {
                 admin or has unlocked admin via ADMIN_SECRET. */}
             <h3>{t("account.settingsTools")}</h3>
             <p className="muted" style={{ marginTop: 0 }}>
-              Course language for On the Go. Sala listens in any language and teaches in this one.
+              Pick a voice: it sets the language for menus, lessons and On the Go. Sala listens in any language and teaches in the voice&apos;s.
             </p>
-            <LanguagePicker />
+            <VoicePrefsControls />
             <div className="row" style={{ gap: 8, flexWrap: "wrap", marginTop: 10 }}>
               <Link href="/backgrounds"><button>{t("account.themes")}</button></Link>
               <Link href="/transparency"><button>{t("account.transparency")}</button></Link>

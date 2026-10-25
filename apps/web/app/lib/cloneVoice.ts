@@ -5,7 +5,23 @@ export const DEFAULT_VOICE_ID = "default";
 export const VOICE_CHOICE_KEY = "aoep_demo_voice";
 export const VOICE_CHOICE_EVENT = "aoep-demo-voice";
 
-export type CloneVoice = { id: string; label: string; ai_label: string; active: boolean; gender?: "male" | "female"; stylized?: boolean };
+export type CloneVoice = {
+  id: string; label: string; ai_label: string; active: boolean; gender?: "male" | "female"; stylized?: boolean;
+  /** The bare name ("Sage"): the picker writes "Salane Voice (Sage)" for the default. */
+  name?: string;
+  /** Language the voice was recorded or designed in ("en", "yue"): choosing it sets the app language to this one. */
+  primary_lang?: string;
+  /** The Salane Voice for visitors who never chose another (exactly one published voice carries it). */
+  default?: boolean;
+  kind?: "stock";
+};
+/** The edge-tts voice id and tone the account menu saves; read here so the default knows when the visitor chose something else. */
+export const EDGE_VOICE_KEY = "aoep_drive_voice";
+export const TONE_KEY = "aoep_demo_tone";
+/** "1" when the visitor picked an edge voice on purpose, "0" when they picked the Salane Voice on purpose; absent for visitors who never used the picker. */
+export const EXPLICIT_VOICE_KEY = "aoep_voice_explicit";
+/** Ids the app itself writes to follow the language (englishVariety.ts): never a deliberate choice unless the marker says so. */
+const AUTO_FOLLOW_VOICES = new Set(["en_us_f", "en_us_m", "en_gb_f", "en_gb_m", "en_au_f", "en_au_m", "en_sg_f", "en_sg_m"]);
 
 const ASSETS = (process.env.NEXT_PUBLIC_VOICE_ASSETS_URL || "/voice-assets").replace(/\/$/, "");
 /** Where the published clips live; the course-studio frame gets it as a URL parameter so its narration finds the same clips. */
@@ -44,14 +60,80 @@ export function loadCloneVoices(): Promise<CloneVoice[]> {
   return voicesPromise;
 }
 
-/** Gender of the selected company voice ("male" | "female"), or "" for the default voice or an unpublished gender. */
+/** The Salane Voice for visitors who never chose one: the published voice flagged default (Sage), or null. */
+export function defaultCloneVoice(voices: CloneVoice[]): CloneVoice | null {
+  return voices.find((v) => v.active && v.default) ?? null;
+}
+
+/** "Salane Voice (Sage)" for the default voice; plain "Salane Voice" when none is published (offline, nothing cleared). */
+export function salaneVoiceLabel(voices: CloneVoice[]): string {
+  const d = defaultCloneVoice(voices);
+  const name = d ? (d.name || d.label).replace(/\s*\(designed\)\s*$/i, "").trim() : "";
+  return name ? `Salane Voice (${name})` : "Salane Voice";
+}
+
+/**
+ * Which pre-rendered voice narrates, as a company-voice id, or DEFAULT_VOICE_ID for the live edge-tts voice.
+ *   1. a voice the visitor picked on purpose (and that is still published: a withdrawn or stale id falls through);
+ *   2. an edge-tts voice picked on purpose, or a tone (the pre-rendered default is the plain voice), means the live edge voice;
+ *   3. otherwise the published default (Sage), so a visitor who never chose gets it, and so does one whose stored choice was the old
+ *      automatic voice ("default"); with nothing published it is the live edge voice.
+ * A line the chosen voice has no clip for still falls back to an edge voice of the SAME gender and language (see tts.ts).
+ */
+export function resolveVoice(input: { saved: string | null; edgeVoice: string; tone: string; voices: CloneVoice[] }): string {
+  const { saved, edgeVoice, tone, voices } = input;
+  if (saved && saved !== DEFAULT_VOICE_ID && voices.some((v) => v.active && v.id === saved)) return saved;
+  if (edgeVoice) return DEFAULT_VOICE_ID;
+  if (tone && tone !== "neutral") return DEFAULT_VOICE_ID;
+  return defaultCloneVoice(voices)?.id ?? DEFAULT_VOICE_ID;
+}
+
+function readStored(key: string): string {
+  try { return localStorage.getItem(key) || ""; } catch { return ""; }
+}
+
+/** The edge voice the visitor deliberately chose ("" when none): a stored id the app wrote to follow the language does not count. */
+export function explicitEdgeVoice(): string {
+  const voice = readStored(EDGE_VOICE_KEY);
+  if (!voice) return "";
+  const marker = readStored(EXPLICIT_VOICE_KEY);
+  if (marker === "1") return voice;
+  if (marker === "0") return "";
+  return AUTO_FOLLOW_VOICES.has(voice) ? "" : voice;
+}
+
+export function setExplicitEdgeVoice(on: boolean): void {
+  try { localStorage.setItem(EXPLICIT_VOICE_KEY, on ? "1" : "0"); } catch { /* private mode */ }
+}
+
+/** The stored company-voice choice, or null when the visitor never chose ("default" means the old automatic voice). */
+export function getStoredVoiceChoice(): string | null {
+  if (typeof window === "undefined") return null;
+  return readStored(VOICE_CHOICE_KEY) || null;
+}
+
+/** How long a slow or blocked voices.json may delay the first narrated line before the live edge voice speaks instead. */
+const VOICES_WAIT_MS = 1500;
+
+/** The narration voice right now (see resolveVoice). Never rejects. */
+export async function resolveSelectedVoice(): Promise<string> {
+  if (typeof window === "undefined") return DEFAULT_VOICE_ID;
+  const voices = await Promise.race([
+    loadCloneVoices(),
+    new Promise<CloneVoice[]>((resolve) => setTimeout(() => resolve([]), VOICES_WAIT_MS)),
+  ]).catch(() => [] as CloneVoice[]);
+  return resolveVoice({ saved: getStoredVoiceChoice(), edgeVoice: explicitEdgeVoice(), tone: readStored(TONE_KEY), voices });
+}
+
+/** Gender of the narration voice ("male" | "female"), or "" for the live edge voice or an unpublished gender. */
 export async function selectedCloneGender(): Promise<"male" | "female" | ""> {
-  const id = getSelectedVoice();
+  const id = await resolveSelectedVoice();
   if (id === DEFAULT_VOICE_ID) return "";
   const voice = (await loadCloneVoices()).find((v) => v.id === id);
   return voice?.gender === "male" || voice?.gender === "female" ? voice.gender : "";
 }
 
+/** The raw saved choice for the pickers ("default" when none was saved): see resolveSelectedVoice for what actually narrates. */
 export function getSelectedVoice(): string {
   if (typeof window === "undefined") return DEFAULT_VOICE_ID;
   try { return localStorage.getItem(VOICE_CHOICE_KEY) || DEFAULT_VOICE_ID; } catch { return DEFAULT_VOICE_ID; }
@@ -87,8 +169,10 @@ export function resetCloneVoiceCacheForTests(): void {
 }
 
 /** URL of the pre-rendered clip for the selected voice, or null (default voice, voice switched off, or no such clip). */
-export async function cloneClipUrl(lang: string, text: string, voice = getSelectedVoice()): Promise<string | null> {
-  if (!voice || voice === DEFAULT_VOICE_ID || !text.trim()) return null;
+export async function cloneClipUrl(lang: string, text: string, voice?: string): Promise<string | null> {
+  if (!text.trim()) return null;
+  voice = voice ?? await resolveSelectedVoice();   // no explicit voice: the visitor's choice, else the published default (Sage)
+  if (!voice || voice === DEFAULT_VOICE_ID) return null;
   const active = (await loadCloneVoices()).some((v) => v.id === voice);   // consent revoked => not listed => no clip
   if (!active) return null;
   const index = await loadIndex(voice);
@@ -124,7 +208,7 @@ function loadSalaneIndex(): Promise<SalaneIndex | null> {
 }
 
 /** URL of the clip to play for this line: the chosen consented voice, else the Salane clip, else null (caller falls back). */
-export async function landingClipUrl(lang: string, text: string, voice = getSelectedVoice()): Promise<string | null> {
+export async function landingClipUrl(lang: string, text: string, voice?: string): Promise<string | null> {
   const custom = await cloneClipUrl(lang, text, voice).catch(() => null);
   if (custom) return custom;
   const index = await loadSalaneIndex();

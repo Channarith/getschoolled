@@ -129,6 +129,13 @@ def landing(path: Path = LANDING_LINES):
     return [{"demo": "landing", "lang": primary_lang(r["lang"]), "text": r["text"]} for r in rows]
 
 
+def fixed():
+    """The fixed spoken lines (On the Go answers, announcements, limits) from tts_manifest/fixed_spoken_lines.json; see fixed_lines.py."""
+    from .fixed_lines import load
+
+    return [{"demo": r["demo"], "lang": "en", "text": r["text"]} for r in load()]
+
+
 def extra(path: Path | None):
     if not path:
         return []
@@ -142,7 +149,7 @@ def extra(path: Path | None):
 
 def build(langs=DEFAULT_LANGS, api="https://salareen.com", extra_texts=None, vision=True, log=print, translated=True) -> dict:
     from .translations import clips as translated_clips   # lazy: translations imports this module for MANIFEST
-    items = on_the_go(langs, api, log) + (vision_play() if vision else []) + landing() + drivers_ed() + extra(extra_texts) + (translated_clips() if translated else [])
+    items = on_the_go(langs, api, log) + (vision_play() if vision else []) + landing() + drivers_ed() + fixed() + extra(extra_texts) + (translated_clips() if translated else [])
     seen, clips = set(), []
     for it in items:
         text = normalize(it["text"])
@@ -166,9 +173,9 @@ def refresh_offline(path: Path = MANIFEST) -> dict:
     """Re-merge voices.json and tts_manifest/translations/ into the committed manifest without calling the curriculum API."""
     from .translations import clips as translated_clips
     m = json.loads(Path(path).read_text(encoding="utf-8"))
-    clips = [c for c in m["clips"] if "status" not in c and c["demo"] not in ("landing", "drivers_ed")]
+    clips = [c for c in m["clips"] if "status" not in c and c["demo"] not in ("landing", "drivers_ed", "on_the_go_fixed")]
     seen = {(c["lang"], c["hash"]) for c in clips}
-    for it in landing() + drivers_ed():
+    for it in landing() + drivers_ed() + fixed():
         text = normalize(it["text"])
         h = clip_hash(it["lang"], text)
         if text and (it["lang"], h) not in seen:
