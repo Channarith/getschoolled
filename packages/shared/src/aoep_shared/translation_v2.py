@@ -32,6 +32,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Optional, Protocol, Tuple
 
 from .course_translation_library import (
+    EXTRA_TRANSLATION_LANGUAGES,
     TARGET_LANGUAGES,
     library_dir,
     load_translation,
@@ -49,15 +50,34 @@ from .translation_validate import (
 PIPELINE_VERSION = "2.0"
 PIPELINE_MAJOR = PIPELINE_VERSION.split(".")[0]
 
-# Languages in the order that matters for the product (Khmer first), then the rest.
-TIER1 = ("km", "th", "vi", "es", "zh")
-TIER2 = ("sw", "id", "el", "cs")
+# One ordered queue for every machine. Why this order:
+#   1. the owner's six first: Khmer (the product), Cantonese, Spanish, Mandarin, French, Italian;
+#   2. Thai and Vietnamese (demo languages);
+#   3. the big, well-supported languages (population and web presence times NLLB-200 quality):
+#      Japanese, Korean, Portuguese, German, Russian, Arabic, Hindi, Indonesian, Turkish;
+#   4. the remaining platform languages, then Tagalog/Filipino (translation-only extra) last.
+# yue and tl are not platform languages: they are written to <language>.json by the translation library only.
+PRIORITY_ORDER = (
+    "km", "yue", "es", "zh", "fr", "it",
+    "th", "vi",
+    "ja", "ko", "pt", "de", "ru", "ar", "hi", "id", "tr",
+    "pl", "nl", "uk", "he", "bn", "fa", "ur", "el", "cs", "sw",
+    "tl",
+)
+# --tier N is a prefix of PRIORITY_ORDER: TIER1 = the six + th + vi, TIER1 + TIER2 = through tr, tier 3 = all.
+TIER1 = PRIORITY_ORDER[:8]
+TIER2 = PRIORITY_ORDER[8:17]
+
+
+def translatable_languages() -> List[str]:
+    return list(TARGET_LANGUAGES) + [c for c in EXTRA_TRANSLATION_LANGUAGES if c not in TARGET_LANGUAGES]
 
 
 def priority_languages() -> List[str]:
-    rest = [c for c in TARGET_LANGUAGES if c not in TIER1 and c not in TIER2]
-    ordered = list(TIER1) + list(TIER2) + rest
-    return [c for c in ordered if c in TARGET_LANGUAGES]
+    valid = set(translatable_languages())
+    ordered = [c for c in PRIORITY_ORDER if c in valid]
+    ordered += [c for c in translatable_languages() if c not in ordered]  # a language added later still gets translated
+    return ordered
 
 
 # ---------------------------------------------------------------------------

@@ -21,7 +21,7 @@ def test_cantonese_is_translatable_and_outside_the_platform_list():
     assert len(SUPPORTED_LANGUAGES) == 27
     assert "yue" not in TARGET_LANGUAGES
     assert len(TARGET_LANGUAGES) == 26
-    assert EXTRA_TRANSLATION_LANGUAGES == ("yue",)
+    assert EXTRA_TRANSLATION_LANGUAGES == ("yue", "tl")
     assert is_pair_supported("en", "yue") is True
     assert is_pair_supported("en", "klingon") is False
 

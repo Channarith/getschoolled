@@ -53,7 +53,7 @@ def placed(result):
 def test_catalog_covers_every_demo_workstream():
     ids = {i.id for i in CATALOG}
     assert {"voice-agent-train", "voice-agent-eval", "demo-voice-clone", "demo-edge-voices", "voice-ingest"} <= ids
-    assert any(i.startswith("translate-km-th-vi") for i in ids), "Khmer, Thai and Vietnamese are translated first"
+    assert any(i.startswith("translate-km-yue-es") for i in ids), "Khmer, Cantonese and Spanish are translated first"
 
 
 def test_spark_only_jobs_never_leave_the_spark():
@@ -145,7 +145,7 @@ def test_no_cuda_anywhere_leaves_gpu_work_unplaced_with_a_reason():
 
 def test_commands_run_under_gs_run_with_the_gpu_lock():
     by = {i.id: i for i in CATALOG}
-    line = ws.command_line(by["translate-km-th-vi"])
+    line = ws.command_line(by["translate-km-yue-es"])
     assert line.startswith("scripts/gs_run.sh --name translate-") and " --gpu " in line
     assert "langs:" in line
     cpu = ws.command_line(by["demo-edge-voices"])

@@ -21,7 +21,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
-from .course_translation_library import TARGET_LANGUAGES
+from .course_translation_library import EXTRA_TRANSLATION_LANGUAGES, TARGET_LANGUAGES
 from .translation_review import unit_key
 
 SHIP, HOLD, REJECT = "ship", "hold", "reject"
@@ -39,17 +39,18 @@ _RANGES: Dict[str, List[Tuple[int, int]]] = {
     "uk": [(0x0400, 0x04FF)],
     "el": [(0x0370, 0x03FF), (0x1F00, 0x1FFF)],
     "zh": [(0x4E00, 0x9FFF), (0x3400, 0x4DBF)],
+    "yue": [(0x4E00, 0x9FFF), (0x3400, 0x4DBF)],
     "ja": [(0x4E00, 0x9FFF), (0x3040, 0x309F), (0x30A0, 0x30FF)],
     "ko": [(0xAC00, 0xD7AF), (0x1100, 0x11FF), (0x3130, 0x318F)],
 }
-_LATIN_LANGS = {"es", "fr", "de", "it", "pt", "nl", "pl", "tr", "id", "sw", "cs", "vi"}
+_LATIN_LANGS = {"es", "fr", "de", "it", "pt", "nl", "pl", "tr", "id", "sw", "cs", "vi", "tl"}
 _VI_MARKS = set("ăâđêôơưĂÂĐÊÔƠƯáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ")
 
 # Typical target/source character-count ratio per language, measured on the Grok-seeded
 # library (median over segments of 40+ characters). A segment is an outlier below
 # 0.45x or above 2.2x of that: truncation and runaway output are the usual causes.
 _TYPICAL_RATIO: Dict[str, float] = {
-    "zh": 0.34, "ja": 0.45, "ko": 0.75, "km": 1.05, "th": 1.0, "ar": 0.9, "he": 0.85,
+    "zh": 0.34, "yue": 0.40, "tl": 1.15, "ja": 0.45, "ko": 0.75, "km": 1.05, "th": 1.0, "ar": 0.9, "he": 0.85,
     "fa": 0.95, "ur": 1.0, "hi": 1.05, "bn": 1.0, "ru": 1.0,
 }
 
@@ -292,7 +293,7 @@ def scan_library(root: Path) -> Tuple[List[Tuple[Path, str]], List[Dict[str, str
     """Return ([(file, lang)], stray files) for <root>/<course>/<file>."""
     files: List[Tuple[Path, str]] = []
     stray: List[Dict[str, str]] = []
-    langs = set(TARGET_LANGUAGES) | {"en"}
+    langs = set(TARGET_LANGUAGES) | set(EXTRA_TRANSLATION_LANGUAGES) | {"en"}
     for entry in sorted(root.iterdir()):
         if entry.is_file():
             if entry.name != "index.json":

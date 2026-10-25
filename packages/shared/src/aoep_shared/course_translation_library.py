@@ -21,9 +21,24 @@ from .languages import SUPPORTED_LANGUAGES, normalize_language
 TARGET_LANGUAGES: tuple[str, ...] = tuple(
     code for code in SUPPORTED_LANGUAGES if code != "en"
 )
-# Cantonese is its own file (yue.json). It is not one of the 27 platform
-# languages, so it stays out of the language picker and the demo list.
-EXTRA_TRANSLATION_LANGUAGES: tuple[str, ...] = ("yue",)
+# Cantonese (yue.json) and Tagalog/Filipino (tl.json) are their own files. They are not
+# among the 27 platform languages, so they stay out of the language picker, the UI
+# strings and normalize_language(); only the translation library reads and writes them.
+EXTRA_TRANSLATION_LANGUAGES: tuple[str, ...] = ("yue", "tl")
+_TRANSLATION_ALIASES = {"fil": "tl", "tgl": "tl", "filipino": "tl", "tagalog": "tl", "cantonese": "yue"}
+
+
+def normalize_translation_language(language: str) -> str:
+    """Like normalize_language, plus the extra translation-only codes (yue, tl; fil/tgl/tagalog -> tl).
+
+    Used only for library file names and lookups. It never widens the set of UI languages.
+    """
+    raw = (language or "").strip().lower().replace("_", "-")
+    base = _TRANSLATION_ALIASES.get(raw, raw.split("-")[0] if raw else "")
+    base = _TRANSLATION_ALIASES.get(base, base)
+    if base in EXTRA_TRANSLATION_LANGUAGES:
+        return base
+    return normalize_language(language)
 
 _INDEX = "index.json"
 _LOCK = threading.Lock()
@@ -50,14 +65,14 @@ def normalize_label(text: str) -> str:
 
 
 def translation_path(course_id: str, language: str, root: Path | None = None) -> Path:
-    code = normalize_language(language) or "en"
+    code = normalize_translation_language(language) or "en"
     return (root or library_dir()) / safe_course_id(course_id) / f"{code}.json"
 
 
 def save_translation(record: dict[str, Any], root: Path | None = None) -> Path:
     """Write one course language and update the title index."""
     course_id = str(record.get("course_id") or "").strip()
-    language = normalize_language(str(record.get("language") or ""))
+    language = normalize_translation_language(str(record.get("language") or ""))
     if not course_id or not language:
         raise ValueError("course_id and a supported language are required")
     payload = {
@@ -115,7 +130,7 @@ def find_translation(
 ) -> dict[str, Any] | None:
     """Load the pre-translated class, refusing a title that belongs to another category."""
     base = root or library_dir()
-    code = normalize_language(language)
+    code = normalize_translation_language(language)
     if not code:
         return None
     if course_id:

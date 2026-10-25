@@ -216,7 +216,7 @@ def test_catalog_runner_orders_languages_and_counts(tmp_path, glossary):
 
 def test_priority_order_puts_khmer_first():
     langs = v2.priority_languages()
-    assert langs[:5] == ["km", "th", "vi", "es", "zh"] and langs[5:9] == ["sw", "id", "el", "cs"]
+    assert langs[:6] == ["km", "yue", "es", "zh", "fr", "it"] and langs[6:8] == ["th", "vi"]
     assert "en" not in langs
 
 
