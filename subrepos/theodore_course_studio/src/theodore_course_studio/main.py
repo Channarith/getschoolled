@@ -220,6 +220,7 @@ class CourseTtsRequest(BaseModel):
     language: str = "en"
     gender: str = "female"
     voice: str = ""
+    tone: str = ""      # aoep_shared.tone_presets id from the account-menu tone picker; "" = plain voice
 
 
 class TeachCheckpointLookup(BaseModel):
@@ -1191,12 +1192,12 @@ def studio_tts_locked(req: CourseTtsRequest) -> Response:
     """
     try:
         try:
-            audio = synthesize_course(req.text, req.language, gender=req.gender, voice=req.voice)
+            audio = synthesize_course(req.text, req.language, gender=req.gender, voice=req.voice, tone=req.tone)
         except TTSUnavailable:
             if not req.voice:
                 raise
             # The visitor's pick could not render: keep narrating in the course voice rather than going silent.
-            audio = synthesize_course(req.text, req.language, gender=req.gender)
+            audio = synthesize_course(req.text, req.language, gender=req.gender, tone=req.tone)
     except TTSUnavailable as exc:
         return _no_voice_response(exc)
     return Response(

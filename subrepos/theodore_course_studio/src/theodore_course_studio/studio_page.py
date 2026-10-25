@@ -6689,10 +6689,12 @@ STUDIO_JS = """
       const language = (ttsMeta && ttsMeta.language) || teachLanguage || 'en';
       const gender = narrationGenderOverride || courseVoiceGender || (ttsMeta && ttsMeta.voice_gender) || 'female';
       const voice = (!narrationGenderOverride && window.SalaVoiceChoice) ? window.SalaVoiceChoice.edgeVoiceFor(language) : '';
+      // The picked tone applies to the course/edge voice; a company-voice fallback keeps the plain voice (stylized clones need their own consent).
+      const tone = (!narrationGenderOverride && window.SalaVoiceChoice && window.SalaVoiceChoice.tone) ? window.SalaVoiceChoice.tone() : '';
       const attempt = (n) => fetch('/api/studio/tts', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ text: text, language: language, gender: gender, voice: voice })
+        body: JSON.stringify({ text: text, language: language, gender: gender, voice: voice, tone: tone })
       }).then((res) => {
         if (res.status === 204) { const none = new Error('no voice engine'); none.noEngine = true; throw none; }
         if (!res.ok) throw new Error('tts ' + res.status);

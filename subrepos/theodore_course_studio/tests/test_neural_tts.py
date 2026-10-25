@@ -223,3 +223,30 @@ def test_synthesize_course_uses_the_visitors_voice_when_valid(monkeypatch) -> No
     neural_tts.synthesize_course("Hello there again.", "en", voice="not a voice")
     assert seen[0] == "en-GB-SoniaNeural"
     assert seen[1] == neural_tts.voice_for("en", gender="female")
+
+
+def test_tone_reaches_the_renderer_and_gets_its_own_cache_entry(monkeypatch, tmp_path):
+    monkeypatch.setenv("COURSE_STUDIO_TTS_CACHE", str(tmp_path))
+    monkeypatch.setattr(neural_tts, "engine_available", lambda: True)
+    seen = []
+
+    def fake(text, path, *, voice, rate, **kw):
+        seen.append((rate, kw.get("pitch"), kw.get("volume")))
+        path.write_bytes(b"ID3-" + (kw.get("pitch") or "plain").encode())
+
+    monkeypatch.setattr(neural_tts, "_render", fake)
+    plain = neural_tts.synthesize("Hello there", "en")
+    anime = neural_tts.synthesize("Hello there", "en", tone="anime")
+    again = neural_tts.synthesize("Hello there", "en", tone="anime")
+    assert plain == b"ID3-plain" and anime == b"ID3-+40Hz" and again == anime
+    assert seen == [("+0%", None, None), ("+18%", "+40Hz", "+10%")]       # plain call unchanged; the repeat came from the cache
+
+
+def test_unknown_or_neutral_tone_is_the_plain_voice(monkeypatch, tmp_path):
+    monkeypatch.setenv("COURSE_STUDIO_TTS_CACHE", str(tmp_path))
+    monkeypatch.setattr(neural_tts, "engine_available", lambda: True)
+    seen = []
+    monkeypatch.setattr(neural_tts, "_render", lambda text, path, *, voice, rate, **kw: (seen.append(kw), path.write_bytes(b"ID3-x"))[1])
+    for i, tone in enumerate(("", "neutral", "not-a-tone")):
+        neural_tts.synthesize(f"Line {i}", "en", tone=tone)
+    assert seen == [{}, {}, {}]

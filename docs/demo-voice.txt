@@ -125,3 +125,22 @@ Voice picker (profile menu)
   voice listed once (regional duplicates of the same neural voice are hidden unless the visitor already saved one). The choice is stored in the
   same key as the demo narrator selector (aoep_demo_voice). The Any/Female/Male filter is gone: the (F)/(M) in each option is the gender,
   and picking a voice keeps the stored gender in step, so existing visitors keep the voice they had.
+
+
+Edge-tts tones and the tiered pre-render (backup path)
+  Company voices (Channarith, Wei, Wei Miao) and the stock voices are the primary demo voices. The edge-tts voices in the account-menu picker stay
+  LIVE, with an optional Tone (neutral, nine presets, thirteen professional/cute/anime mixes). The tone is edge-tts rate/pitch/volume; the numbers
+  live in aoep_shared.tone_presets (a test keeps them identical to tts_bakeoff.voice_types). The speech gateway (/tts) and the course studio
+  (/api/studio/tts) accept `tone`; the web sends the saved choice (localStorage aoep_demo_tone). A company voice cannot take a tone: that is a
+  separate "stylized versions" consent scope nobody has signed, so the picker disables the Tone control for those voices.
+
+  tts_bakeoff.demo_voice.edge_render builds a stored-clip set for later use (not uploaded; nothing in the product reads it yet):
+    python3 -m tts_bakeoff.demo_voice.edge_render plan                 # tiered counts and sizes from the manifest and the picker catalog
+    python3 -m tts_bakeoff.demo_voice.edge_render run --tiers 1        # tier 1 = Driver's Ed English; needs edge-tts >= 7.3.1 in that interpreter
+    python3 -m tts_bakeoff.demo_voice.edge_render status --tiers 1     # read-only: done/total, rate, ETA
+  Measured on this Mac (100 clips, tier 1 sample): 2 workers 2.2 clips/s, 4 -> 4.2, 8 -> 7.5, 16 -> 10.9, no throttling at any level; the
+  default is 16 workers with at most 6 per voice. A voice that returns no audio at all (en-US-DavisNeural is no longer served) is probed first
+  and skipped, not retried per clip. Tiers 2-4 (translated Driver's Ed, the other demos, the other languages) are planned but not rendered.
+
+  COMPLIANCE: edge-tts is an unofficial client of Microsoft's Edge Read Aloud service. Serving its output live is one thing; keeping and shipping
+  its audio as stored files is a bigger step. The licensed route to the same neural voices is Azure AI Speech (same voice names).

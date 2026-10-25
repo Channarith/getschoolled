@@ -214,3 +214,41 @@ def test_tts_serves_prerendered_audio_before_live_engines(monkeypatch, tmp_path)
     r = client.post("/tts", json={"text": line, "language": "en"})
     assert r.status_code == 200 and r.headers["x-tts-engine"] == "prerendered"
     assert r.headers["content-type"] == "audio/wav"
+
+
+def _capture_edge(monkeypatch):
+    from aoep_shared import elevenlabs_tts
+    from aoep_shared.meeting import natural_tts
+
+    seen = {}
+    monkeypatch.setattr(elevenlabs_tts, "elevenlabs_configured", lambda *a, **k: False)
+
+    def fake(text, out_path, **kw):
+        seen.update(kw)
+        out_path.write_bytes(b"\xff\xfb" + b"A" * 5000)
+        return True
+
+    monkeypatch.setattr(natural_tts, "synthesize_neural", fake)
+    return seen
+
+
+def test_tts_tone_sets_edge_rate_pitch_volume(monkeypatch):
+    seen = _capture_edge(monkeypatch)
+    r = client.post("/tts", json={"text": "hello there", "language": "en", "voice": "en_us_f", "tone": "anime"})
+    assert r.status_code == 200 and r.headers["x-tts-engine"] == "edge-tts"
+    assert (seen["rate"], seen["pitch"], seen["volume"]) == ("+18%", "+40Hz", "+10%")
+
+
+def test_tts_blend_tone_and_get_variant(monkeypatch):
+    seen = _capture_edge(monkeypatch)
+    r = client.get("/tts", params={"text": "hello there", "voice": "en_us_f", "tone": "blend-professional50-cute50"})
+    assert r.status_code == 200
+    assert (seen["rate"], seen["pitch"], seen["volume"]) == ("+2%", "+15Hz", "+0%")
+
+
+def test_tts_without_a_tone_is_unchanged(monkeypatch):
+    for tone in ("", "neutral", "not-a-tone"):
+        seen = _capture_edge(monkeypatch)
+        r = client.post("/tts", json={"text": "hello there", "language": "en", "voice": "en_us_f", "tone": tone})
+        assert r.status_code == 200
+        assert (seen["rate"], seen["pitch"]) == ("+0%", "+0Hz") and "volume" not in seen

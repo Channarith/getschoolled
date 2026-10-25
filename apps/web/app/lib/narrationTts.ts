@@ -4,8 +4,9 @@
 
 import { getTtsVoices, listStudents, SPEECH_URL, type StudentProfile, type VoiceGroup } from "./api";
 import {
-  configureServerTts, setServerInstructor, setServerVoice, type SpeakOptions,
+  configureServerTts, setServerInstructor, setServerTone, setServerVoice, type SpeakOptions,
 } from "./tts";
+import { getTone } from "./voiceTone";
 import { getVoicePrefs, type VoiceGenderPref, type VoicePrefs } from "./voicePrefs";
 import { prosodyForStyle, resolveEffectiveVoiceStyle } from "./voiceProfiles";
 
@@ -27,6 +28,7 @@ export function applyVoicePrefsToTts(prefs: VoicePrefs = getVoicePrefs()): void 
   configureServerTts(SPEECH_URL);
   setServerVoice(prefs.voiceId);
   setServerInstructor(prefs.instructorId);
+  setServerTone(getTone());
 }
 
 export function accentFromPrefs(

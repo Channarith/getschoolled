@@ -15,7 +15,8 @@ import {
   type LiveVoiceEngine,
 } from "../lib/liveVoiceEngine";
 import { getVoicePrefs, setVoicePrefs, type VoiceGenderPref } from "../lib/voicePrefs";
-import { setServerVoice } from "../lib/tts";
+import { setServerTone, setServerVoice } from "../lib/tts";
+import { MIX_TONES, NEUTRAL_TONE, TONES, TONE_BLOCKED_TIP, TONE_EVENT, getTone, setTone, toneBlockedForVoice } from "../lib/voiceTone";
 
 /** Voice gender + accent picker for the profile menu (single source of truth). */
 export default function VoicePrefsControls() {
@@ -25,6 +26,15 @@ export default function VoicePrefsControls() {
   const [customVoices, setCustomVoices] = useState<{ id: string; label: string }[]>([]);
   const [customChoice, setCustomChoice] = useState(DEFAULT_VOICE_ID);
   const [liveEngine, setLiveEngine] = useState<LiveVoiceEngine>("salane");
+  const [tone, setToneState] = useState(NEUTRAL_TONE);
+  const [stylizedVoices, setStylizedVoices] = useState<string[]>([]);
+
+  useEffect(() => {
+    const sync = () => setToneState(getTone() || NEUTRAL_TONE);
+    sync();
+    window.addEventListener(TONE_EVENT, sync);
+    return () => window.removeEventListener(TONE_EVENT, sync);
+  }, []);
 
   useEffect(() => {
     const prefs = getVoicePrefs();
@@ -41,6 +51,7 @@ export default function VoicePrefsControls() {
     let alive = true;
     const lang = clipLangForLocale(locale);
     loadCloneVoices().then(async (voices) => {
+      if (alive) setStylizedVoices(voices.filter((v) => v.stylized === true).map((v) => v.id));
       const rows: { id: string; label: string }[] = [];
       for (const v of voices) {
         if ((await cloneVoiceLanguages(v.id)).includes(lang)) rows.push({ id: v.id, label: customVoiceLabel(v.label, lang, locale) });
@@ -66,6 +77,15 @@ export default function VoicePrefsControls() {
     const gender: VoiceGenderPref | undefined = picked?.gender === "male" || picked?.gender === "female" ? picked.gender : undefined;
     const next = setVoicePrefs(gender ? { voiceId: id, voiceGender: gender } : { voiceId: id });
     applyVoicePrefsToTts(next);
+  }
+
+  const customSelected = customVoices.some((v) => v.id === customChoice);
+  const toneBlocked = customSelected && toneBlockedForVoice({ stylized: stylizedVoices.includes(customChoice) });
+
+  function chooseTone(id: string) {
+    setToneState(id);
+    setTone(id);
+    setServerTone(id === NEUTRAL_TONE ? "" : id);
   }
 
   function chooseLiveEngine(engine: LiveVoiceEngine) {
@@ -140,6 +160,33 @@ export default function VoicePrefsControls() {
           ))}
         </select>
       )}
+      <label style={{ display: "grid", gap: 4 }} title={toneBlocked ? TONE_BLOCKED_TIP : undefined}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--muted)" }}>Tone</span>
+        <select
+          value={toneBlocked ? NEUTRAL_TONE : tone}
+          onChange={(e) => chooseTone(e.target.value)}
+          disabled={toneBlocked}
+          aria-label="Voice tone"
+          aria-disabled={toneBlocked}
+          title={toneBlocked ? TONE_BLOCKED_TIP : undefined}
+          style={{
+            width: "100%",
+            background: "var(--panel-2)",
+            color: "var(--text)",
+            border: "1px solid var(--border)",
+            borderRadius: 6,
+            padding: "6px 8px",
+            fontSize: 13,
+            opacity: toneBlocked ? 0.55 : 1,
+            cursor: toneBlocked ? "not-allowed" : "pointer",
+          }}
+        >
+          {TONES.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+          <optgroup label="Mix">
+            {MIX_TONES.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+          </optgroup>
+        </select>
+      </label>
     </div>
   );
 }

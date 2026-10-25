@@ -119,6 +119,7 @@ class TtsRequest(BaseModel):
     voice: str = ""          # voice_catalog id (accent/language), e.g. "en_gb_f"
     instructor: str = ""     # instructor personality id, e.g. "kind" / "strict"
     slang: bool = True       # apply the voice's regional dialect/slang to the text
+    tone: str = ""           # aoep_shared.tone_presets id (professional, cute, anime, blend-...): edge-tts rate/pitch/volume; "" = none
 
 
 @app.get("/tts/voices")
@@ -139,7 +140,7 @@ def tts_instructors() -> dict:
 
 @app.get("/tts")
 def tts_get(text: str, language: str = "en", voice_style: str = "standard",
-            voice: str = "", instructor: str = "", slang: bool = True) -> Response:
+            voice: str = "", instructor: str = "", slang: bool = True, tone: str = "") -> Response:
     """GET variant so mobile (expo-av) can load audio directly from a URI.
 
     NOTE: passing lesson text as a URL query parameter exposes it in server
@@ -152,7 +153,7 @@ def tts_get(text: str, language: str = "en", voice_style: str = "standard",
             detail="text exceeds 1000-character limit for GET /tts; use POST /tts instead",
         )
     return _render_tts(text, language=language, voice_style=voice_style, voice=voice,
-                       instructor=instructor, slang=slang)
+                       instructor=instructor, slang=slang, tone=tone)
 
 
 @app.post("/tts")
@@ -166,11 +167,11 @@ def tts(req: TtsRequest) -> Response:
     ElevenLabs -> edge-tts neural -> 501 (client on-device fallback).
     """
     return _render_tts(req.text, language=req.language, voice_style=req.voice_style,
-                       voice=req.voice, instructor=req.instructor, slang=req.slang)
+                       voice=req.voice, instructor=req.instructor, slang=req.slang, tone=req.tone)
 
 
 def _render_tts(text: str, *, language: str, voice_style: str,
-                voice: str = "", instructor: str = "", slang: bool = True) -> Response:
+                voice: str = "", instructor: str = "", slang: bool = True, tone: str = "") -> Response:
     text = (text or "").strip()
     if not text:
         raise HTTPException(status_code=400, detail="text is required")
@@ -179,7 +180,10 @@ def _render_tts(text: str, *, language: str, voice_style: str,
 
     # Narration rendered offline on the Spark wins for the default voice; a chosen
     # accent or instructor still goes through the live engines.
-    if not voice and not instructor:
+    from aoep_shared.tone_presets import tone_prosody
+
+    tone_p = tone_prosody(tone)   # None for neutral, empty or an unknown tone: those render exactly as before
+    if not voice and not instructor and not tone_p:
         from aoep_shared import prerender_audio
 
         stored = prerender_audio.lookup(text, language)
@@ -200,6 +204,9 @@ def _render_tts(text: str, *, language: str, voice_style: str,
     persona = resolve_instructor(instructor)
     edge_rate = persona.edge_rate if persona else "+0%"
     edge_pitch = persona.edge_pitch if persona else "+0Hz"
+    edge_volume = "+0%"
+    if tone_p:   # a chosen tone wins over the instructor's delivery: the visitor picked it explicitly
+        edge_rate, edge_pitch, edge_volume = tone_p
     if persona:
         voice_style = persona.voice_style
 
@@ -268,8 +275,9 @@ def _render_tts(text: str, *, language: str, voice_style: str,
     os.close(_fd)  # close immediately; we only need the path
     tmp = Path(_tmp_str)
     try:
+        extra = {"volume": edge_volume} if tone_p else {}   # untoned requests call synthesize_neural exactly as before
         if synthesize_neural(text, tmp, language=speak_lang, voice=edge_voice,
-                             rate=edge_rate, pitch=edge_pitch):
+                             rate=edge_rate, pitch=edge_pitch, **extra):
             data = tmp.read_bytes()
             return Response(content=data, media_type="audio/mpeg",
                             headers={**headers, "X-TTS-Engine": "edge-tts"})

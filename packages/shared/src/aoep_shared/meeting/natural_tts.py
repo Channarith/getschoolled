@@ -160,6 +160,7 @@ def synthesize_neural(
     voice: str = "",
     rate: str = "+0%",
     pitch: str = "+0Hz",
+    volume: str = "+0%",
 ) -> bool:
     """Write MP3 using edge-tts neural voice. Returns True on success.
 
@@ -180,7 +181,7 @@ def synthesize_neural(
 
     async def _run() -> None:
         audio = await render_edge_mp3(
-            narration, voice=v, rate=rate or "+0%", pitch=pitch or "+0Hz",
+            narration, voice=v, rate=rate or "+0%", pitch=pitch or "+0Hz", volume=volume or "+0%",
         )
         out_path.write_bytes(audio)
 

@@ -1,6 +1,7 @@
 // The voice the visitor picked in the account menu (same origin, so the same localStorage as the web app):
 //   aoep_demo_voice   = a consented company voice id, or "default"
 //   aoep_drive_voice  = an edge-tts voice id such as en-US-AriaNeural, or "" for the automatic voice
+//   aoep_demo_tone    = a tone id (professional, cute, anime, blend-professional50-cute50 ...) or "neutral"; edge voices only
 // Company voices are never cloned live: a clip is looked up by voice + language + a hash of the exact text and any miss
 // falls back to the edge voice (or the default narration). The hash must stay identical to apps/web/app/lib/cloneVoice.ts
 // and tts_bakeoff/demo_voice/clip_hash.py.
@@ -8,6 +9,8 @@
   "use strict";
   var CLONE_KEY = "aoep_demo_voice";
   var EDGE_KEY = "aoep_drive_voice";
+  var TONE_KEY = "aoep_demo_tone";
+  var TONE_ID = /^(neutral|[a-z]{3,20}|blend-[a-z0-9-]{3,60})$/;
   var EDGE_ID = /^[a-z]{2,3}(-[A-Za-z0-9]+)+Neural$/;
   var WS = /[ \t\n\r\f\v\u00a0\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+/g;
 
@@ -40,6 +43,13 @@
     if (custom === "default") custom = "";
     if (!EDGE_ID.test(edge)) edge = "";
     return { custom: custom, edge: edge };
+  }
+
+  // The tone picked in the account menu ("" = plain voice). Company voices ignore it: a stylized clone needs its own consent scope.
+  function tone() {
+    var t = "";
+    try { t = window.localStorage.getItem(TONE_KEY) || ""; } catch (_) { /* private mode */ }
+    return t && t !== "neutral" && TONE_ID.test(t) ? t : "";
   }
 
   // The edge voice only counts when it speaks the lesson's language (an English voice must not read a Khmer lesson).
@@ -103,5 +113,5 @@
     });
   }
 
-  window.SalaVoiceChoice = { chosen: chosen, edgeVoiceFor: edgeVoiceFor, cloneClipUrl: cloneClipUrl, clipHash: clipHash, customGender: customGender };
+  window.SalaVoiceChoice = { chosen: chosen, edgeVoiceFor: edgeVoiceFor, cloneClipUrl: cloneClipUrl, clipHash: clipHash, customGender: customGender, tone: tone };
 })();
