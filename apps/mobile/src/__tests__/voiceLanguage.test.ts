@@ -1,8 +1,12 @@
-import { readFileSync } from "fs";
-import { join } from "path";
-
 import { initialLocale, languageFamily, languageForGroup, languageForVoice, localeFromVoiceId, sameFamily, uiLocaleForVoiceLocale } from "../voiceLanguage";
 import { groupKeyForVoice } from "../voicePicker";
+
+// Node builtins, declared locally because the mobile typecheck intentionally omits @types/node.
+declare const __dirname: string;
+declare function require(name: "fs"): { readFileSync(path: string, encoding: string): string };
+declare function require(name: "path"): { resolve(...parts: string[]): string };
+const { readFileSync } = require("fs");
+const { resolve: join } = require("path");
 
 const SUPPORTED = ["en", "en-GB", "en-AU", "en-SG", "es", "fr", "zh", "yue", "km", "ar", "he", "th", "ja", "vi", "pt"];
 const CLONES = [
