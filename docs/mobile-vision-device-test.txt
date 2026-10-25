@@ -138,3 +138,35 @@ In the game itself the triage log (Settings > Camera check > Share report, or Re
 Proven with emulation only (fake camera, desktop Chromium): the ladder logic, the shared builder options, the failure handling, the hand
 test runner (with fake models), and that the diag page fails gracefully. NOT proven: that any recipe sees a hand on the owner's Adreno phone.
 Only the report above can show that.
+
+
+PER-DEVICE RECIPES, WARM-UP AND WHAT THE REAL PHONES SHOWED (added with the device-aware detector)
+------------------------------------------------------------------------------------------------
+Measured on real phones with /diag/vision (Hand test):
+
+  ANDROID - Chrome 156, Qualcomm Adreno 830: face GPU 53/54 (GPU + blendshapes 52/57), face CPU 0/59; hands GPU 0/82 (also 0 at
+    confidence 0.3 and with a canvas feed), hands CPU 71/71. => On Android Chromium hands start on the CPU and the face on the GPU.
+    A KNOWN-BAD RULE (id "gpu-hand-adreno") covers it: the GPU hand landmarker is never used on a Qualcomm Adreno GPU, matched on the
+    WebGL renderer string, and the game switches at once (no 8 s wait). The triage log names the matched rule ("detector env",
+    "detector variant ... known-bad rule gpu-hand-adreno"). The rule is limited to Adreno: iPhone and desktop keep GPU hands.
+  IPHONE - Safari and Chrome on iOS 18.7 (both WebKit), Apple GPU: face GPU 44-50/50, face CPU 58/58; hands GPU 2 hands, hands gpu-low
+    45/45, hands CPU 45/45, canvas feeds fine. => Hands GPU, face GPU. The FIRST variant tested in each run got 1 frame in 7-9 s
+    while later ones ran at full speed: a first-inference WARM-UP (shader compile, graph init), confounded with test order. That
+    blendshapes are slow is NOT proven (they were simply first).
+
+What the app does because of that:
+  - Face blendshapes (expressions) are OFF everywhere by default. A game that needs them (popcorn, wow, wink, blow-kiss, oh-behave)
+    turns them on only after the plain face model is healthy; a watchdog turns them off, and remembers it for this device, if they
+    stall or throw.
+  - Hands start at confidence 0.4 everywhere (then 0.3, then a canvas feed).
+  - Detectors are created and PRE-WARMED (one throwaway frame through each model) while the camera prompt is open, so the first
+    real frame is steady-state; a rebuilt model is warmed before it replaces the old one. Nothing is shown for this.
+  - Blind-detection timers count frames processed after the first result, not wall time, with an extra allowance of 12 s on iOS
+    (2 s elsewhere), so a working GPU model that is slow to start is never stepped down.
+  - /diag/vision warms each variant up (3 uncounted frames) before timing it, so test order does not confound the result.
+  - The recipe that saw a face / hand is saved in localStorage per device (key: WebGL renderer + browser major version), reused on the
+    next launch, forgotten after about 8 s of seeing nothing, and dropped when the browser version changes. The Hand test winner
+    writes the same cache.
+
+NOT covered by these reports: the iOS APP's WKWebView (different from Safari). After a native build open Settings > Camera check
+inside the iOS app and compare it with the Safari numbers above.

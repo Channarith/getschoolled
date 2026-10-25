@@ -16,7 +16,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from .avatar_director import avatar_script_for_slide
-from .cert_i18n import NEEDS_NATIVE_REVIEW, translate_cert_slide
+from .cert_i18n import CURATED, NEEDS_NATIVE_REVIEW, translate_cert_slide
 from .page_media import motion_data_url, picture_data_url
 from .cert_multimodal import (
     CERT_MODALITIES,
@@ -1356,9 +1356,9 @@ def build_cert_course(
             slide_body_base = tr.body
             slide_say = tr.say
             slide_activity = tr.activity
-            examples = list(tr.examples) if tr.examples else list(kit.examples)
+            examples = list(tr.examples)
             quiz_prompt = tr.quiz_prompt or kit.quiz_prompt
-            quiz_choices = list(tr.quiz_choices) if tr.quiz_choices else list(kit.quiz_choices)
+            quiz_choices = list(tr.quiz_choices) if len(tr.quiz_choices) == 4 else list(kit.quiz_choices)
             quiz_explanation = tr.quiz_explanation or kit.quiz_explanation
             game_prompt = tr.game_prompt or kit.game_prompt
             game_options = list(tr.game_options) if tr.game_options else list(kit.game_options)
@@ -1434,13 +1434,18 @@ def build_cert_course(
             )
         slide.avatar_script = avatar_script_for_slide(slide)
         slides.append(slide)
-    used_curated = translated_count > 0
-    spoken_language = lang if used_curated else "en"
-    if used_curated:
+    used_overlay = translated_count > 0
+    spoken_language = lang if used_overlay else "en"
+    if used_overlay and lang in CURATED:
         translation_source = "curated"
         translation_note = f"Curated {lang} overlay for {translated_count}/{len(slides)} slides."
         if lang in NEEDS_NATIVE_REVIEW:
             translation_note += " Needs native review."
+    elif used_overlay:
+        translation_source = "machine"
+        translation_note = (
+            f"Machine translation for {translated_count}/{len(slides)} slides. Needs native review."
+        )
     else:
         translation_source = "english"
         translation_note = (

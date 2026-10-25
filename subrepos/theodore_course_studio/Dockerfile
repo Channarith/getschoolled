@@ -19,6 +19,10 @@ COPY subrepos/theodore_course_studio/src /app/src
 # The repo keeps this file as a symlink into apps/web; COPY would not replace it, and StaticFiles will not follow it.
 RUN rm -f /app/src/theodore_course_studio/voice_static/drivers-ed-intro.mp4
 COPY apps/web/public/video/drivers-ed-intro.mp4 /app/src/theodore_course_studio/voice_static/drivers-ed-intro.mp4
+# Driver's ed overlays. The package path inside the image has no repo VERSION
+# file, so the loader uses this directory instead of walking parents.
+COPY data/cert_machine /app/data/cert_machine
+ENV AOEP_CERT_MACHINE_DIR=/app/data/cert_machine
 # voices extra is edge-tts, so narration still speaks when the speech gateway
 # is down. The demo page falls back to the device voice only if that fails too.
 RUN pip install --no-cache-dir -e ".[voices]"

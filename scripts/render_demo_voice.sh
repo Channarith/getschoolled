@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Render the demo narration in a consented voice on the Spark, under gs_run.sh (GPU lock, memory gate, no orphans).
 #   scripts/render_demo_voice.sh [--voice channarith|wei-miao|all] [--shard i/N] [--langs en,es] [--limit N] [--reviewed-only]
-# Assets go to $GS_VOICE_ASSETS (default ~/voice-assets). Run again any time: finished clips are skipped.
+# Assets go to $GS_VOICE_ASSETS (default ~/voice-assets). Run again any time: a finished mp3 is
+# skipped. A missing, tiny, or unreadable clip is rendered again. On a GPU under 11 GiB, a long
+# line is spoken in short pieces so it does not run out of memory the way a whole paragraph does.
 # Other machines can take shards (e.g. --shard 1/2) and rsync their assets dir back.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -9,6 +11,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PY="${VOXCPM_PY:-$HOME/venvs/voxcpm/bin/python}"
 [[ -x "$PY" ]] || { echo "missing $PY (VoxCPM2 venv)" >&2; exit 66; }
 export AOEP_REQUIRE_CUDA=1
+# Less allocator fragmentation when a long line is retried in pieces on an 8 GB card.
+export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True}"
 # VoxCPM2 compiles Triton kernels at load; without Python.h (apt python3.12-dev) that fails, so skip the compile then.
 if ! "$PY" -c 'import os,sysconfig,sys; sys.exit(0 if os.path.exists(os.path.join(sysconfig.get_paths()["include"],"Python.h")) else 1)'; then
   export TORCHDYNAMO_DISABLE=1

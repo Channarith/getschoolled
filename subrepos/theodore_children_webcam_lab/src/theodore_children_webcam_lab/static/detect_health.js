@@ -11,10 +11,14 @@ export const FACE_BLIND_MS = 6000;            // a face model that never found a
 export const HANDS_AFTER_FACE_MS = 8000;      // hands are only judged blind once a face has been working this long (the player is there)
 export const HANDS_BLIND_MS = 10000;          // ...and a hand model blind this long (while a person is in front) moves on
 export const BLIND_MS_BEFORE_TOUCH = 12000;   // nothing found on the last variant either: play by touch (silently)
+export const CACHE_BLIND_FRAMES = 240;        // a REMEMBERED recipe that sees nothing for this many frames in a row (about 8 s) is forgotten
 export const HEALTHY_WINDOW_MS = 2000;        // "running" means it produced a frame result without error this recently
 
+export const FACE_MIN_BLIND_FRAMES = 90;      // blind judgments count FRAMES PROCESSED, not wall time: a slow first inference (iOS) is warm-up,
+export const HANDS_MIN_BLIND_FRAMES = 60;     // not blindness, so a working GPU model is never stepped down for being slow to start.
 export function createDetectHealth(options = {}) {
   const clock = options.now || (() => (typeof performance !== "undefined" ? performance.now() : Date.now()));
+  const warmupMs = Number(options.warmupMs) || 0;   // extra time before any blind judgment (env.warmupMs: 10 s on iOS)
   const counts = {face: 1, hands: 1, ...(options.variants || {})};
   const models = {};
   let sawFace = false;
@@ -23,13 +27,13 @@ export function createDetectHealth(options = {}) {
 
   const model = (name) => (models[name] ||= {
     name, state: "idle", delegate: "", variant: 0, variantId: "", runs: 0, found: 0, errors: 0, consecutiveErrors: 0, lastError: "",
-    runningSince: null, lastFoundAt: 0, lastRunAt: 0, reason: "", tried: [], foundByVariant: {},
+    runningSince: null, lastFoundAt: 0, lastRunAt: 0, reason: "", tried: [], foundByVariant: {}, blindFrames: 0, fromCache: false,
   });
 
-  function register(name, delegate, variant = 0, variantId = "") {
+  function register(name, delegate, variant = 0, variantId = "", {fromCache = false} = {}) {
     const m = model(name);
     m.state = "ready"; m.delegate = delegate; m.variant = variant; m.variantId = variantId || String(variant);
-    m.runningSince = null; m.consecutiveErrors = 0; m.reason = ""; m.lastFoundAt = 0;
+    m.runningSince = null; m.consecutiveErrors = 0; m.reason = ""; m.lastFoundAt = 0; m.blindFrames = 0; m.fromCache = fromCache;
     if (!m.tried.includes(m.variantId)) m.tried.push(m.variantId);
     return m;
   }
@@ -50,7 +54,9 @@ export function createDetectHealth(options = {}) {
     m.consecutiveErrors = 0;
     m.lastRunAt = now;
     if (m.runningSince === null) m.runningSince = now;
+    if (!found) m.blindFrames++;
     if (found) {
+      m.blindFrames = 0;
       m.found++; m.lastFoundAt = now;
       m.foundByVariant[m.variantId] = (m.foundByVariant[m.variantId] || 0) + 1;
       if (name === "face") { sawFace = true; if (firstFaceAt === null) firstFaceAt = now; }
@@ -66,19 +72,23 @@ export function createDetectHealth(options = {}) {
     if (m.state !== "ready" || m.variant >= last) return -1;
     if (m.consecutiveErrors >= ERRORS_BEFORE_NEXT) return m.variant + 1;
     const blindFor = m.runningSince !== null ? clock() - Math.max(m.runningSince, m.lastFoundAt) : 0;
+    // A face that was seen earlier is never "blind": a later empty spell is the player leaving, not the model failing. So a working GPU
+    // face recipe is never swapped for the CPU one, and the next face recipe is always the very next rung (gpu-blend -> gpu -> cpu).
     if (name === "face") {
-      if (!sawFace && m.found === 0 && blindFor >= FACE_BLIND_MS) return m.variant + 1;
+      const cacheBlind = m.fromCache && m.blindFrames >= CACHE_BLIND_FRAMES;
+      if (!sawFace && m.found === 0 && ((blindFor >= FACE_BLIND_MS + warmupMs && m.blindFrames >= FACE_MIN_BLIND_FRAMES) || cacheBlind)) return m.variant + 1;
     } else if (name === "hands") {
       // Only suspicious when a person is plainly there (the face works) and no hand was ever seen.
       const faceFor = firstFaceAt === null ? 0 : clock() - firstFaceAt;
-      if (!sawHand && m.found === 0 && faceFor >= HANDS_AFTER_FACE_MS && blindFor >= HANDS_BLIND_MS) return m.variant + 1;
+      const cacheBlind = m.fromCache && sawFace && m.blindFrames >= CACHE_BLIND_FRAMES;
+      if (!sawHand && m.found === 0 && ((faceFor >= HANDS_AFTER_FACE_MS + warmupMs && blindFor >= HANDS_BLIND_MS + warmupMs && m.blindFrames >= HANDS_MIN_BLIND_FRAMES) || cacheBlind)) return m.variant + 1;
     }
     return -1;
   }
   function markVariant(name, variant, variantId, delegate) {
     const m = model(name);
     m.variant = variant; m.variantId = variantId || String(variant); m.delegate = delegate || m.delegate;
-    m.runningSince = null; m.consecutiveErrors = 0; m.lastFoundAt = 0;
+    m.runningSince = null; m.consecutiveErrors = 0; m.lastFoundAt = 0; m.blindFrames = 0; m.fromCache = false;
     if (!m.tried.includes(m.variantId)) m.tried.push(m.variantId);
     return m;
   }
@@ -119,7 +129,7 @@ export function createDetectHealth(options = {}) {
     const out = {sawFace, sawHand};
     for (const [name, m] of Object.entries(models)) {
       out[name] = {
-        state: m.state, delegate: m.delegate, variant: m.variantId, tried: m.tried.slice(), runs: m.runs, found: m.found, errors: m.errors,
+        state: m.state, delegate: m.delegate, variant: m.variantId, fromCache: m.fromCache, tried: m.tried.slice(), runs: m.runs, found: m.found, errors: m.errors,
         lastError: m.lastError, reason: m.reason, foundByVariant: {...m.foundByVariant},
       };
     }

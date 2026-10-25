@@ -26,6 +26,12 @@ def make_assets(tmp_path, active=True):
     return tmp_path
 
 
+@pytest.fixture(autouse=True)
+def no_network_sanity_check(monkeypatch):
+    """cmd_sync compares with the published list over the network: nothing published, in these tests."""
+    monkeypatch.setattr(A, "remote_state", lambda s: (None, {}))
+
+
 @pytest.fixture
 def fake_aws(tmp_path, monkeypatch):
     """An `aws` on PATH that records argv and whether the key reached its environment (never the value)."""

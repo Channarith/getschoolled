@@ -47,7 +47,7 @@ Tests
   - Browser (stubbed API, camera detector, speech recognizer and voice): node apps/web/e2e/on-the-go-demo.mjs http://127.0.0.1:3000 /tmp/shots
 
 
-LAYOUT (v0.97.83): one dropdown, one widget
+LAYOUT (v0.97.86): one dropdown, one widget
   Course list: a closed dropdown that shows the current course. Opening it shows about six rows with a type-to-filter box on top
   (still the pre-translated search: ranked by the voice's language, "Ready in <language>" badges, include-English toggle). The
   anonymous demo offers 6 curated courses (DEMO_COURSE_IDS in app/lib/onTheGoCatalog.ts); flag on_the_go.demo_full_search opens the

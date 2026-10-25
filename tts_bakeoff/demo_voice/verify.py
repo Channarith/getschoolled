@@ -7,7 +7,7 @@ import argparse
 import json
 import sys
 
-from .render import assets_dir, clip_path, load_manifest
+from .render import assets_dir, audio_ok, clip_path, load_manifest
 
 SUPPORTED = {"voxcpm2": {"en", "es", "zh", "vi", "th", "km", "sw", "hi"}}
 
@@ -15,7 +15,7 @@ SUPPORTED = {"voxcpm2": {"en", "es", "zh", "vi", "th", "km", "sw", "hi"}}
 def missing(root, manifest, voice_id: str, model: str) -> list[dict]:
     sup = SUPPORTED.get(model)
     return [c for c in manifest["clips"]
-            if (not sup or c["lang"] in sup) and not clip_path(root, voice_id, c["lang"], c["hash"]).exists()]
+            if (not sup or c["lang"] in sup) and not audio_ok(clip_path(root, voice_id, c["lang"], c["hash"]))]
 
 
 def main(argv=None) -> int:

@@ -67,8 +67,12 @@ def _convert(wav, mp3):
 
 
 @pytest.fixture
-def consented(monkeypatch):
+def consented(monkeypatch, tmp_path_factory):
     state = {"ok": True}
+    reg = tmp_path_factory.mktemp("consent-registry")   # publish refuses on a machine without consent records: stand one in
+    (reg / "channarith").mkdir()
+    (reg / "channarith" / "consent.json").write_text("{}", encoding="utf-8")
+    monkeypatch.setenv("GS_VOICES_DIR", str(reg))
 
     def req(speaker, scope="course_narration", base=None):
         if not state["ok"]:
@@ -90,6 +94,22 @@ def test_render_skips_unsupported_and_existing_then_publishes(tmp_path, consente
     assert sorted(idx["clips"]) == ["en", "es"] and len(idx["clips"]["en"]) == 2
     assert json.loads((tmp_path / "voices.json").read_text())["voices"][0]["active"] is True
     assert [c["lang"] for c in vf.missing(tmp_path, m, "channarith", "voxcpm2")] == ["km"]   # the fake adapter never speaks km
+
+
+def test_render_keeps_finished_audio_and_redoes_a_corrupt_clip(tmp_path, consented):
+    m = _manifest()
+    rd.run("channarith", tmp_path, None, {"en"}, None, m, FakeAdapter(), _convert)
+    en = tmp_path / "channarith" / "en"
+    finished, corrupt = sorted(en.glob("*.mp3"))
+    corrupt.write_bytes(b"\x00" * 800)
+    corrupt.with_suffix(".json").write_text("{", encoding="utf-8")
+    missing_side = finished.with_suffix(".json")
+    missing_side.unlink()
+    again = FakeAdapter()
+    stats = rd.run("channarith", tmp_path, None, {"en"}, None, m, again, _convert)
+    assert stats["ok"] == 1 and stats["skipped_existing"] == 1 and stats["failed"] == 0
+    assert len(again.calls) == 1
+    assert rd.audio_ok(corrupt) and rd.sidecar_ok(corrupt) and rd.sidecar_ok(finished)
 
 
 def test_shards_partition_the_work(tmp_path, consented):
