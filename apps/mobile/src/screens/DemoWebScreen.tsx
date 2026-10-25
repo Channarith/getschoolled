@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator, AppState, Image, PermissionsAndroid, Platform, Pressable, StyleSheet, Text, View,
+  ActivityIndicator, AppState, Image, Linking, PermissionsAndroid, Platform, Pressable, StyleSheet, Text, View,
 } from "react-native";
 import FriendlyErrorView, { friendlyKindFor } from "../components/FriendlyErrorView";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
 
 import { ensureCameraPermission } from "../components/cameraPermission";
 import { WEB_APP_URL } from "../config";
+import { isTrustedNavigation } from "../webNavigation";
 import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
 import { driverWaveScript } from "../driverWave";
@@ -239,6 +240,13 @@ export default function DemoWebScreen({
           mediaPlaybackRequiresUserAction={false}
           mediaCapturePermissionGrantType="grant"
           setSupportMultipleWindows={false}
+          onShouldStartLoadWithRequest={(req) => {
+            if (isTrustedNavigation(req.url, WEB_APP_URL)) return true;
+            // Camera and microphone are granted to whatever this view shows, so it never leaves our own pages: anything else
+            // (a link, a redirect) opens in the system browser instead, which asks for permissions per site.
+            if (/^https?:\/\//i.test(req.url)) void Linking.openURL(req.url).catch(() => {});
+            return false;
+          }}
           onMessage={onMessage}
         />
       )}

@@ -30,7 +30,7 @@ ROOT = Path(__file__).resolve().parents[2]
 CLIP_CACHE = "public, max-age=31536000, immutable"   # clip keys are hashes of the text: never rewritten under the same key
 JSON_CACHE = "public, max-age=300"                     # voices.json / index.json: a consent withdrawal lands within 5 minutes
 DEFAULT_ORIGINS = ("https://salareen.com", "https://www.salareen.com")
-VOICE_ID = re.compile(r"^[a-z0-9][a-z0-9_-]{0,40}$")
+VOICE_ID = re.compile(r"[a-z0-9][a-z0-9_-]{0,40}")   # always used with fullmatch: "$" would also accept a trailing newline
 CRED_PAIRS = (("VOICE_ASSETS_ACCESS_KEY", "VOICE_ASSETS_SECRET_KEY"), ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"),
               ("OBJECT_STORE_ACCESS_KEY", "OBJECT_STORE_SECRET_KEY"))
 RULE_ID = "voice-assets"
@@ -116,11 +116,16 @@ def plan_sync(root: Path, s: Settings, delete_missing: bool = False, dryrun: boo
         raise SystemExit(f"no {voices}: run 'python3 -m tts_bakeoff.demo_voice.render publish' first")
     doc = json.loads(voices.read_text(encoding="utf-8"))
     dr = ["--dryrun"] if dryrun else []
-    cmds: list[list[str]] = [["s3", "sync", str(root), s.s3 + "/", "--exclude", "*", "--include", "*.mp3", "--exact-timestamps",
+    # Only the clips of voices that are ACTIVE in voices.json and not marked REVOKED go up. A blanket "*.mp3" would also
+    # publish clips of a voice that was switched off or whose speaker withdrew consent but whose files are still on disk.
+    live = [v["id"] for v in doc.get("voices", [])
+            if v.get("active") and VOICE_ID.fullmatch(str(v.get("id", ""))) and not (root / str(v["id"]) / "REVOKED").exists()]
+    includes = [arg for vid in live for arg in ("--include", f"{vid}/*.mp3")]
+    cmds: list[list[str]] = [["s3", "sync", str(root), s.s3 + "/", "--exclude", "*", *includes, "--exact-timestamps",
                               "--acl", "public-read", "--cache-control", CLIP_CACHE, "--content-type", "audio/mpeg",
                               *(["--delete"] if delete_missing else []), *dr]]
     for v in doc.get("voices", []):
-        if v.get("active") and VOICE_ID.match(str(v.get("id", ""))):
+        if v.get("id") in live:
             idx = root / v["id"] / "index.json"
             if not idx.is_file():
                 raise SystemExit(f"{idx} missing: run render publish again")
@@ -159,7 +164,7 @@ def deactivate_voice(doc: dict, voice: str) -> tuple[dict, bool]:
 
 def cmd_withdraw(a, s: Settings) -> int:
     voice = a.speaker
-    if not VOICE_ID.match(voice or "") or voice in {"voices", "voices.json"}:
+    if not VOICE_ID.fullmatch(voice or "") or voice in {"voices", "voices.json"}:
         raise SystemExit(f"refusing speaker id {voice!r} (an empty or odd id would delete the wrong prefix)")
     target = f"{s.s3}/{voice}/"
     steps = [f"1. rewrite {s.s3}/voices.json with {voice} inactive (cache {JSON_CACHE}): clients stop looking the voice up",
@@ -173,8 +178,12 @@ def cmd_withdraw(a, s: Settings) -> int:
     doc, found = deactivate_voice(json.loads(cur.stdout), voice)
     if not found:
         print(f"note: {voice} is not listed in the remote voices.json; deleting its objects anyway", file=sys.stderr)
-    tmp = Path(os.environ.get("TMPDIR", "/tmp")) / f".voices-{os.getpid()}.json"
-    tmp.write_text(json.dumps(doc, indent=1), encoding="utf-8")
+    import tempfile
+
+    fd, tmp_name = tempfile.mkstemp(prefix=".voices-", suffix=".json")   # unpredictable name, mode 0600: no symlink games in /tmp
+    tmp = Path(tmp_name)
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        fh.write(json.dumps(doc, indent=1))
     try:
         run_aws(s, "s3", "cp", str(tmp), f"{s.s3}/voices.json", "--acl", "public-read", "--cache-control", JSON_CACHE,
                 "--content-type", "application/json")

@@ -20,6 +20,36 @@ class ConsentError(RuntimeError):
     pass
 
 
+def tighten(path: Path | str, recursive: bool = True) -> None:
+    """Owner-only permissions on a voices tree: directories 0700, files 0600. Recordings and signed consent forms are personal
+    data and the Spark has other local accounts; a default umask leaves them readable to every one of them. Never walks a home
+    directory or a filesystem root (a mistyped GS_VOICES_DIR must not rewrite permissions on unrelated files)."""
+    root = Path(path)
+    try:
+        resolved = root.resolve()
+        if resolved == Path.home().resolve() or resolved == Path(resolved.anchor) or root.is_symlink():
+            return
+        if root.is_file():
+            root.chmod(0o600)
+            return
+        if not root.is_dir():
+            return
+        root.chmod(0o700)
+        if not recursive:
+            return
+        for dirpath, dirnames, filenames in os.walk(root):
+            for name in dirnames:
+                p = Path(dirpath, name)
+                if not p.is_symlink():
+                    p.chmod(0o700)
+            for name in filenames:
+                p = Path(dirpath, name)
+                if not p.is_symlink():
+                    p.chmod(0o600)
+    except OSError:
+        pass   # a read-only or foreign mount: the tree is not ours to change
+
+
 def voices_dir() -> Path:
     return Path(os.environ.get("GS_VOICES_DIR") or Path.home() / "voices").expanduser()
 
@@ -33,7 +63,7 @@ def sha256_file(path: Path | str) -> str:
 
 
 def speaker_dir(speaker: str, base: Path | None = None) -> Path:
-    if not SLUG_RE.match(speaker or ""):
+    if not SLUG_RE.fullmatch(speaker or ""):
         raise ConsentError(f"speaker id {speaker!r} must be a lowercase slug (letters, digits, - or _)")
     return (base or voices_dir()) / speaker
 
@@ -45,10 +75,8 @@ def _read(path: Path) -> dict:
 def _write(path: Path, data: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
-    try:
-        path.chmod(0o600)
-    except OSError:
-        pass
+    tighten(path.parent)                          # the speaker folder and everything under it
+    tighten(path.parent.parent, recursive=False)  # the voices root itself
 
 
 def record_consent(speaker: str, name: str, role: str, signed_form: Path | str, scopes=REQUIRED_SCOPES,
@@ -117,10 +145,22 @@ def load_consent(speaker: str, base: Path | None = None) -> dict:
     return _read(path)
 
 
+def assets_dir() -> Path:
+    return Path(os.environ.get("GS_VOICE_ASSETS") or Path.home() / "voice-assets").expanduser()
+
+
 def revoke(speaker: str, base: Path | None = None) -> None:
     rec = load_consent(speaker, base)
     rec["revoked"], rec["revoked_on"] = True, time.strftime("%Y-%m-%d")
     _write(speaker_dir(speaker, base) / "consent.json", rec)
+    # Pre-rendered demo clips live outside the voices folder. Refusing to synthesize is not enough: the clips already made
+    # would be uploaded again by the next `sync`. A marker file next to them stops that (assets.plan_sync honours it).
+    try:
+        marker = assets_dir() / speaker / "REVOKED"
+        if marker.parent.is_dir():
+            marker.write_text(f"consent revoked {rec['revoked_on']}\n", encoding="utf-8")
+    except OSError:
+        pass
 
 
 def require_consent(speaker: str, scope: str = "course_narration", base: Path | None = None) -> dict:

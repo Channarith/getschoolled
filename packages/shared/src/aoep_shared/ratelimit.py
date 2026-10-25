@@ -83,6 +83,9 @@ class RateLimiter(Protocol):
 # --------------------------------------------------------------------------- #
 # In-memory backend
 # --------------------------------------------------------------------------- #
+_MAX_BUCKETS = 100_000   # one float pair per key: a few MB; random keys cannot grow the table without bound
+
+
 class InMemoryTokenBucket:
     """Per-process token bucket. Thread-safe via a single lock.
 
@@ -105,6 +108,8 @@ class InMemoryTokenBucket:
         refill = rule.refill_per_sec
         now = time.monotonic()
         with self._lock:
+            if len(self._buckets) >= _MAX_BUCKETS:
+                self._evict_idle(now)
             tokens, last = self._buckets.get(key, (capacity, now))
             tokens = min(capacity, tokens + (now - last) * refill)
             if tokens >= cost:
@@ -115,6 +120,13 @@ class InMemoryTokenBucket:
             need = cost - tokens
             retry = need / refill if refill > 0 else float("inf")
             return Decision(False, max(0.0, tokens), retry, rule.limit)
+
+    def _evict_idle(self, now: float) -> None:
+        """Called under the lock when the table is full: drop buckets idle for an hour, then the oldest half if still full."""
+        self._buckets = {k: v for k, v in self._buckets.items() if now - v[1] < 3600.0}
+        if len(self._buckets) >= _MAX_BUCKETS:
+            keep = sorted(self._buckets.items(), key=lambda kv: kv[1][1], reverse=True)[: _MAX_BUCKETS // 2]
+            self._buckets = dict(keep)
 
     def clear(self) -> None:
         with self._lock:

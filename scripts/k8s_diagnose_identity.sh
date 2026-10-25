@@ -100,7 +100,7 @@ done
 
 echo ""
 echo "-- Ops reseed (updates LIVE uvicorn memory) --"
-echo "ADMIN_SECRET=${ADMIN_SECRET}"
+echo "ADMIN_SECRET=<set, ${#ADMIN_SECRET} characters; not printed>"
 for p in $(kubectl -n "$NS" get pods -l app=identity -o jsonpath='{.items[*].metadata.name}'); do
   echo "pod $p ops-reseed:"
   kubectl -n "$NS" exec "$p" -- env "ADMIN_SECRET=${ADMIN_SECRET}" python3 - <<'PY' || true

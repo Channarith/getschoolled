@@ -1,6 +1,6 @@
 {
   "name": "@eduplatform/web",
-  "version": "0.97.67",
+  "version": "0.97.68",
   "private": true,
   "license": "LicenseRef-AOEP-Proprietary",
   "scripts": {
@@ -18,7 +18,7 @@
     "@react-three/fiber": "^8.17.10",
     "@react-three/rapier": "^1.5.0",
     "livekit-client": "2.7.4",
-    "next": "14.2.5",
+    "next": "14.2.35",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "three": "0.169.0"

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from typing import Optional
 
+from .client_ip import client_ip
 from .config import AppConfig, env_float, env_int, load_config
 from .factory import ProviderFactory
 from .http_cache import install as _install_http_cache, standard_registry as _std_cache_registry
@@ -66,21 +67,38 @@ def create_service(
     # at runtime via env. Disabling/enabling without restart matters for
     # test sessions and emergency throttling tweaks in production.
     app.state.rate_limiter = build_rate_limiter(RateLimit(_rl_limit, _rl_window))
+    _OP_FAIL_RULE = RateLimit(env_int(os.environ.get("AOEP_OP_FAIL_LIMIT"), 10),
+                              env_float(os.environ.get("AOEP_OP_FAIL_WINDOW"), 900.0))
+
+    def _op_throttle_off() -> bool:
+        return os.environ.get("RATE_LIMIT_DISABLED", "").lower() in ("1", "true", "yes") or \
+            os.environ.get("AOEP_OP_THROTTLE_DISABLED", "").lower() in ("1", "true", "yes")
 
     @app.middleware("http")
     async def _ratelimit_mw(request: Request, call_next):
         if os.environ.get("RATE_LIMIT_DISABLED", "").lower() in ("1", "true", "yes"):
             return await call_next(request)
-        if request.url.path in _bypass_paths:
-            return await call_next(request)
         limiter = app.state.rate_limiter
         # Bug 6: X-User-Id is a client-supplied header and cannot be trusted
         # for rate-limit identity — it would let any client claim any user's
         # bucket and bypass throttling.  Always use the network IP instead.
-        ident = (
-            request.headers.get("x-forwarded-for", "").split(",")[0].strip()
-            or (request.client.host if request.client else "anon")
-        )
+        # X-Forwarded-For is client-supplied too: take the entry our own proxy added (see client_ip).
+        ident = client_ip(request.headers, request.client.host if request.client else None)
+        # Operator credentials get a lockout of their own: a wrong X-Admin-Secret / X-Metrics-Token counts against the
+        # caller's address and 10 misses in 15 minutes stop further guesses (the secret is a shared string, not a login).
+        # This runs BEFORE the bypass list: /metrics and /telemetry/* accept those headers, so they must be covered too.
+        tried_operator = bool(request.headers.get("x-admin-secret") or request.headers.get("x-metrics-token"))
+        fail_key = f"{name}:opfail:{ident}"
+        if tried_operator and not _op_throttle_off():
+            probe = limiter.allow(fail_key, cost=0, rule=_OP_FAIL_RULE)
+            if probe.remaining < 1:
+                return JSONResponse({"detail": "too many failed operator credentials"}, status_code=429,
+                                    headers={"Retry-After": str(int(_OP_FAIL_RULE.window))})
+        if request.url.path in _bypass_paths:
+            response = await call_next(request)
+            if tried_operator and response.status_code in (401, 403) and not _op_throttle_off():
+                limiter.allow(fail_key, cost=1, rule=_OP_FAIL_RULE)
+            return response
         decision = limiter.allow(f"{name}:{ident}")
         if not decision.allowed:
             resp = JSONResponse(
@@ -92,6 +110,8 @@ def create_service(
             resp.headers["X-RateLimit-Remaining"] = "0"
             return resp
         response = await call_next(request)
+        if tried_operator and response.status_code in (401, 403) and not _op_throttle_off():
+            limiter.allow(fail_key, cost=1, rule=_OP_FAIL_RULE)
         response.headers["X-RateLimit-Limit"] = str(decision.limit)
         response.headers["X-RateLimit-Remaining"] = str(int(decision.remaining))
         return response
