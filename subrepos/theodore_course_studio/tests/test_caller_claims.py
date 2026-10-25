@@ -100,12 +100,24 @@ def _start(client, **extra):
     return client.post("/api/studio/teach/start", json=body)
 
 
-def test_endpoint_flag_off_documents_the_gap_an_anonymous_admin_claim_gets_full(tmp_path, monkeypatch):
+def test_endpoint_flag_off_an_explicit_full_request_is_verified_anyway(tmp_path, monkeypatch):
+    """With STUDIO_VERIFY_CLAIMS off an anonymous `{"access":"full","is_admin":true}` no longer gets the full class: an
+    explicit 'full' request (and any paid public course) is always checked against the identity service."""
     m, client = _client(tmp_path, monkeypatch)
     _seed(m)
+    monkeypatch.setattr(cc, "_fetch_me", lambda _h: None)
     r = _start(client, access="full", is_admin=True)
     assert r.status_code == 200
-    assert m._teach._sessions["s1"].sample_only is False  # the exposure STUDIO_VERIFY_CLAIMS=1 closes
+    assert m._teach._sessions["s1"].sample_only is True
+
+
+def test_endpoint_flag_off_residual_gap_is_only_the_empty_access_authoring_default(tmp_path, monkeypatch):
+    """Still open until STUDIO_VERIFY_CLAIMS=1: an empty `access` on a NON-public course is the authoring studio."""
+    m, client = _client(tmp_path, monkeypatch)
+    _seed(m)
+    r = _start(client, is_admin=True)
+    assert r.status_code == 200
+    assert m._teach._sessions["s1"].sample_only is False
 
 
 def test_endpoint_flag_on_anonymous_admin_claim_and_empty_access_get_only_the_sample(tmp_path, monkeypatch):

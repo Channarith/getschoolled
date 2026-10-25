@@ -1371,7 +1371,35 @@ STUDIO_JS = """
       openPayScreen();
     }
     let payBusy = false;
-    function openPayScreen() {
+    // What the SERVER says this caller may do (free | paid | must_pay | login_required). The offer is only ever shown for
+    // must_pay: anonymous visitors never see a price, and admin/VIP/premium/paid accounts are never asked to pay.
+    var courseEntitlement = {state: '', offer: null};
+    function paintPayOffer() {
+      const offer = courseEntitlement.state === 'must_pay' ? courseEntitlement.offer : null;
+      const priceBtn = $('course-price');
+      if (offer) {
+        if (priceBtn) priceBtn.textContent = 'Full course ' + offer.label;
+        const amount = $('pay-price');
+        if (amount) amount.textContent = offer.label;
+        const copy = $('pay-copy');
+        if (copy) copy.textContent = 'One payment of ' + offer.label + ' unlocks the rest of this class.';
+      } else if (priceBtn) {
+        priceBtn.hidden = true;
+      }
+    }
+    async function loadEntitlement() {
+      const courseId = (lastTeachPayload && lastTeachPayload.session && lastTeachPayload.session.course_id) || pinnedCourse;
+      if (!courseId) return;
+      try {
+        const data = await api('/api/studio/entitlement?course_id=' + encodeURIComponent(courseId));
+        courseEntitlement = {state: String(data.entitlement || ''), offer: data.offer || null};
+      } catch (err) {
+        courseEntitlement = {state: '', offer: null};
+      }
+      paintPayOffer();
+    }
+    function openPayScreen(force) {
+      if (!force && !(courseEntitlement.state === 'must_pay' && courseEntitlement.offer)) return;
       const screen = $('pay-screen');
       const price = $('course-price');
       if (price && price.parentElement !== document.body) document.body.appendChild(price);
@@ -1393,24 +1421,22 @@ STUDIO_JS = """
       const status = $('pay-status');
       const courseId = (lastTeachPayload && lastTeachPayload.session && lastTeachPayload.session.course_id)
         || pinnedCourse;
-      if (!courseId) {
-        if (status) status.textContent = 'Open a course, then pay $19.99 for the full class.';
-        return;
-      }
+      if (!courseId) return;
       payBusy = true;
       if (status) status.textContent = 'Opening the secure payment page…';
       try {
+        // Only the course id and the method go up: the server owns the price, the title and who is paying.
         const data = await api('/api/studio/pay/checkout', {
           method: 'POST',
           headers: {'content-type': 'application/json'},
-          body: JSON.stringify({
-            course_id: courseId,
-            learner_id: (learnerId || '').replace(/:audio$/, ''),
-            method: method,
-            title: (selectedCourse && selectedCourse.title) || 'Full course',
-            return_url: location.href,
-          }),
+          body: JSON.stringify({course_id: courseId, method: method, return_url: location.href}),
         });
+        if (data.already_entitled) {
+          const again = new URLSearchParams(location.search);
+          again.set('access', 'full');
+          location.replace(location.pathname + '?' + again.toString());
+          return;
+        }
         if (!data.url) throw new Error('The payment page did not open.');
         location.assign(data.url);
       } catch (error) {
@@ -1424,21 +1450,19 @@ STUDIO_JS = """
       const sessionId = params.get('session_id') || params.get('token') || '';
       if (!sessionId) return;
       const status = $('pay-status');
-      openPayScreen();
-      if (status) status.textContent = 'Confirming the $19.99 payment…';
+      openPayScreen(true);
+      if (status) status.textContent = 'Confirming your payment…';
       try {
         await api('/api/studio/pay/confirm', {
           method: 'POST',
           headers: {'content-type': 'application/json'},
-          body: JSON.stringify({ session_id: sessionId }),
+          body: JSON.stringify({ session_id: sessionId, method: params.get('token') ? 'paypal' : 'card' }),
         });
         params.delete('paid');
         params.delete('session_id');
         params.delete('token');
         params.delete('PayerID');
         params.set('access', 'full');
-        params.set('registered', '1');
-        params.set('enrollment', 'paid');
         location.replace(location.pathname + '?' + params.toString());
       } catch (error) {
         if (status) status.textContent = String(error.message || error);
@@ -1490,7 +1514,7 @@ STUDIO_JS = """
       const priceBtn = $('course-price');
       if (priceBtn) {
         if (priceBtn.parentElement !== document.body) document.body.appendChild(priceBtn);
-        priceBtn.hidden = mode !== 'sample';
+        priceBtn.hidden = !(mode === 'sample' && courseEntitlement.state === 'must_pay' && courseEntitlement.offer);
       }
     }
     function resolveLearnerId() {
@@ -3889,10 +3913,21 @@ STUDIO_JS = """
       return `<span class="pill ${cls}">${esc(q)}</span>`;
     }
 
+    function loginToken() {
+      try { return localStorage.getItem('aoep_token') || ''; } catch (err) { return ''; }
+    }
     async function api(path, opts) {
-      const res = await fetch(path, opts);
+      const options = Object.assign({}, opts || {});
+      const token = loginToken();
+      if (token && String(path).indexOf('/api/studio/') === 0) {
+        options.headers = Object.assign({authorization: 'Bearer ' + token}, options.headers || {});
+      }
+      const res = await fetch(path, options);
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.detail || res.statusText || 'request failed');
+      if (!res.ok) {
+        const detail = typeof data.detail === 'string' ? data.detail : '';
+        throw new Error(detail || data.friendly_message || 'Something went wrong. Please try again.');
+      }
       const method = String((opts && opts.method) || 'GET').toUpperCase();
       if (method !== 'GET' && window.ReactNativeWebView && String(path).indexOf('/api/studio/') === 0) {
         try {
@@ -7107,6 +7142,7 @@ STUDIO_JS = """
         if (staleGame) { staleGame.style.display = 'none'; staleGame.innerHTML = ''; }
       }
       lastTeachPayload = payload;
+      loadEntitlement();
       beatHandled = false;
       showAbsorb(false);
       slideVariety = pickLearnVariety(payload);
@@ -7351,6 +7387,7 @@ STUDIO_JS = """
     on('pay-card', 'click', () => { beginCoursePayment('card'); });
     on('pay-paypal', 'click', () => { beginCoursePayment('paypal'); });
     on('pay-close', 'click', () => closePayScreen());
+    loadEntitlement();
     confirmCoursePayment();
     on('btn-pause', 'click', () => toggleLecturePause());
     on('btn-fullscreen', 'click', togglePresenterMode);

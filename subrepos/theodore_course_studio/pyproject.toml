@@ -9,6 +9,7 @@ description = "Experiment lab for Theodore course creation, labeled-corpus train
 requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.111,<0.116",
+  "redis>=5,<7",  # the purchase ledger (aoep_shared.purchases): the studio disk is erased on every restart
   "pydantic>=2.7,<3",
   "uvicorn[standard]>=0.30,<0.35",
 ]
