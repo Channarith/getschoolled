@@ -13,7 +13,7 @@ import { HIDDEN_ON_THE_GO_DEMO, PUBLIC_DEMOS, type PublicDemo } from "../publicD
 import { createTapCounter } from "../secretTaps";
 import { theme } from "../theme";
 
-type Step = "landing" | "demos" | "login" | "create";
+type Step = "landing" | "demos" | "login";
 
 const DEMO_COPY: Record<string, { title: StringKey; subtitle: StringKey; body: StringKey }> = {
   "drivers-ed": {
@@ -55,14 +55,8 @@ export default function GuestHomeScreen() {
   if (demo) {
     return <DemoWebScreen demo={demo} onBack={() => setDemo(null)} />;
   }
-  if (step === "login" || step === "create") {
-    return (
-      <AuthScreen
-        setup={step === "create"}
-        onBack={() => setStep("landing")}
-        onExistingAccount={() => setStep("login")}
-      />
-    );
+  if (step === "login") {
+    return <AuthScreen onBack={() => setStep("landing")} />;
   }
   if (step === "demos") {
     return (
@@ -120,13 +114,6 @@ export default function GuestHomeScreen() {
         <Text style={styles.primaryText}>{t("guest.tryDemo")}</Text>
       </Pressable>
       <Pressable
-        testID="guest-create-account"
-        style={styles.secondary}
-        onPress={() => setStep("create")}
-      >
-        <Text style={styles.secondaryText}>Create your account</Text>
-      </Pressable>
-      <Pressable
         testID="guest-log-in"
         style={styles.secondary}
         onPress={() => setStep("login")}
@@ -158,7 +145,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     marginBottom: 18,
   },
-  mascot: { width: 140, height: 140, marginBottom: 8 },
+  mascot: { width: 180, height: 180, marginBottom: 8 },
   mascotSmall: { width: 72, height: 72, alignSelf: "center", marginBottom: 8 },
   kicker: {
     color: "#fff",
@@ -176,6 +163,8 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 24,
     marginBottom: 14,
+    borderWidth: 1.5,
+    borderColor: theme.colors.goldSoft,
   },
   primaryText: { color: "#0b1020", fontSize: 16, fontWeight: "600", lineHeight: 22, textAlign: "center" },
   secondary: {
@@ -185,7 +174,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderWidth: 1.5,
-    borderColor: "rgba(244,233,216,0.75)",
+    borderColor: theme.colors.goldSoft,
   },
   secondaryText: { color: cream, fontSize: 16, fontWeight: "600", lineHeight: 22, textAlign: "center" },
   demoContent: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 40 },
@@ -194,7 +183,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(15,23,42,0.78)",
     borderRadius: theme.radius.lg,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: theme.colors.goldSoft,
     padding: 22,
     marginTop: 14,
   },

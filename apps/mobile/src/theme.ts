@@ -16,6 +16,7 @@ export const theme = {
     success: "#22c55e",
     danger: "#ef4444",
     gold: "#fbbf24",
+    goldSoft: "#d6b25e",   // the quiet redesign's gold outline: soft, not the bright amber of `gold`
     scrim: "rgba(11, 16, 32, 0.72)",
     scrimHeavy: "rgba(11, 16, 32, 0.92)",
     glass: "rgba(21, 28, 52, 0.55)",

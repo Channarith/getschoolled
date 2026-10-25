@@ -574,7 +574,11 @@
     "adapt.style.balanced": "均衡搭配",
     "adapt.pace.slow": "较慢的节奏",
     "adapt.pace.moderate": "稳定的节奏",
-    "adapt.pace.fast": "较快的节奏"
+    "adapt.pace.fast": "较快的节奏",
+    "voice.defaultAuto": "默认（自动）",
+    "voice.customGroup": "自定义声音（AI 生成）",
+    "voice.footerTitle": "语言与声音",
+    "home.more": "更多"
   },
   "yue": {
     "tab.home": "主頁",
@@ -1151,7 +1155,11 @@
     "adapt.style.balanced": "均衡配搭",
     "adapt.pace.slow": "慢啲嘅節奏",
     "adapt.pace.moderate": "穩定嘅節奏",
-    "adapt.pace.fast": "快啲嘅節奏"
+    "adapt.pace.fast": "快啲嘅節奏",
+    "voice.defaultAuto": "預設（自動）",
+    "voice.customGroup": "自訂聲音（AI 生成）",
+    "voice.footerTitle": "語言同聲音",
+    "home.more": "更多"
   },
   "km": {
     "tab.home": "ទំព័រដើម",
@@ -1728,6 +1736,10 @@
     "adapt.style.balanced": "ការលាយបញ្ចូលគ្នាដោយតុល្យភាព",
     "adapt.pace.slow": "ល្បឿនយឺតជាង",
     "adapt.pace.moderate": "ល្បឿនថេរ",
-    "adapt.pace.fast": "ល្បឿនលឿនជាង"
+    "adapt.pace.fast": "ល្បឿនលឿនជាង",
+    "voice.defaultAuto": "លំនាំដើម (ស្វ័យប្រវត្តិ)",
+    "voice.customGroup": "សំឡេងផ្ទាល់ខ្លួន (បង្កើតដោយ AI)",
+    "voice.footerTitle": "ភាសា និងសំឡេង",
+    "home.more": "ច្រើនទៀត"
   }
 }
