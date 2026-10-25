@@ -21,11 +21,26 @@ class CosyVoice2Adapter(Adapter):
     name = "cosyvoice2"
     languages = {"en", "es", "zh"}
 
+    def model_dir(self) -> str:
+        """option model_dir, else $COSYVOICE_MODEL_DIR, else <repo>/pretrained_models/CosyVoice2-0.5B (repo = $COSYVOICE_REPO or ~/code/CosyVoice).
+
+        Never a bare relative path: the model loads the directory if it exists and otherwise tries to DOWNLOAD that string as a model
+        name, which fails with a confusing error when the process runs from another folder.
+        """
+        if self.options.get("model_dir"):
+            return str(self.options["model_dir"])
+        if os.environ.get("COSYVOICE_MODEL_DIR"):
+            return os.environ["COSYVOICE_MODEL_DIR"]
+        repo = os.environ.get("COSYVOICE_REPO") or os.path.join(os.path.expanduser("~"), "code", "CosyVoice")
+        return os.path.join(repo, "pretrained_models", "CosyVoice2-0.5B")
+
     def check(self) -> dict:
         problems = []
         if not (have("cosyvoice") or os.environ.get("COSYVOICE_URL")):
             problems.append("neither the 'cosyvoice' module is importable nor COSYVOICE_URL is set")
-        return {"ok": not problems, "problems": problems, "languages": sorted(self.languages)}
+        if not os.environ.get("COSYVOICE_URL") and not os.path.isdir(self.model_dir()):
+            problems.append(f"model weights not found at {self.model_dir()} (download iic/CosyVoice2-0.5B there, or set COSYVOICE_MODEL_DIR)")
+        return {"ok": not problems, "problems": problems, "languages": sorted(self.languages), "model_dir": self.model_dir()}
 
     def _infer(self, model, text: str, lang: str, prompt):
         if self.options.get("instruct"):
@@ -51,7 +66,7 @@ class CosyVoice2Adapter(Adapter):
         from cosyvoice.cli.cosyvoice import CosyVoice2
         from cosyvoice.utils.file_utils import load_wav
 
-        self._model = self._model or CosyVoice2(self.options.get("model_dir", "pretrained_models/CosyVoice2-0.5B"))
+        self._model = self._model or CosyVoice2(self.model_dir())
         prompt = load_wav(self.options["prompt_wav"], 16000)
         gen = self._infer(self._model, text, lang, prompt)
         parts = [j["tts_speech"] for j in gen]

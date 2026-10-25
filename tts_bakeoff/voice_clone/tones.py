@@ -27,7 +27,7 @@ from pathlib import Path
 from tts_bakeoff.voice_types import BLEND_WEIGHTS, PRESETS, blend
 
 from . import clean as audio_clean
-from . import registry, synth
+from . import profile, registry, synth
 
 NEUTRAL = "neutral"
 REF_F0_HZ = 170.0          # edge-tts preset pitch offsets (Hz) are turned into semitones around this voice pitch
@@ -217,7 +217,7 @@ def render_tone_clip(speaker: str, model: str, text: str, lang: str, tone: str, 
     return res
 
 
-def run_tones(out: Path, speakers: list[str], models: list[str], langs: list[str], tones: list[str], mechanisms: list[str],
+def run_tones(out: Path, speakers: list[str], models: list[str], langs: list[str] | None, tones: list[str], mechanisms: list[str],
               limit: int | None = 1, base: Path | None = None, gpu: bool = True, model_blends: bool = False, takes: int | None = None, clean: bool | None = None) -> dict:
     """Listening set under ``out`` (loadable by tts_bakeoff.lab): <model>~<speaker>~<mechanism>-<tone>/<lang>/<id>.wav.
 
@@ -241,9 +241,11 @@ def run_tones(out: Path, speakers: list[str], models: list[str], langs: list[str
             if len(allowed) != len(tones):
                 print(f"REFUSED tones for {speaker}: no signed stylized_versions addendum; neutral only")
                 counts["refused"] += len(tones) - len(allowed)
+        enrolled = profile.speaker_languages(speaker, base) or ["en"]
+        own = langs or enrolled   # no --langs: the language(s) the speaker was enrolled in; anything else is cross-lingual
         for model in models:
             adapter = synth.build_adapter(model, speaker, base, gpu=gpu)
-            for lang in langs:
+            for lang in own:
                 if not adapter.supports(lang):
                     counts["skipped_unsupported"] += 1
                     continue
@@ -260,11 +262,11 @@ def run_tones(out: Path, speakers: list[str], models: list[str], langs: list[str
                             for mech in mechanisms:
                                 if mech == "model" and (tone == NEUTRAL or (tone in BLEND_NAMES and not model_blends)):
                                     continue
-                                _emit(out, model, speaker, rec, lang, item, tone, mech, raw, base, gpu, counts, takes, clean)
+                                _emit(out, model, speaker, rec, lang, item, tone, mech, raw, base, gpu, counts, takes, clean, cross=lang not in enrolled)
     return counts
 
 
-def _emit(out, model, speaker, rec, lang, item, tone, mech, raw, base, gpu, counts, takes=None, clean=None):
+def _emit(out, model, speaker, rec, lang, item, tone, mech, raw, base, gpu, counts, takes=None, clean=None, cross=False):
     t = get_tone(tone)
     vid = f"{model}~{speaker}" if t is None else f"{model}~{speaker}~{mech}-{tone}"
     root = out / vid
@@ -273,7 +275,7 @@ def _emit(out, model, speaker, rec, lang, item, tone, mech, raw, base, gpu, coun
     if t is None and wav.exists():
         return
     row = {"model": vid, "lang": lang, "id": item["id"], "text": item["text"], "wav": wav.relative_to(out).as_posix(),
-           "tone": tone, "mechanism": mech if t else "neutral"}
+           "tone": tone, "mechanism": mech if t else "neutral", **({"cross_lingual": True} if cross else {})}
     try:
         if t is None:
             apply_tone_dsp(raw, wav, NEUTRAL)
@@ -293,7 +295,7 @@ def _emit(out, model, speaker, rec, lang, item, tone, mech, raw, base, gpu, coun
                 "consent_date": rec["date"], "host": socket.gethostname(), "started": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
                 "voice": f"{model}~{speaker}", "kind": "style" if t else "plain", "style": t.lab_style if t else None,
                 "stylized": t is not None, "mechanism": mech if t else "neutral",
-                "label": f"{speaker} · {tone}" + (" (model)" if t and mech == "model" else " (post-processed)" if t else "")}
+                "label": f"{profile.display_label(speaker, rec['name'], base)} · {tone}" + (" (model)" if t and mech == "model" else " (post-processed)" if t else "")}
         if t:
             meta["tone_params"] = {"semitones": round(t.semitones, 2), "tempo": round(t.tempo, 3), "tilt_db": round(t.tilt_db, 2),
                                    "gain_db": round(t.gain_db, 2)}

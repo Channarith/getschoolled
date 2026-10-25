@@ -70,3 +70,40 @@ withdraw first rewrites the remote voices.json with the voice inactive (clients 
 the web, which fetches voices.json with no-store), then deletes every object under voice-assets/<id>/. It refuses empty or odd ids.
 Clips already played stay in browser and phone caches for up to a year (immutable); the bucket has no CDN in front, so there is nothing
 to invalidate server-side. For a urgent case also rename the voice id.
+
+Three voices, each in its own language (voices: channarith, wei-miao, wei)
+  tts_manifest/voices.json lists three separate speakers, never merged, each with its own signed consent record and ids derived from the
+  typed name (enroll_ui slugify): "Channarith" (channarith, English), "Wei Miao" (wei-miao, English) and "Wei" (wei, recorded in
+  Cantonese, yue). The selector shows the name from the consent record plus the voice's own language: "Wei (Cantonese)",
+  "Wei Miao (English)". Kept as separate ids on purpose: two people, two consent records, two named voices; nothing links them.
+  Each voice speaks ITS OWN language(s) by default (the languages it was enrolled in). Other languages are cross-lingual and only
+  happen when asked: scripts/render_demo_voice.sh --voice channarith --langs es,zh,vi  (or --langs all). Cross-lingual clips carry
+  "cross_lingual": true in their sidecar and the listening lab badges them "cross-lingual". Folders starting with "_" (for example
+  runs/<date>-clones/_cross-lingual-wei, where stray clips are set aside) are ignored by the lab and are never recreated by a run.
+  Cantonese (yue, written colloquial Cantonese, Traditional characters) is in the manifest for all 361 English demo lines (the On the Go
+  course plus Vision Play): tts_manifest/translations/yue.json, machine translations from Grok (grok-translation-v1, about $0.04 for all
+  of it), every line status "unreviewed". 792 clips in the manifest; a voice renders only the languages it owns, so wei renders the 361
+  Cantonese lines and the English voices the 361 English ones. Other demo languages for Vision Play (zh es vi th km sw hi) are
+  English-only today; to add them: translations plan --langs zh,es,vi,th,km,sw,hi, then run, then manifest --offline.
+  Cantonese cloning: VoxCPM2 lists Cantonese under Chinese dialects on its model card (the adapter declares yue). CosyVoice 2 does not
+  list it, so the Cantonese lines render with VoxCPM2 only.
+
+  Review by a native speaker (Wei, who recorded in Cantonese, reads her own language, so she is the reviewer):
+    python3 -m tts_bakeoff.demo_voice.translations review-page --lang yue --out ~/review-yue.html    # one self-contained page, no network
+    open the page, mark each line OK (or edit it, or "Needs a fix"), type her name, "Download my decisions"
+    python3 -m tts_bakeoff.demo_voice.translations apply-review review-yue-decisions.json --reviewer "Wei"
+    python3 -m tts_bakeoff.demo_voice.manifest --offline                                             # re-merge; "needs_fix" lines leave the manifest
+  Statuses: unreviewed (machine), ok, fixed (corrected by the reviewer), needs_fix. Her progress is kept in the browser while she works.
+
+Render (on the Spark; finished clips are skipped, so it can be repeated or resumed)
+    scripts/render_demo_voice.sh --voice all              # every voice, its own language(s), one after the other under the GPU lock
+    scripts/render_demo_voice.sh --voice wei              # just the Cantonese voice (361 lines)
+    scripts/render_demo_voice.sh --voice channarith --langs all    # asks for cross-lingual clips on purpose
+    python3 -m tts_bakeoff.demo_voice.render status       # clips per voice and language against the manifest
+    python3 -m tts_bakeoff.demo_voice.render publish --reviewed-only    # index.json lists only reviewed translations (see below)
+  --ref-mode auto|continue|reference chooses how VoxCPM2 hears the reference (docs/voice-cloning.txt); auto is right unless a listening
+  test says otherwise. Every take is checked for audio length against its text and a take that cannot belong to it is rejected.
+  Publish the Cantonese only after review: a machine-translated line spoken in a real person's voice, in public, can be wrong or odd.
+  "publish --reviewed-only" (and "run --reviewed-only") leave clips whose sidecar says translation_status unreviewed out of index.json;
+  the demos then use the default voice for those lines.
+

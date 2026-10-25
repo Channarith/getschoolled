@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Render the demo narration in a consented voice on the Spark, under gs_run.sh (GPU lock, memory gate, no orphans).
-#   scripts/render_demo_voice.sh [--voice channarith] [--shard i/N] [--langs en,es] [--limit N]
+#   scripts/render_demo_voice.sh [--voice channarith|wei-miao|all] [--shard i/N] [--langs en,es] [--limit N] [--reviewed-only]
 # Assets go to $GS_VOICE_ASSETS (default ~/voice-assets). Run again any time: finished clips are skipped.
 # Other machines can take shards (e.g. --shard 1/2) and rsync their assets dir back.
 set -euo pipefail

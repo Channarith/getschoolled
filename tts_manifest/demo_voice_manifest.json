@@ -9,6 +9,7 @@
   "sw",
   "th",
   "vi",
+  "yue",
   "zh"
  ],
  "voices": [
@@ -18,7 +19,26 @@
    "speaker": "channarith",
    "model": "voxcpm2",
    "active": true,
+   "primary_lang": "en",
    "ai_label": "AI-generated voice of Channarith"
+  },
+  {
+   "id": "wei-miao",
+   "label": "Wei Miao",
+   "speaker": "wei-miao",
+   "model": "voxcpm2",
+   "active": true,
+   "primary_lang": "en",
+   "ai_label": "AI-generated voice of Wei Miao"
+  },
+  {
+   "id": "wei",
+   "label": "Wei",
+   "speaker": "wei",
+   "model": "voxcpm2",
+   "active": true,
+   "primary_lang": "yue",
+   "ai_label": "AI-generated voice of Wei"
   }
  ],
  "clips": [
@@ -511,6 +531,86 @@
    "lang": "vi",
    "text": "Những điểm chính. Những điểm chính cần nhớ. Hãy tóm tắt lại các ý chính. Học từ Ví dụ. Học máy xây dựng mô hình cải thiện hiệu suất trên các tác vụ bằng cách tìm ra các mẫu trong dữ liệu thay vì dùng các quy tắc được viết thủ công. Học có giám sát sử dụng các ví dụ đã được gán nhãn; học không giám sát tìm cấu trúc mà không cần nhãn. Học tăng cường học từ phần thưởng trong môi trường như trò chơi. Chia dữ liệu. Dữ liệu được chia thành tập huấn luyện, tập xác thực và tập kiểm tra để đo lường khả năng khái quát hóa. Rò rỉ dữ liệu—thông tin từ tập kiểm tra lẫn vào tập huấn luyện—làm tăng điểm số một cách sai lệch. Kiểm định chéo cho ước lượng ổn định hơn trên tập dữ liệu nhỏ. Đặc trưng và Mô hình. Đặc trưng là đầu vào; nhãn là mục tiêu trong bài toán phân loại và hồi quy. Mô hình tuyến tính là baseline dễ giải thích; các mô hình ensemble dựa trên cây hoạt động tốt với dữ liệu dạng bảng. Mạng nơ-ron vượt trội trên hình ảnh, âm thanh và văn bản khi có đủ dữ liệu và tài nguyên tính toán. Vòng lặp Huấn luyện. Hàm mất mát đo lường sai số; các thuật toán tối ưu như Adam điều chỉnh trọng số để giảm mất mát qua các epoch. Kích thước batch và tốc độ học ảnh hưởng đến độ ổn định và tốc độ. GPU tăng tốc các phép toán ma trận khi huấn luyện mô hình lớn. Quá khớp. Các mô hình ghi nhớ nhiễu trong dữ liệu huấn luyện sẽ thất bại trên dữ liệu mới. Chính quy hóa, dropout và dừng sớm giúp giảm quá khớp. Dữ liệu đa dạng thường hiệu quả hơn việc cứ mãi làm mô hình lớn hơn. Đánh giá. Phân loại dùng precision, recall và F1, đặc biệt khi các lớp mất cân bằng. Hồi quy dùng MAE và RMSE. Chọn chỉ số phù hợp với chi phí thực tế của các trường hợp dương tính giả và âm tính giả. Triển khai. Mô hình cung cấp dự đoán qua API hoặc chạy suy luận ngay trên thiết bị. Giám sát phát hiện hiện tượng data drift khi dữ liệu thực tế thay đổi. Thực hành MLOps giúp phiên bản hóa dữ liệu, mã nguồn và mô hình để đảm bảo khả năng tái lập. Giới hạn và Đạo đức. Mô hình có thể thiên kiến, dễ vỡ với các trường hợp biên và khó giải thích ở mạng sâu. Các ứng dụng quan trọng trong y tế và tư pháp đòi hỏi giám sát và minh bạch. Học máy hỗ trợ phán đoán của con người chứ không thay thế trách nhiệm giải trình. Hãy ghi nhớ những điều này, bạn sẽ nắm vững kiến thức cơ bản về Nhập môn Học máy. Đó là kết thúc bài học—cảm ơn bạn đã lắng nghe.",
    "hash": "1e89306ac75b9c"
+  },
+  {
+   "id": "on_the_go:yue:05c1ce36c8c01f",
+   "demo": "on_the_go",
+   "lang": "yue",
+   "text": "評估。分類用精確率、召回率同 F1，尤其當類別唔平衡嘅時候。回歸就用 MAE 同 RMSE。選擇同真實假陽性同假陰性成本對齊嘅指標。",
+   "hash": "05c1ce36c8c01f",
+   "status": "unreviewed"
+  },
+  {
+   "id": "on_the_go:yue:09b01cbdb12074",
+   "demo": "on_the_go",
+   "lang": "yue",
+   "text": "部署。模型透過 API 或者裝置上推斷嚟提供預測。監測可以喺真實世界輸入改變嘅時候偵測數據漂移。MLOps 做法會將數據、程式碼同模型版本化，方便重現。",
+   "hash": "09b01cbdb12074",
+   "status": "unreviewed"
+  },
+  {
+   "id": "on_the_go:yue:0a2c7f1a43a629",
+   "demo": "on_the_go",
+   "lang": "yue",
+   "text": "從例子學習。機器學習建立模型，透過喺數據入面搵到規律嚟改善任務，而唔係用手寫規則。監督式學習用有標籤嘅例子；無監督式學習喺冇標籤嘅情況下搵結構。強化學習就喺遊戲咁嘅環境入面從獎勵學習。",
+   "hash": "0a2c7f1a43a629",
+   "status": "unreviewed"
+  },
+  {
+   "id": "on_the_go:yue:0f29a981ba6821",
+   "demo": "on_the_go",
+   "lang": "yue",
+   "text": "限制同倫理。模型可能有偏差、喺邊緣情況好脆弱，同埋深度網絡入面好難解釋。喺醫學同司法嘅高風險應用，就需要監管同透明度。機器學習係 augmentation 人類判斷；佢唔會取代問責。",
+   "hash": "0f29a981ba6821",
+   "status": "unreviewed"
+  },
+  {
+   "id": "on_the_go:yue:0f6f073ba073d4",
+   "demo": "on_the_go",
+   "lang": "yue",
+   "text": "總覽。歡迎嚟到呢堂課，我哋會探索機器學習入門。我哋會講八個部分，由從例子學習開始，之後係數據分割、特徵同模型、訓練循環、過度擬合、評估、部署，同埋限制同倫理。當你聽緊嘅時候，留意每個部分點樣建立喺之前嗰個上面 — 你唔使做筆記，只係跟住聽就得。",
+   "hash": "0f6f073ba073d4",
+   "status": "unreviewed"
+  },
+  {
+   "id": "on_the_go:yue:10cee75523b4ba",
+   "demo": "on_the_go",
+   "lang": "yue",
+   "text": "訓練循環。損失函數量度誤差；優化器例如 Adam 會調整權重，喺每個 epoch 減少損失。批次大小同學習率會影響穩定性同速度。GPU 加速矩陣運算，幫到訓練大模型。",
+   "hash": "10cee75523b4ba",
+   "status": "unreviewed"
+  },
+  {
+   "id": "on_the_go:yue:1b802a0b42a134",
+   "demo": "on_the_go",
+   "lang": "yue",
+   "text": "主要 takeaways。主要 takeaways。我哋嚟總結主要嘅重點。從例子學習。機器學習建立模型，透過喺數據入面搵到規律嚟改善任務，而唔係用手寫規則。監督式學習用有標籤嘅例子；無監督式學習喺冇標籤嘅情況下搵結構。強化學習就喺遊戲咁嘅環境入面從獎勵學習。數據分割。數據會分割成訓練集、驗證集同測試集，用嚟量度泛化能力。洩漏 — 測試資訊出現在訓練入面 — 會誤導咁 inflate 分數。交叉驗證喺細啲嘅數據集上面畀到穩健嘅估計。特徵同模型。特徵係輸入；標籤就係分類同回歸入面嘅目標。線性模型係易解釋嘅 baseline；樹集成模型好適合處理表格數據。神經網絡喺有足夠數據同運算能力嘅時候，喺圖像、音頻同文字上面表現出色。訓練循環。損失函數量度誤差；優化器例如 Adam 會調整權重，喺每個 epoch 減少損失。批次大小同學習率會影響穩定性同速度。GPU 加速矩陣運算，幫到訓練大模型。過擬合。模型如果死記訓練入面嘅噪音，喺新數據上面就會失敗。正則化、dropout 同提早停止可以減少過擬合。更多元嘅數據通常比不斷增大模型仲有效。評估。分類用精確率、召回率同 F1，尤其當類別唔平衡嘅時候。回歸就用 MAE 同 RMSE。選擇同真實假陽性同假陰性成本對齊嘅指標。部署。模型透過 API 或者裝置上推斷嚟提供預測。監測可以喺真實世界輸入改變嘅時候偵測數據漂移。MLOps 做法會將數據、程式碼同模型版本化，方便重現。限制同倫理。模型可能有偏差、喺邊緣情況好脆弱，同埋深度網絡入面好難解釋。喺醫學同司法嘅高風險應用，就需要監管同透明度。機器學習係 augmentation 人類判斷；佢唔會取代問責。記住呢啲，你就會對機器學習入門有穩固嘅工作理解。呢一課就到此為止 — 多謝你聽。",
+   "hash": "1b802a0b42a134",
+   "status": "unreviewed"
+  },
+  {
+   "id": "on_the_go:yue:1ced5a7a61e6d9",
+   "demo": "on_the_go",
+   "lang": "yue",
+   "text": "特徵同模型。特徵係輸入；標籤就係分類同回歸入面嘅目標。線性模型係易解釋嘅 baseline；樹集成模型好適合處理表格數據。神經網絡喺有足夠數據同運算能力嘅時候，喺圖像、音頻同文字上面表現出色。",
+   "hash": "1ced5a7a61e6d9",
+   "status": "unreviewed"
+  },
+  {
+   "id": "on_the_go:yue:1fd74fb1e6ff71",
+   "demo": "on_the_go",
+   "lang": "yue",
+   "text": "過擬合。模型如果死記訓練入面嘅噪音，喺新數據上面就會失敗。正則化、dropout 同提早停止可以減少過擬合。更多元嘅數據通常比不斷增大模型仲有效。",
+   "hash": "1fd74fb1e6ff71",
+   "status": "unreviewed"
+  },
+  {
+   "id": "on_the_go:yue:1ffd0d778e929a",
+   "demo": "on_the_go",
+   "lang": "yue",
+   "text": "數據分割。數據會分割成訓練集、驗證集同測試集，用嚟量度泛化能力。洩漏 — 測試資訊出現在訓練入面 — 會誤導咁 inflate 分數。交叉驗證喺細啲嘅數據集上面畀到穩健嘅估計。",
+   "hash": "1ffd0d778e929a",
+   "status": "unreviewed"
   },
   {
    "id": "on_the_go:zh:05d51a18968746",
@@ -3038,6 +3138,2814 @@
    "lang": "en",
    "text": "Which is the longest river in South America?",
    "hash": "1fe8bd028fd4b1"
+  },
+  {
+   "id": "vision_play:yue:002d294e3a5551",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "你飲嗰啲嚟自牛嘅係乜？",
+   "hash": "002d294e3a5551",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:00470c97f381a6",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "月亮係圍住咩嚟轉㗎？",
+   "hash": "00470c97f381a6",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0047213835394d",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "巴西講邊種語言呀？",
+   "hash": "0047213835394d",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0078a27fb274ff",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個行星叫做紅色行星呀？",
+   "hash": "0078a27fb274ff",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0098ec38828c90",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "泰國嘅首都是邊個呀？",
+   "hash": "0098ec38828c90",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:00b43f3b747f65",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊種交通工具喺天空飛㗎？",
+   "hash": "00b43f3b747f65",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:00cff7b0648004",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "日嘅相反係乜嘢？",
+   "hash": "00cff7b0648004",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:00db568faf497e",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個畫咗 Guernica 呀？",
+   "hash": "00db568faf497e",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:00e03612a9a465",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊種氣體喺空氣入面佔最多呀？",
+   "hash": "00e03612a9a465",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:00ff29eae0007e",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個大洋喺非洲同澳洲之間呀？",
+   "hash": "00ff29eae0007e",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0114ca6a4ff075",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "卡拉OK唱歌時間。揀一首歌。字會放大，而你嘅語言會唱得比英文軌道大聲。",
+   "hash": "0114ca6a4ff075",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:012405a23c9888",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "開心嘅相反係乜嘢呀？",
+   "hash": "012405a23c9888",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:019e33a2036b13",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "巴西人講乜嘢語言呀？",
+   "hash": "019e33a2036b13",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:01a0c70683f84b",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊樣工具係量度長度㗎？",
+   "hash": "01a0c70683f84b",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:01fdc183aa8673",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "非洲最長嘅河流係邊條呀？",
+   "hash": "01fdc183aa8673",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:020e273949a543",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個國家有最多時區呀？",
+   "hash": "020e273949a543",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0210ef1c3c9b20",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "第一次世界大戰喺邊一年開始㗎？",
+   "hash": "0210ef1c3c9b20",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:021d83bba67222",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "巴西嘅首都是邊度呀？",
+   "hash": "021d83bba67222",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:02269835aa6ed7",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "一個三角形嘅角度加埋係幾多呀？",
+   "hash": "02269835aa6ed7",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:02519fde597e7d",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊隻動物會將間屋背喺背脊度㗎？",
+   "hash": "02519fde597e7d",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0272cf93ec87fa",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "Face chase. 將你嘅臉移入個發光嘅圓圈入面。",
+   "hash": "0272cf93ec87fa",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:02779df0055a21",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個提出咗相對論呀？",
+   "hash": "02779df0055a21",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:027e3c81840086",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "一個五邊形有幾多邊呀？",
+   "hash": "027e3c81840086",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0281a0cf2142c5",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個係第一個獨自飛越大西洋嘅女人呀？",
+   "hash": "0281a0cf2142c5",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:029dff3de399f8",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "牛畀我哋乜嘢呀？",
+   "hash": "029dff3de399f8",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:02b293fbf5434e",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊隻動物有黑白間條呀？",
+   "hash": "02b293fbf5434e",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:02be03c56b8123",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個作曲咗 The Four Seasons 呀？",
+   "hash": "02be03c56b8123",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:02f12c9b8053f4",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "鎢嘅化學符號係乜呀？",
+   "hash": "02f12c9b8053f4",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:02f512843df34b",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "一百嘅百分之十五係幾多呀？",
+   "hash": "02f512843df34b",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:03207f9cf365c8",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "頻率嘅單位係乜？",
+   "hash": "03207f9cf365c8",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0346117d803314",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個季節會有樹葉跌落嚟呀？",
+   "hash": "0346117d803314",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:036752f995c72c",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "Up 嘅相反係乜呀？",
+   "hash": "036752f995c72c",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:036b7b0a2fca31",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "水嘅冰點喺華氏幾多度呀？",
+   "hash": "036b7b0a2fca31",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0376a2418d3a47",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "巴西嘅官方語言係乜嘢呀？",
+   "hash": "0376a2418d3a47",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0376df741019f3",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "成年人有幾多塊骨頭呀？",
+   "hash": "0376df741019f3",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:038b03057f1465",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "歐洲最長嘅河流係邊條呀？",
+   "hash": "038b03057f1465",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:03956372d15492",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊種語言有最多母語人士呀？",
+   "hash": "03956372d15492",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:039de2edef039b",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "西班牙嘅首都是邊度呀？",
+   "hash": "039de2edef039b",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:03d0cfcb362bd7",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "乜嘢力令行星喺軌道上運行㗎？",
+   "hash": "03d0cfcb362bd7",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:03ef48c57021f3",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊樣工具係量度溫度㗎？",
+   "hash": "03ef48c57021f3",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:03f08414bf9d21",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "細隻狗叫乜呀？",
+   "hash": "03f08414bf9d21",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:03fc0c149d6d3a",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個國家有吉薩金字塔㗎？",
+   "hash": "03fc0c149d6d3a",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:04138db8fad554",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個程式語言嘅 logo 係一條蛇㗎？",
+   "hash": "04138db8fad554",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0417fbbb96d0aa",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "我哋用邊個感官嚟聽聲㗎？",
+   "hash": "0417fbbb96d0aa",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:04218807a3c273",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊隻動物會喳喳叫呀？",
+   "hash": "04218807a3c273",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0424e68af67071",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "草係乜色呀？",
+   "hash": "0424e68af67071",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:042597fadd06c9",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個哲學家寫咗 The Republic 呀？",
+   "hash": "042597fadd06c9",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:04817f3ee99829",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊粒星星畀我哋光同熱呀？",
+   "hash": "04817f3ee99829",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0497e633a7f3c0",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "細隻貓叫乜嘢呀？",
+   "hash": "0497e633a7f3c0",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:04a9d95e834e6b",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊樣運動會用到羽毛球呀？",
+   "hash": "04a9d95e834e6b",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:04cb8e82f944fc",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "企起身。退後一步等Theodore見到你，然後輕輕企好。",
+   "hash": "04cb8e82f944fc",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:04d7291f94a8b9",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "二氧化碳嘅化學式係乜呀？",
+   "hash": "04d7291f94a8b9",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:04e4828de6ef3e",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊種動物有羽毛同埋會飛㗎？",
+   "hash": "04e4828de6ef3e",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:04ec46df63e639",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "蜜蜂會整乜嘢呀？",
+   "hash": "04ec46df63e639",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0559491e5b7863",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊種生喺樹上又係紅色嘅生果呀？",
+   "hash": "0559491e5b7863",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0559f2ac21094a",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "土星最大嘅衛星叫乜嘢呀？",
+   "hash": "0559f2ac21094a",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0562301d194886",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個寫咗《傲慢與偏見》呀？",
+   "hash": "0562301d194886",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:05758bce6fa62c",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "校巴係乜嘢顏色㗎？",
+   "hash": "05758bce6fa62c",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:05c0a75904e57d",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "埃及主要講乜嘢語言呀？",
+   "hash": "05c0a75904e57d",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:05c27ed3a5901b",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個提出咗運動定律同重力定律㗎？",
+   "hash": "05c27ed3a5901b",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:05d397062ca035",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "七乘八係幾多呀？",
+   "hash": "05d397062ca035",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:05ef5f2fc38a80",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個元素嘅符號係O呀？",
+   "hash": "05ef5f2fc38a80",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:05f377ae2d9ff5",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個國家主辦二零二二年國際足聯世界盃呀？",
+   "hash": "05f377ae2d9ff5",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:06057a15d8fc15",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個季節會落雪㗎？",
+   "hash": "06057a15d8fc15",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0654963ccb3872",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "瑞士嘅貨幣係乜嘢呀？",
+   "hash": "0654963ccb3872",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:068baf9c0cff18",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "意大利嘅首都是邊度㗎？",
+   "hash": "068baf9c0cff18",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:069fdc213ec8d1",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊種力會將嘢拉向地面㗎？",
+   "hash": "069fdc213ec8d1",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:06af4060615851",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個海洋係最深㗎？",
+   "hash": "06af4060615851",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:06e128374782f0",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "最硬嘅天然物質係乜嘢呀？",
+   "hash": "06e128374782f0",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:06eb202cd672a8",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "美國內戰嗰陣邊個係總統㗎？",
+   "hash": "06eb202cd672a8",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:070e7fc72d3ba4",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "蜘蛛有幾多隻腳呀？",
+   "hash": "070e7fc72d3ba4",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0728c1af845f3a",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "九之後嘅數字係乜嘢呀？",
+   "hash": "0728c1af845f3a",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0729cec7f9dcba",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "我哋用乜嘢嚟聽聲呀？",
+   "hash": "0729cec7f9dcba",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:073539520fafb2",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "細胞邊部分含有DNA㗎？",
+   "hash": "073539520fafb2",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:079466e7426e76",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "定住！",
+   "hash": "079466e7426e76",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:07a70bb9025dcc",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "以下邊個係質數㗎？",
+   "hash": "07a70bb9025dcc",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:07b6df04b5a59a",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊種哺乳動物可以真正飛㗎？",
+   "hash": "07b6df04b5a59a",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:07c909f641058f",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "第二次世界大戰係邊一年結束㗎？",
+   "hash": "07c909f641058f",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:07d28a879b1192",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個提出咗自然選擇演化論呀？",
+   "hash": "07d28a879b1192",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:07e92f9defb8d5",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "英國嘅首都是邊度？",
+   "hash": "07e92f9defb8d5",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:07f98dcb1ac912",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "整個心心啦。用雙手。手指尖喺上面合埋，拇指喺下面接住。圓形唔計㗎。",
+   "hash": "07f98dcb1ac912",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:081af8c1b966c3",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "好似雀仔咁拍翼。舉高雙手然後上下拍。飛呀！",
+   "hash": "081af8c1b966c3",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:082c23bdf1a15c",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "瑞士嘅首都是邊度呀？",
+   "hash": "082c23bdf1a15c",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:084722cfae3551",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "最大嘅熱帶沙漠係邊個呀？",
+   "hash": "084722cfae3551",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0849c26192a294",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "一隊足球隊喺場上有幾多個球員呀？",
+   "hash": "0849c26192a294",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:084dac22ced6ba",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個帝國係由凱撒統治㗎？",
+   "hash": "084dac22ced6ba",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:08a1ed36f29c73",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個寫咗 The Hobbit 呀？",
+   "hash": "08a1ed36f29c73",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0917908361a4f7",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "閏年有幾多日？",
+   "hash": "0917908361a4f7",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:092985c7fa88d9",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "雪係乜色呀？",
+   "hash": "092985c7fa88d9",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:093eb0d6e3a7e5",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "鉀嘅化學符號係乜嘢㗎？",
+   "hash": "093eb0d6e3a7e5",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0940b0766df7ba",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個海洋係最細嘅？",
+   "hash": "0940b0766df7ba",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0956560480d8a7",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個係最細嘅大洲呀？",
+   "hash": "0956560480d8a7",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:095bfa31415c2f",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "法國嘅首都是邊度㗎？",
+   "hash": "095bfa31415c2f",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0961ec6cf8bef8",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個行星以有環出名㗎？",
+   "hash": "0961ec6cf8bef8",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:09df63adc81ede",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "入面嘅相反係乜呀？",
+   "hash": "09df63adc81ede",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:09e140fd11129c",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊隻係世界上跑得最快嘅陸上動物呀？",
+   "hash": "09e140fd11129c",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:09f90236405d11",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "我哋住喺邊個行星呀？",
+   "hash": "09f90236405d11",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0a13e0d710aba4",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "H2O係乜嘢呀？",
+   "hash": "0a13e0d710aba4",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0a2dd37868e455",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "研究地震嘅科學叫做乜嘢呀？",
+   "hash": "0a2dd37868e455",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0a44f63dbff65f",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個行星以佢嘅環出名？",
+   "hash": "0a44f63dbff65f",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0a79c54f2d010c",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊隻動物跳嚟跳去又有長長耳朵㗎？",
+   "hash": "0a79c54f2d010c",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0a7c92268fc7c7",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊種海洋動物有八隻手臂呀？",
+   "hash": "0a7c92268fc7c7",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0a8c36d0f5a369",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "除咗太陽之外，植物生長仲需要啲乜呀？",
+   "hash": "0a8c36d0f5a369",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0a9028c1ebb55e",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "水嘅化學式係乜嘢呀？",
+   "hash": "0a9028c1ebb55e",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0aa973cc3cbbd2",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個同時贏過物理同化學嘅諾貝爾獎呀？",
+   "hash": "0aa973cc3cbbd2",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0aab7873fdb32c",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊隻動物會咩咩叫㗎？",
+   "hash": "0aab7873fdb32c",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0ab91d11b534b8",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊隻動物會喵喵叫呀？",
+   "hash": "0ab91d11b534b8",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0ac54406ddbf46",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "眨眼挑戰。向 Theodore 眨一隻眼。",
+   "hash": "0ac54406ddbf46",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0adb2b70d8a435",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "中國嘅首都是邊度？",
+   "hash": "0adb2b70d8a435",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0adf674ecab5e7",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "奧運會旗上面有幾多個環呀？",
+   "hash": "0adf674ecab5e7",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0b14bb6f9f82b3",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "太陽系由近到遠第三個行星係邊個呀？",
+   "hash": "0b14bb6f9f82b3",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0b16c92445a5e6",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "以下邊個係雙數呀？",
+   "hash": "0b16c92445a5e6",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0b4c27d6c4d031",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊隻動物有好長嘅鼻呀？",
+   "hash": "0b4c27d6c4d031",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0b5847053b2aae",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個字母係元音呀？",
+   "hash": "0b5847053b2aae",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0b6e255b2774de",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "晴天嘅天空係乜嘢顏色呀？",
+   "hash": "0b6e255b2774de",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0b9594c4f83217",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "英國嘅貨幣係乜嘢呀？",
+   "hash": "0b9594c4f83217",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0ba12dce8bb708",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "再聽一次。我載唔到嗰個聆聽環節。",
+   "hash": "0ba12dce8bb708",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0bca5e1ffb2b03",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "南韓嘅首都是邊度㗎？",
+   "hash": "0bca5e1ffb2b03",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0bdb8da58d81cc",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "跟住節奏擺動啦。輕輕將個頭上下移動。",
+   "hash": "0bdb8da58d81cc",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0c12f783a03dca",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊隻動物會跳同埋叫 ribbit 㗎？",
+   "hash": "0c12f783a03dca",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0c1860f6684a23",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "紅色同藍色混埋變咩顏色呀？",
+   "hash": "0c1860f6684a23",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0c3f70e2c70225",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個係世界上面積最大嘅國家呀？",
+   "hash": "0c3f70e2c70225",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0c6569c0e24c0d",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個羅馬神係眾神之王呀？",
+   "hash": "0c6569c0e24c0d",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0c99b1e9e34084",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊隻動物會嗷嗷叫呀？",
+   "hash": "0c99b1e9e34084",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0cad5866a8be10",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "魚喺邊度生活㗎？",
+   "hash": "0cad5866a8be10",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0cdd677c454dd2",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊隻動物會嗚嗚叫㗎？",
+   "hash": "0cdd677c454dd2",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0d1a6ef7354192",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個發現咗盤尼西林㗎？",
+   "hash": "0d1a6ef7354192",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0d338636030a58",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊種血細胞負責運氧氣？",
+   "hash": "0d338636030a58",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0d4b29fddd4985",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "以下邊個係爬蟲類呀？",
+   "hash": "0d4b29fddd4985",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0d5a3354def180",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "美國嘅首都是邊度㗎？",
+   "hash": "0d5a3354def180",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0d792e6b8508e4",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "紅蘿蔔係乜嘢顏色呀？",
+   "hash": "0d792e6b8508e4",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0d8b233029164c",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個國家係靴形㗎？",
+   "hash": "0d8b233029164c",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0d8c8d1013db90",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊隻動物識游水又有鰭呀？",
+   "hash": "0d8c8d1013db90",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0d91d92ce60375",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個哲學家講過我思故我在呀？",
+   "hash": "0d91d92ce60375",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0dd32de056a357",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "波係乜嘢形狀呀？",
+   "hash": "0dd32de056a357",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0dde3dee2697c1",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "最細嘅質數係幾多呀？",
+   "hash": "0dde3dee2697c1",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0df3da648817d5",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "太陽係乜嘢顏色㗎？",
+   "hash": "0df3da648817d5",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0e04fee6020be5",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "水喺幾多攝氏度會結冰㗎？",
+   "hash": "0e04fee6020be5",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0e4b4aaa8086a9",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "你頭上戴乜嘢呀？",
+   "hash": "0e4b4aaa8086a9",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0e546e763e5c9f",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "巴西嘅貨幣係乜嘢呀？",
+   "hash": "0e546e763e5c9f",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0e8985d10aeff8",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "空氣係邊種物態㗎？",
+   "hash": "0e8985d10aeff8",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0e8b3b99e5e178",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個經濟學家寫咗《國富論》呀？",
+   "hash": "0e8b3b99e5e178",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0e9af473dd1247",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "離地球最近嘅星星係邊粒呀？",
+   "hash": "0e9af473dd1247",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0ea06b2bef0330",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "你食湯嗰陣用乜？",
+   "hash": "0ea06b2bef0330",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0ea963ea5da618",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "一之後係邊個數呀？",
+   "hash": "0ea963ea5da618",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0ebd58037bc3d4",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊種血型係萬能捐血者呀？",
+   "hash": "0ebd58037bc3d4",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0ef114edc8b1f4",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "最大嘅行星係邊個㗎？",
+   "hash": "0ef114edc8b1f4",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0f0a66e6410c82",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個季節最熱㗎？",
+   "hash": "0f0a66e6410c82",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0f1d1f9b9c4dad",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "細隻青蛙我哋叫乜？",
+   "hash": "0f1d1f9b9c4dad",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0f3db81785f655",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "細胞嘅發電廠係邊部分㗎？",
+   "hash": "0f3db81785f655",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0f60ae466e44d3",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "蒸汽係乜呀？",
+   "hash": "0f60ae466e44d3",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0f77abea951e98",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個畫咗《蒙娜麗莎》呀？",
+   "hash": "0f77abea951e98",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0fa4080e2a86f6",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "我哋太陽系入面最熱嘅行星係邊個呀？",
+   "hash": "0fa4080e2a86f6",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:0ff1f264c373d0",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "落雨嗰陣有乜嘢從雲上面跌落嚟呀？",
+   "hash": "0ff1f264c373d0",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:10001217128285",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個寫咗 Don Quixote？",
+   "hash": "10001217128285",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:100153616899d4",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "磁鐵會吸乜嘢呀？",
+   "hash": "100153616899d4",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1002218f297a1d",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個國家有萬里長城㗎？",
+   "hash": "1002218f297a1d",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:100794de847ec6",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個寫咗《羅密歐與茱麗葉》㗎？",
+   "hash": "100794de847ec6",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:102f8b6bf49b8d",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊條山脈包括 Everest 呀？",
+   "hash": "102f8b6bf49b8d",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:106dae2446c187",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個提出咗不確定性原理呀？",
+   "hash": "106dae2446c187",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1090ee46b1190d",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "我哋住喺邊個星系呀？",
+   "hash": "1090ee46b1190d",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1095531d81cd65",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "單車有幾多個轆呀？",
+   "hash": "1095531d81cd65",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:10a6791a19a434",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "摩洛哥嘅首都是邊度呀？",
+   "hash": "10a6791a19a434",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:10ad0d36b05eea",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "瑞典嘅貨幣係乜嘢呀？",
+   "hash": "10ad0d36b05eea",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:10b618eafd807d",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "你有幾多隻手呀？",
+   "hash": "10b618eafd807d",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:10bc31336d250e",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "蘇格蘭嘅首都是邊度呀？",
+   "hash": "10bc31336d250e",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:10cde20ccaf538",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "海平面嘅水喺幾多攝氏度會滾呀？",
+   "hash": "10cde20ccaf538",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:10e876f581bf5c",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "植物用乜嘢過程嚟製造食物呀？",
+   "hash": "10e876f581bf5c",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:110a5e0bb0b36f",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "你瞓覺嗰陣著乜嘢㗎？",
+   "hash": "110a5e0bb0b36f",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1144b1ffb227f3",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "一隻狗有幾多隻腳呀？",
+   "hash": "1144b1ffb227f3",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:116ad02c1bd113",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "土耳其嘅首都是邊度呀？",
+   "hash": "116ad02c1bd113",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:116b66d59a2054",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個數學家幫手破解咗 Enigma 密碼呀？",
+   "hash": "116b66d59a2054",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:116ebf8c119038",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "日本嘅貨幣叫乜呀？",
+   "hash": "116ebf8c119038",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1175768cea5c92",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "鐵嘅化學符號係乜呀？",
+   "hash": "1175768cea5c92",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:11859a5b9a17e4",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "試多次啦。我核對唔到嗰個答案。",
+   "hash": "11859a5b9a17e4",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:11c7a7862f0cd0",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個畫咗《星夜》呀？",
+   "hash": "11c7a7862f0cd0",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:11c814f2b34023",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "揀個遊戲啦。嗰個活動仲未接駁好。喺列表度揀另一個啦。",
+   "hash": "11c814f2b34023",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:11d4de6c1a8de0",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "一年有幾多個月㗎？",
+   "hash": "11d4de6c1a8de0",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:11da80f9a46e80",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個文明建造咗馬丘比丘㗎？",
+   "hash": "11da80f9a46e80",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:11dabcc25f5ec1",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "打字啦。呢度冇語音辨識。",
+   "hash": "11dabcc25f5ec1",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:11e1301df8f0d0",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "一班魚叫做乜嘢呀？",
+   "hash": "11e1301df8f0d0",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:11ec165d6c9c5f",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "墨西哥人講乜嘢語言呀？",
+   "hash": "11ec165d6c9c5f",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:11f074efb44431",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "八十一嘅平方根係幾多呀？",
+   "hash": "11f074efb44431",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1200ce505990ac",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "世界上最細嘅國家係邊個呀？",
+   "hash": "1200ce505990ac",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:120b5761b8cb7b",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個畫咗 Sistine Chapel 嘅天花板呀？",
+   "hash": "120b5761b8cb7b",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1215fbeab2c1dd",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "Pop Quiz Toss. 而家畀你下一條問題…",
+   "hash": "1215fbeab2c1dd",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:121ffc0a8d2109",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊種交通工具喺水上浮㗎？",
+   "hash": "121ffc0a8d2109",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:124e5c5f7d6c8b",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "一隻手有幾多隻手指呀？",
+   "hash": "124e5c5f7d6c8b",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:124efe74c04bbb",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "猴子最鍾意食乜嘢呀？",
+   "hash": "124efe74c04bbb",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1257e5ab105eae",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個沙漠覆蓋咗蒙古好大部分呀？",
+   "hash": "1257e5ab105eae",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:125ef79e11c798",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個器官負責將血液泵去全身呀？",
+   "hash": "125ef79e11c798",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:127d3eb8cc4127",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "你用乜嘢嚟聞呀？",
+   "hash": "127d3eb8cc4127",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:127ffbd9de0124",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "HTML 係描述乜嘢㗎？",
+   "hash": "127ffbd9de0124",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:12a1eb1ffcde78",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "九乘九係幾多呀？",
+   "hash": "12a1eb1ffcde78",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:12cef2ae806340",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "植物用陽光製造乜嘢呀？",
+   "hash": "12cef2ae806340",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:13107a10aa922e",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "空氣鼓。用你隻手喺拍子上打鼓墊。",
+   "hash": "13107a10aa922e",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1327ef26d4b664",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "快嘅相反係乜呀？",
+   "hash": "1327ef26d4b664",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:13281401837566",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "人類喺邊一年第一次登陸月球㗎？",
+   "hash": "13281401837566",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:133d055f596e97",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊隻動物係陸地上最大㗎？",
+   "hash": "133d055f596e97",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1355cc3a38cffe",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個寫咗《奧德賽》呀？",
+   "hash": "1355cc3a38cffe",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1357e1748cf7fb",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "士多啤梨係乜色㗎？",
+   "hash": "1357e1748cf7fb",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1357f4396d77bf",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "毛蟲食乜嘢㗎？",
+   "hash": "1357f4396d77bf",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:135bf956ec709d",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "尼日利亞嘅首都是邊度呀？",
+   "hash": "135bf956ec709d",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:135d04b3d73f43",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "最大嘅哺乳動物係乜嘢呀？",
+   "hash": "135d04b3d73f43",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:13a3e99d9b55a8",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "日本嘅首都是邊度呀？",
+   "hash": "13a3e99d9b55a8",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:13ab86551f027c",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "一隻雀仔有幾多隻腳呀？",
+   "hash": "13ab86551f027c",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:13cace7b9a72fb",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊種海洋動物有硬殼同埋鉗㗎？",
+   "hash": "13cace7b9a72fb",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:13d419eb84fdf1",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "三角形有幾多邊呀？",
+   "hash": "13d419eb84fdf1",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:13d4b0b89a3f0c",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "定住！企定定好似石像咁！",
+   "hash": "13d4b0b89a3f0c",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:13f1f4909f8e6e",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "純水嘅pH值係幾多呀？",
+   "hash": "13f1f4909f8e6e",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1400a12e0e7b8a",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "彩虹伸展。雙手伸向相反嘅頂角。",
+   "hash": "1400a12e0e7b8a",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:145e65f4af2034",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個係最大嘅海洋呀？",
+   "hash": "145e65f4af2034",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1464568513e8aa",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個寫咗 Charlie and the Chocolate Factory？",
+   "hash": "1464568513e8aa",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:14768deb995e79",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊隻雀唔識飛同埋住喺南極㗎？",
+   "hash": "14768deb995e79",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1486c1502cf854",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個寫咗《神曲》㗎？",
+   "hash": "1486c1502cf854",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:148e942dd600db",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "你身體最硬嘅部分係邊度？",
+   "hash": "148e942dd600db",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:149f41b8a4f6fd",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "你用乜嚟喺紙上面寫字㗎？",
+   "hash": "149f41b8a4f6fd",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:14a83d04171f16",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "大嘅相反係乜呀？",
+   "hash": "14a83d04171f16",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:14b6dbfbc160c0",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "打籃球每邊有幾多個球員上場呀？",
+   "hash": "14b6dbfbc160c0",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:14c425626114fb",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個係最大嘅洲呀？",
+   "hash": "14c425626114fb",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:14c4664607aa62",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個古蹟係喺埃及㗎？",
+   "hash": "14c4664607aa62",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:151661a31691bf",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "人體最大嘅器官係乜嘢呀？",
+   "hash": "151661a31691bf",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:15368ee7725e63",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "世界上有幾多個大洲呀？",
+   "hash": "15368ee7725e63",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1548c35c478ec9",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "十乘十係幾多呀？",
+   "hash": "1548c35c478ec9",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1552181cd59309",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "沖完涼之後你用咩嚟抹身呀？",
+   "hash": "1552181cd59309",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:156332fe499fa3",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "阿根廷嘅首都是邊度㗎？",
+   "hash": "156332fe499fa3",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1565368b49b5ad",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "聽住。Theodore 就嚟做下一個聆聽回合。",
+   "hash": "1565368b49b5ad",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:15657ad0fbc996",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊隻動物會汪汪叫呀？",
+   "hash": "15657ad0fbc996",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:159278a5498363",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊隻動物生蛋同埋會咯咯叫呀？",
+   "hash": "159278a5498363",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:15c1f394c57c3d",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個寫咗 Hamlet 呀？",
+   "hash": "15c1f394c57c3d",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:15d331d6561fee",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "金嘅化學符號係乜呀？",
+   "hash": "15d331d6561fee",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:15d7d488c8eae1",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個國家人口最多？",
+   "hash": "15d7d488c8eae1",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:15e1257cb20efa",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "窗通常係乜形呀？",
+   "hash": "15e1257cb20efa",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:15e38ab763c5c3",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "八邊形有幾多邊？",
+   "hash": "15e38ab763c5c3",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1611930fee7a03",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "鉛嘅化學符號係乜㗎？",
+   "hash": "1611930fee7a03",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:164833c7f998c8",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "而家坐低。慢慢行返去你個位度。",
+   "hash": "164833c7f998c8",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:164de9e888fb36",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "擺個姿勢。舉高雙手，擺出你最大嘅英雄姿勢。",
+   "hash": "164de9e888fb36",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:16502ec6d95836",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "落雨嗰陣你會著乜嘢呀？",
+   "hash": "16502ec6d95836",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:167582d955a08f",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "你喺腳上著乜嘢呀？",
+   "hash": "167582d955a08f",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1691ebc7bddb1c",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "你用乜嘢嚟嚐味呀？",
+   "hash": "1691ebc7bddb1c",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1696be8a97a003",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "我哋太陽系入面最大嘅行星係邊個呀？",
+   "hash": "1696be8a97a003",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:169c3877a88940",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊樣樂器有八十八個鍵呀？",
+   "hash": "169c3877a88940",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:169febce8bd958",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個字係名詞呀？",
+   "hash": "169febce8bd958",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:16a0ba7e2d9978",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個係第一個喺月球上面行路嘅人㗎？",
+   "hash": "16a0ba7e2d9978",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:16b97ca469c68e",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "揀一個聆聽遊戲。揀 Say the letter 或者 Listen 下面嘅遊戲，之後檢查講咗乜。",
+   "hash": "16b97ca469c68e",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:16d5b6f5a304be",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個行星最接近太陽呀？",
+   "hash": "16d5b6f5a304be",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:16d960458d6dab",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊種維他命可以預防壞血病㗎？",
+   "hash": "16d960458d6dab",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:170e0264547ac0",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個城市主辦二零一六年夏季奧運會呀？",
+   "hash": "170e0264547ac0",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:17129ff78e2558",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個寫咗《大亨小傳》呀？",
+   "hash": "17129ff78e2558",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:17259216c4ac4f",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "六邊形有幾多邊呀？",
+   "hash": "17259216c4ac4f",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1748e630351b01",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "人體入面最大嘅骨頭係乜嘢？",
+   "hash": "1748e630351b01",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:17500dd20fd58b",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "Wow face！張大個口同抬高眉毛，做出驚訝嘅樣。",
+   "hash": "17500dd20fd58b",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:178417a56fb738",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "鐵達尼號係邊一年沉沒㗎？",
+   "hash": "178417a56fb738",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:179583c57fcacc",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "德國嘅首都是邊度㗎？",
+   "hash": "179583c57fcacc",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:17c834eb019060",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊隻動物係叢林之王呀？",
+   "hash": "17c834eb019060",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:17d65ad6d22221",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "我哋用乜嘢嚟睇嘢呀？",
+   "hash": "17d65ad6d22221",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:17fab14f7d8695",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "遊戲時間完喇。多謝你玩！",
+   "hash": "17fab14f7d8695",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1823465ec5488e",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "相反意思嘅字我哋叫乜？",
+   "hash": "1823465ec5488e",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1843932e922bad",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "南美洲最長嘅河流係邊條呀？",
+   "hash": "1843932e922bad",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:18523a2dfe0a08",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "植物會吸收乜嘢氣體㗎？",
+   "hash": "18523a2dfe0a08",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1856f98d7c97be",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "食鹽嘅化學式係乜嘢㗎？",
+   "hash": "1856f98d7c97be",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1873137bc4328e",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "地震儀係量度乜嘢㗎？",
+   "hash": "1873137bc4328e",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:187c8556c271f9",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "落雨之後會出現乜嘢色彩繽紛嘅拱形呀？",
+   "hash": "187c8556c271f9",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1885821a99c791",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊隻動物有好長頸呀？",
+   "hash": "1885821a99c791",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:18c60594bf03a5",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個洲最凍呀？",
+   "hash": "18c60594bf03a5",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:18caf1e3cca73d",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "圓周率保留兩位小數係幾多呀？",
+   "hash": "18caf1e3cca73d",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:18e09ab188c490",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "消防車係乜嘢顏色呀？",
+   "hash": "18e09ab188c490",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:18e49c2c7531e2",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "夜晚喺天上發光嘅係乜嘢？",
+   "hash": "18e49c2c7531e2",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:191826d7ddeaba",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "鈉嘅化學符號係乜嘢呀？",
+   "hash": "191826d7ddeaba",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:194a6a6bc0cd58",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "我哋話意思一樣嘅字叫乜嘢㗎？",
+   "hash": "194a6a6bc0cd58",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1958539c2a5530",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊種金屬喺室溫下係液體呀？",
+   "hash": "1958539c2a5530",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1993c7ae4bf2b7",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊條河流流經埃及呀？",
+   "hash": "1993c7ae4bf2b7",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:19cbeffc5c67cd",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "凍咗嘅水叫做咩呀？",
+   "hash": "19cbeffc5c67cd",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:19ee458b2ba04d",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "宇宙入面最豐富嘅元素係乜嘢呀？",
+   "hash": "19ee458b2ba04d",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:19f8581f960303",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "三嘅立方係幾多呀？",
+   "hash": "19f8581f960303",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:19f888487632e9",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "Pop Quiz Toss。我載唔到問題。等陣再試啦。",
+   "hash": "19f888487632e9",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1a03ba5b287d15",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "銀嘅化學符號係乜呀？",
+   "hash": "1a03ba5b287d15",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1a140ccaa5d0b0",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊條河流流過巴格達呀？",
+   "hash": "1a140ccaa5d0b0",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1a1c10cfc05c5b",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "拳頭碰碰！握實拳頭同Theodore碰一碰。",
+   "hash": "1a1c10cfc05c5b",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1a36a5423ffc26",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "高過海平面嘅最高山係邊座呀？",
+   "hash": "1a36a5423ffc26",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1a487943bfe8ca",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "我哋從陽光得到邊種維他命呀？",
+   "hash": "1a487943bfe8ca",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1a4b68091e10b2",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "加拿大嘅首都是邊度呀？",
+   "hash": "1a4b68091e10b2",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1a587b5d489f50",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "印度嘅貨幣係乜嘢？",
+   "hash": "1a587b5d489f50",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1a7e7839cd220d",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "一百嘅一半係幾多呀？",
+   "hash": "1a7e7839cd220d",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1a82bf4167ba3d",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "揀一個聆聽遊戲啦。揀話字母或者聆聽下面嘅遊戲，然後用咪高峰。",
+   "hash": "1a82bf4167ba3d",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1a88ce4f282c93",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "一個鐘有幾多分鐘呀？",
+   "hash": "1a88ce4f282c93",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1a8a2733864a96",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "法國大革命係邊一年開始㗎？",
+   "hash": "1a8a2733864a96",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1a9df1f98ae201",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "人類心臟有幾多個心房呀？",
+   "hash": "1a9df1f98ae201",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1adb40be28e9f5",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "我哋將小牛叫做乜嘢呀？",
+   "hash": "1adb40be28e9f5",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1af299e0ae865c",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊種生果又長又黃㗎？",
+   "hash": "1af299e0ae865c",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1af54c5f2fb375",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "一個星期有幾多日呀？",
+   "hash": "1af54c5f2fb375",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1af90a931c535d",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "能量嘅國際單位制係乜？",
+   "hash": "1af90a931c535d",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1afd3aaa469454",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊隻動物畀我哋羊毛㗎？",
+   "hash": "1afd3aaa469454",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1b1bacb7f04b72",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊隻動物係倒掛住瞓覺㗎？",
+   "hash": "1b1bacb7f04b72",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1b3008f34b451d",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個字係動詞呀？",
+   "hash": "1b3008f34b451d",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1b69b3f27299da",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "我哋將只食植物嘅動物叫做乜嘢呀？",
+   "hash": "1b69b3f27299da",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1b6e2ed028bcbe",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "你每日刷乜嘢㗎？",
+   "hash": "1b6e2ed028bcbe",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1b83e1b14986cc",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "跳舞啦！隨便點郁都得… 當Theodore講freeze就定住唔郁。",
+   "hash": "1b83e1b14986cc",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1b857888ef1ab7",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "Seated reach. 而家只限坐低做。改為將雙手高高舉起。",
+   "hash": "1b857888ef1ab7",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1bb12193454075",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "藍色同黃色混埋變咩顏色呀？",
+   "hash": "1bb12193454075",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1bce8756bc83f0",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "元素嘅最細單位係乜嘢呀？",
+   "hash": "1bce8756bc83f0",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1be990f79f7cb4",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "熱嘅相反係乜嘢呀？",
+   "hash": "1be990f79f7cb4",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1bf61ff95aac4e",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "香蕉係乜嘢顏色呀？",
+   "hash": "1bf61ff95aac4e",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1bf6e5de5371c9",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "蜜蜂會喺花度採集乜嘢呀？",
+   "hash": "1bf6e5de5371c9",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1c03dd36b1d307",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "氫嘅原子序數係幾多呀？",
+   "hash": "1c03dd36b1d307",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1c2a9de39b1675",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "緬甸嘅首都是邊度呀？",
+   "hash": "1c2a9de39b1675",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1c5331b3436db5",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "Blow a kiss. 噘個小小嘅 O 形，將隻手放近你張嘴，然後送佢出去。",
+   "hash": "1c5331b3436db5",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1c581d20f5aa94",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個行星有最多衛星呀？",
+   "hash": "1c581d20f5aa94",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1c6717f2204fa9",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "Pizza 嘅一片係乜嘢形呀？",
+   "hash": "1c6717f2204fa9",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1c6be106dc471f",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "我等你。返嚟鏡頭前面。計時器暫停咗。",
+   "hash": "1c6be106dc471f",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1c7af9f098a7bf",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "澳洲嘅首都是邊度㗎？",
+   "hash": "1c7af9f098a7bf",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1c91f51b88de8a",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "我有個主意！舉起一隻食指喺空中。",
+   "hash": "1c91f51b88de8a",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1cde4428655ce1",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "毛蟲會變成咩呀？",
+   "hash": "1cde4428655ce1",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1ce1d96fda32c0",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "古代嘅相反係乜嘢㗎？",
+   "hash": "1ce1d96fda32c0",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1ce53fba42362e",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "紐西蘭嘅首都是邊度㗎？",
+   "hash": "1ce53fba42362e",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1cfd9b9494b7ac",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "研究太空嘅科學家我哋叫佢做乜呀？",
+   "hash": "1cfd9b9494b7ac",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1d10122e909c7d",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊條海峽喺伊斯坦堡分隔歐洲同亞洲㗎？",
+   "hash": "1d10122e909c7d",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1d195b25e54c2b",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "俄羅斯嘅首都是邊個呀？",
+   "hash": "1d195b25e54c2b",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1d4d2d2afe06a2",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個行星側住轉㗎？",
+   "hash": "1d4d2d2afe06a2",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1d5c65f01937c5",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "你有幾多隻眼㗎？",
+   "hash": "1d5c65f01937c5",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1d9aab0cf5ffcc",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "雞生乜嘢呀？",
+   "hash": "1d9aab0cf5ffcc",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1d9fd46973409e",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "以下邊個係哺乳動物呀？",
+   "hash": "1d9fd46973409e",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1db5ee0f0111d9",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "日本人講乜嘢語言㗎？",
+   "hash": "1db5ee0f0111d9",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1db7d5ccb4b7f8",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個寫咗小說《1984》呀？",
+   "hash": "1db7d5ccb4b7f8",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1de32abbbe48bc",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "力嘅單位係乜呀？",
+   "hash": "1de32abbbe48bc",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1dedd35f5bf362",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個寫咗《戰爭與和平》㗎？",
+   "hash": "1dedd35f5bf362",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1dfeed5cec354b",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "植物邊部分吸水呀？",
+   "hash": "1dfeed5cec354b",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1dff5d39f86689",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個細胞器係細胞嘅發電廠呀？",
+   "hash": "1dff5d39f86689",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1e0d5a28d11252",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "德國人講乜嘢語言呀？",
+   "hash": "1e0d5a28d11252",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1e232418189e41",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "小馬我哋叫做咩呀？",
+   "hash": "1e232418189e41",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1e3580f615acf1",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個作曲家喺失聰之後仲繼續寫音樂㗎？",
+   "hash": "1e3580f615acf1",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1e36204b646462",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊隻動物會講 tweet 呀？",
+   "hash": "1e36204b646462",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1e3f7c72665ab1",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "一百四十四嘅平方根係幾多？",
+   "hash": "1e3f7c72665ab1",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1e4322abdada28",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "電阻嘅單位係乜嘢呀？",
+   "hash": "1e4322abdada28",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1e613ba2e28e6d",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "埃及嘅首都是邊度㗎？",
+   "hash": "1e613ba2e28e6d",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1e73bcad3aba11",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個寫咗 Harry Potter 呀？",
+   "hash": "1e73bcad3aba11",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1e980b2ac4ec3c",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "柏林圍牆喺邊一年倒塌㗎？",
+   "hash": "1e980b2ac4ec3c",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1ec4779b391ac9",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "巴基斯坦嘅首都是邊度呀？",
+   "hash": "1ec4779b391ac9",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1ef02d133e8b2d",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個係美國第一任總統呀？",
+   "hash": "1ef02d133e8b2d",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1ef1f931d610f8",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "而家發送啦！揮一揮手將個吻飛出去。",
+   "hash": "1ef1f931d610f8",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1f032007a314ab",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊個分子負責帶遺傳資訊㗎？",
+   "hash": "1f032007a314ab",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1f2553f4d5e93f",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "七之後下一個質數係乜嘢呀？",
+   "hash": "1f2553f4d5e93f",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1f3d30d8a8eeac",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "南非嘅貨幣係乜嘢？",
+   "hash": "1f3d30d8a8eeac",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1f5c74843b7efa",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "遊戲時間到。多謝你玩！撳返主頁開始一個新嘅十分鐘環節。",
+   "hash": "1f5c74843b7efa",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1f6e6007c18c63",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "邊粒粒子帶負電呀？",
+   "hash": "1f6e6007c18c63",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1fad32351a05a8",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "標準小提琴有幾多條弦呀？",
+   "hash": "1fad32351a05a8",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1faeb22d33f811",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "越南嘅首都是邊度呀？",
+   "hash": "1faeb22d33f811",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1fcf78d8e10fb3",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "蘇聯喺邊一年解體㗎？",
+   "hash": "1fcf78d8e10fb3",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1fd8079088a594",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "開嘅相反係乜呀？",
+   "hash": "1fd8079088a594",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1fe57caedfaa8a",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "肯尼亞嘅首都是邊度？",
+   "hash": "1fe57caedfaa8a",
+   "status": "unreviewed"
+  },
+  {
+   "id": "vision_play:yue:1ff4b84659fd45",
+   "demo": "vision_play",
+   "lang": "yue",
+   "text": "你喺雪上面會踩乜嘢呀？",
+   "hash": "1ff4b84659fd45",
+   "status": "unreviewed"
   }
  ]
 }

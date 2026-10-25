@@ -97,7 +97,7 @@ def list_run(root: Path, sub: str = "") -> dict:
     for p in sorted(base.rglob("*")):
         if len(files) >= MAX_LISTED:
             break
-        if p.is_file() and p.suffix.lower() in LISTED_EXT and not any(part.startswith(".") for part in p.relative_to(base).parts):
+        if p.is_file() and p.suffix.lower() in LISTED_EXT and not any(part.startswith((".", "_")) for part in p.relative_to(base).parts):   # ".x" hidden, "_x" set aside (e.g. _cross-lingual-wei)
             files.append({"path": p.relative_to(base).as_posix(), "size": p.stat().st_size})
     return {"files": files, "root": (sub or "").strip("/"), "truncated": len(files) >= MAX_LISTED}
 

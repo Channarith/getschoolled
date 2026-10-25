@@ -168,8 +168,12 @@ def test_cantonese_enrollment_end_to_end_and_withdraw(server):
     record_all(url, sp, "yue")
     code, r = call(url, f"/api/enroll/{sp}", {"lang": "yue"})
     assert code == 200 and r["ok"], r
-    wav, text, lang = registry.primary_sample(sp, base)
-    assert lang == "yue" and text.startswith("大家早晨") and "嘩，答啱喇" in text and wav.is_file()
+    samples = registry.load_consent(sp, base)["samples"]
+    sess = samples["samples/web-yue.wav"]
+    assert sess["lang"] == "yue" and sess["transcript"].startswith("大家早晨") and "嘩，答啱喇" in sess["transcript"]
+    assert (registry.speaker_dir(sp, base) / "samples/web-yue.wav").is_file() and sess["consent_language"] == "yue"
+    ref = samples.get("samples/ref-yue.wav")                       # the short exact-transcript reference cut from one prompt take
+    assert ref and ref["role"] == "reference" and ref["transcript_exact"] and ref["transcript"] in sess["transcript"] and r["reference"]["written"]
     assert call(url, f"/api/revoke/{sp}", {"typed_name": "陳大明"})[0] == 400
     assert call(url, f"/api/revoke/{sp}", {"typed_name": NAME})[0] == 200
     assert call(url, f"/api/take/{sp}/yue/yue-1", raw=speechlike(5))[0] == 403
@@ -252,6 +256,9 @@ def test_model_support_for_cantonese():
     assert load("yue", 3) and all(r["lang"] == "yue" for r in load("yue"))
 
 
-def test_run_script_defaults_include_cantonese():
+def test_run_script_defaults_to_each_speakers_own_language_and_all_includes_cantonese():
     script = (REPO / "scripts" / "run_voice_clone.sh").read_text(encoding="utf-8")
-    assert 'LANGS="${LANGS:-en,es,zh,yue,' in script
+    assert 'LANGS="${LANGS:-}"' in script and '${LANGS:+--langs "$LANGS"}' in script     # no --langs unless asked: own language(s)
+    from tts_bakeoff.voice_clone.profile import ALL_LANGS
+
+    assert "yue" in ALL_LANGS and "en,es,zh,yue,vi,th,km,sw,hi" in script                # LANGS=all still covers Cantonese

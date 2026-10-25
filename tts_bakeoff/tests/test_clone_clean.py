@@ -13,6 +13,9 @@ from tts_bakeoff.voice_clone import bakeoff, clean, enroll, registry  # noqa: E4
 RATE = 24000
 
 
+LINE = "Good morning and welcome to today's lesson, we will start with something simple and then build."   # ~6 s of speech
+
+
 def speech(secs=6.0, seed=0, hiss=0.0, hum=0.0, clicks=0):
     """Voiced, syllable-gated harmonic signal with pauses; optional white hiss, 50 Hz mains hum and impulse clicks."""
     rng = np.random.default_rng(seed)
@@ -145,7 +148,7 @@ def test_best_of_n_picks_the_cleanest_take(tmp_path):
     ok = speech(seed=4)[0]
     ad = Takes([noisy, ok, speech(clicks=8, seed=5)[0]])
     out = tmp_path / "m" / "en" / "S01.wav"
-    row = clean.synthesize_best_of(ad, "hello", "en", out, takes=3, clean=True)
+    row = clean.synthesize_best_of(ad, LINE, "en", out, takes=3, clean=True)
     assert ad.calls == 3 and row["chosen_take"] == 1 and row["takes"] == 3
     side = json.loads((out.parent / ".raw" / "S01.clean.json").read_text())
     assert [t["take"] for t in side["takes"]] == [0, 1, 2] and side["chosen"] == 1
@@ -156,14 +159,14 @@ def test_best_of_n_picks_the_cleanest_take(tmp_path):
 def test_opt_out_is_the_plain_single_call(tmp_path):
     ad = Takes([speech()[0]])
     out = tmp_path / "S01.wav"
-    row = clean.synthesize_best_of(ad, "hello", "en", out, takes=1, clean=False)
+    row = clean.synthesize_best_of(ad, LINE, "en", out, takes=1, clean=False)
     assert ad.calls == 1 and out.exists() and not (tmp_path / ".raw").exists() and "takes" not in row
 
 
 def test_takes_without_cleaning_keeps_the_best_take_only(tmp_path):
     ad = Takes([speech(clicks=15, seed=6)[0], speech(seed=7)[0]])
     out = tmp_path / "S01.wav"
-    row = clean.synthesize_best_of(ad, "hello", "en", out, takes=2, clean=False)
+    row = clean.synthesize_best_of(ad, LINE, "en", out, takes=2, clean=False)
     assert row["chosen_take"] == 1 and out.exists() and not (tmp_path / ".raw" / "S01.wav").exists()
 
 
@@ -176,7 +179,7 @@ def test_one_failed_take_is_tolerated(tmp_path):
             return super().synthesize(text, lang, out_wav)
 
     out = tmp_path / "S01.wav"
-    row = clean.synthesize_best_of(Flaky([speech()[0]]), "hello", "en", out, takes=2, clean=True)
+    row = clean.synthesize_best_of(Flaky([speech()[0]]), LINE, "en", out, takes=2, clean=True)
     assert out.exists() and row["takes"] == 1
 
 

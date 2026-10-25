@@ -257,7 +257,29 @@ def asr_wer(path, text: str, lang: str):
     return error_rate(text, hyp, chars=lang in ("zh", "yue", "ja", "th", "km"))
 
 
-def analyze(x, rate: int, wer: float | None = None) -> dict:
+# Typical speech rate in characters (letters or ideographs, no spaces or punctuation) per second. Used only to catch takes whose length cannot
+# belong to their text: VoxCPM2's own log line is 'Badcase detected, audio_text_ratio=6.4, retrying' for a take 6x longer than the text needs.
+CHARS_PER_S = {"en": 14.0, "es": 15.0, "vi": 13.0, "sw": 14.0, "hi": 12.0, "th": 11.0, "km": 10.0, "zh": 4.3, "yue": 4.3}
+RATIO_TOO_LONG, RATIO_TOO_SHORT = 2.5, 0.4
+ASR_RELIABLE = ("en", "es", "zh", "yue", "vi", "hi")   # where a whisper round trip is trustworthy enough to reject a take
+ASR_MAX_ERROR = 0.7
+
+
+def speech_rate_check(text: str, lang: str, seconds: float) -> dict:
+    """{'ratio', 'verdict'}: seconds of audio over the seconds this text normally takes. verdict is ok, too long or too short."""
+    chars = len(re.sub(r"[\W_]+", "", text or ""))
+    cps = CHARS_PER_S.get((lang or "en").split("-")[0], 13.0)
+    expected = max(chars / cps, 0.3)
+    ratio = seconds / expected
+    verdict = "too long" if ratio > RATIO_TOO_LONG else "too short" if ratio < RATIO_TOO_SHORT and chars >= 6 else "ok"
+    return {"ratio": round(ratio, 2), "verdict": verdict}
+
+
+class TakeMismatch(RuntimeError):
+    """Every take failed the length-to-text or round-trip check: the clip is not written (the caller records a failure)."""
+
+
+def analyze(x, rate: int, wer: float | None = None, text: str | None = None, lang: str | None = None) -> dict:
     from .enroll import snr_db
 
     db = _frame_db(x, rate)
@@ -273,6 +295,13 @@ def analyze(x, rate: int, wer: float | None = None) -> dict:
            "score": round(score, 2)}
     if wer is not None:
         out["wer"] = round(wer, 3)
+    if text is not None:
+        rc = speech_rate_check(text, lang or "en", len(x) / rate)
+        out["rate_ratio"], out["rate_verdict"] = rc["ratio"], rc["verdict"]
+    bad = out.get("rate_verdict", "ok") != "ok" or (wer is not None and wer > ASR_MAX_ERROR and (lang or "en").split("-")[0] in ASR_RELIABLE)
+    out["mismatch"] = bool(bad)
+    if bad:
+        out["score"] = round(out["score"] + 1000, 2)   # any sane take beats a mismatched one
     return out
 
 
@@ -396,7 +425,13 @@ def synthesize_best_of(adapter, text: str, lang: str, out_wav, takes: int | None
     takes = default_takes() if takes is None else max(1, takes)
     clean = enabled() if clean is None else clean
     if takes == 1 and not clean:
-        return adapter.synthesize(text, lang, out)
+        row = adapter.synthesize(text, lang, out)
+        rc = speech_rate_check(text, lang, float(row.get("duration_s") or 0.0))
+        row.update(rate_ratio=rc["ratio"], rate_verdict=rc["verdict"])
+        if rc["verdict"] != "ok":
+            out.unlink(missing_ok=True)
+            raise TakeMismatch(f"audio/text ratio {rc['ratio']} ({rc['verdict']}): the take does not fit its text")
+        return row
     hold = out.parent / HOLD
     hold.mkdir(parents=True, exist_ok=True)
     results, scores, last_exc = [], [], None
@@ -410,13 +445,22 @@ def synthesize_best_of(adapter, text: str, lang: str, out_wav, takes: int | None
         x, rate = load_audio(tmp)
         wer = asr_wer(tmp, text, lang) if takes > 1 else None
         results.append((k, tmp, r))
-        scores.append({"take": k, **analyze(x, rate, wer)})
+        scores.append({"take": k, **analyze(x, rate, wer, text, lang)})
     if not results:
         raise last_exc  # type: ignore[misc]
     best = min(range(len(results)), key=lambda i: scores[i]["score"])
     k, tmp, row = results[best]
+    if scores[best].get("mismatch"):   # even the best take does not fit its text (ratio or round-trip): write nothing
+        why = scores[best].get("rate_verdict", "ok")
+        for _, t, _ in results:
+            t.unlink(missing_ok=True)
+        raise TakeMismatch(f"all {len(results)} take(s) rejected: audio/text ratio {scores[best].get('rate_ratio')} ({why})"
+                           + (f", round-trip error {scores[best]['wer']}" if "wer" in scores[best] else ""))
     row = dict(row)
-    row.update({"takes": len(results), "chosen_take": k, "noise_score": scores[best]["score"]})
+    row.update({"takes": len(results), "chosen_take": k, "noise_score": scores[best]["score"],
+                "rate_ratio": scores[best].get("rate_ratio"), "rate_verdict": scores[best].get("rate_verdict")})
+    if len(results) < takes:
+        row["takes_rejected_or_failed"] = takes - len(results)
     rep = {"takes": scores, "chosen": k, "version": VERSION}
     if clean:
         shutil.move(str(tmp), str(raw_path(out)))

@@ -261,6 +261,11 @@ def _concat_takes(paths: list[Path], dest: Path) -> None:
         w.writeframes((np.clip(y, -1, 1) * 32767).astype("<i2").tobytes())
 
 
+def _sample_tags(info: dict) -> dict:
+    keys = ("seconds", "snr_db", "cleaned", "snr_db_clean")
+    return {k: info[k] for k in keys if k in info}
+
+
 def finish_enrollment(base: Path, speaker: str, lang: str) -> dict:
     rec = _gated(base, speaker)
     prompts = PROMPT_SETS.get(lang)
@@ -289,8 +294,15 @@ def finish_enrollment(base: Path, speaker: str, lang: str) -> dict:
         (d / "samples" / ".raw").mkdir(parents=True, exist_ok=True)
         shutil.move(str(held), str(d / "samples" / ".raw" / dest.name))
     transcript = " ".join(p["text"] for p in prompts)
-    registry.add_sample(speaker, d / rel, transcript, lang, base, extra={"seconds": info["seconds"]})
-    return {"ok": True, "file": rel, **info}
+    registry.add_sample(speaker, d / rel, transcript, lang, base, extra=_sample_tags(info))
+    try:   # the short single-utterance reference with its exact prompt text, which cloning prefers over the long recording
+        from tts_bakeoff.voice_clone import profile
+
+        ref = profile.build_reference(speaker, lang, base)
+        reference = {k: ref.get(k) for k in ("written", "take", "seconds", "snr_db", "reason")}
+    except Exception as exc:  # noqa: BLE001 - enrollment itself succeeded; the reference can be cut later with profile refs
+        reference = {"written": False, "reason": f"{type(exc).__name__}: {str(exc)[:120]}"}
+    return {"ok": True, "file": rel, **info, "reference": reference}
 
 
 def start_voice_check(base: Path, speaker: str, lang: str) -> dict:
