@@ -19,9 +19,11 @@ export type OnTheGoExperience = {
    * still shows the search + dropdown.
    */
   showCoursePicker: boolean;
+  /** Demo only: a picker limited to the curated courses (flag on_the_go.demo_course_picker, default on). */
+  curatedPicker: boolean;
 };
 
-export function onTheGoExperience(mode: OnTheGoMode): OnTheGoExperience {
+export function onTheGoExperience(mode: OnTheGoMode, opts: { curatedPicker?: boolean } = {}): OnTheGoExperience {
   const demo = mode === "demo";
   return {
     mode,
@@ -30,6 +32,7 @@ export function onTheGoExperience(mode: OnTheGoMode): OnTheGoExperience {
     salaAgent: !demo,
     fullCatalog: !demo,
     showCoursePicker: !demo,
+    curatedPicker: demo && opts.curatedPicker !== false,
   };
 }
 

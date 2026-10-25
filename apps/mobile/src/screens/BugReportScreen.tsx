@@ -8,6 +8,7 @@ import { getMe, submitBugReport, type BugScreenshotUpload } from "../api";
 import { bugReportBase, imageAssetToUpload } from "../bugReport";
 import { installClientLog, peekClientLogs } from "../clientLog";
 import { clearCrashRecord, readPreviousCrash, type CrashRecord } from "../crashLog";
+import { buildBugDiagText, consumeDiagArmed, diagEntryCount } from "../diag/diagLog";
 import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
 import GlassPanel from "../components/GlassPanel";
@@ -48,6 +49,11 @@ export default function BugReportScreen({
   const [doneId, setDoneId] = useState("");
   const [lastCrash, setLastCrash] = useState<CrashRecord | null>(null);
   const [includeDiagnostics, setIncludeDiagnostics] = useState(true);
+  // Camera and WebView diagnostics are off unless the person turns them on (or tapped "Send to Salareen" on the camera check).
+  const [camDiag, setCamDiag] = useState(false);
+  const [camPreview, setCamPreview] = useState(false);
+  const camDiagText = camDiag || camPreview ? buildBugDiagText() : "";
+  useEffect(() => { if (consumeDiagArmed()) { setCamDiag(true); setCamPreview(true); } }, []);
 
   useEffect(() => {
     installClientLog();
@@ -109,11 +115,15 @@ export default function BugReportScreen({
             ...peekClientLogs().slice(-80),
           ].filter(Boolean).join("\n")
         : "";
+      const camBlob = camDiag ? buildBugDiagText() : "";
+      const fullDescription = [
+        description.trim(),
+        diagnosticsBlob ? `--- diagnostics ---\n${diagnosticsBlob}` : "",
+        camBlob ? `--- camera and WebView diagnostics (attached by the person) ---\n${camBlob}` : "",
+      ].filter(Boolean).join("\n\n");
       const payload = {
         ...base,
-        description: diagnosticsBlob
-          ? `${description.trim()}\n\n--- diagnostics ---\n${diagnosticsBlob}`
-          : description.trim(),
+        description: fullDescription,
         category,
         email,
         user_id: userId,
@@ -239,6 +249,29 @@ export default function BugReportScreen({
           </ScrollView>
         ) : null}
 
+        {diagEntryCount() > 0 ? (
+          <View style={{ marginTop: 14, gap: 8 }} testID="bug-camera-diagnostics">
+            <PrimaryButton
+              label={camDiag ? "Camera diagnostics: attached" : "Attach camera diagnostics"}
+              onPress={() => setCamDiag((on) => !on)}
+              variant={camDiag ? "netflix" : "ghost"}
+            />
+            <Text style={styles.hint}>
+              Device, permissions, camera and tracking timings, and recent page problems. No pictures or audio.
+            </Text>
+            <PrimaryButton
+              label={camPreview ? "Hide what is sent" : "Preview what is sent"}
+              onPress={() => setCamPreview((on) => !on)}
+              variant="ghost"
+            />
+            {camPreview ? (
+              <ScrollView style={styles.diagPreview} nestedScrollEnabled>
+                <Text style={styles.diagPreviewText} selectable>{camDiagText.slice(0, 6000)}{camDiagText.length > 6000 ? "\n…" : ""}</Text>
+              </ScrollView>
+            ) : null}
+          </View>
+        ) : null}
+
         <View style={{ marginTop: 16, gap: 10 }}>
           <PrimaryButton
             label={busy ? t("bugReport.sending") : t("bugReport.send")}
@@ -254,6 +287,8 @@ export default function BugReportScreen({
 }
 
 const styles = StyleSheet.create({
+  diagPreview: { maxHeight: 180, borderWidth: 1, borderColor: "rgba(255,255,255,0.18)", borderRadius: 10, padding: 8 },
+  diagPreviewText: { color: theme.colors.muted, fontSize: 11, lineHeight: 15, fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace" },
   bg: { flex: 1, backgroundColor: theme.colors.bg },
   pad: { paddingTop: Platform.OS === "ios" ? 56 : 24, paddingHorizontal: 16, paddingBottom: 32 },
   title: { color: theme.colors.text, fontSize: 22, fontWeight: "800" },

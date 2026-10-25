@@ -25,6 +25,7 @@ from pydantic import BaseModel, Field
 from . import __version__, tts
 from .analytics import AggregateAnalytics
 from .children_page import FAVICON_SVG, render_children_page
+from .diag_page import render_diag_page
 from .game_engine import (
     AUDIO_BANK,
     PICTURE_WORDS,
@@ -67,10 +68,24 @@ install_live_audio_routes(
         "by the game."
     ),
 )
+class VisionStaticFiles(StaticFiles):
+    """The WASM and model files are ~20 MB and change only with a release. Without Cache-Control a phone guesses a lifetime
+    and then re-checks every file on a cold start; say how long to keep them (files are not content-hashed, so a day)."""
+
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        if response.status_code in (200, 206, 304):
+            response.headers.setdefault("Cache-Control", "public, max-age=86400, stale-while-revalidate=604800")
+        return response
+
+
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
 if VISION_ASSET_DIR.is_dir():
     mimetypes.add_type("application/octet-stream", ".task")
-    app.mount("/vendor/vision", StaticFiles(directory=VISION_ASSET_DIR), name="vision-assets")
+    mimetypes.add_type("application/octet-stream", ".tflite")   # was served as text/plain
+    app.mount("/vendor/vision", VisionStaticFiles(directory=VISION_ASSET_DIR), name="vision-assets")
 
 _analytics = AggregateAnalytics()
 
@@ -112,7 +127,7 @@ def _asset_tag() -> str:
     the code changes.
     """
     digest = hashlib.sha256(__version__.encode())
-    for name in ("app.js", "vision_math.js", "pop_quiz.js", "pop_quiz_game.js", "game_tutorial.js", "game_howto.js", "app.css"):
+    for name in ("app.js", "vision_math.js", "vision_diag.js", "vision_diag_page.js", "vision_assets.js", "pop_quiz.js", "pop_quiz_game.js", "game_tutorial.js", "game_howto.js", "app.css"):
         path = STATIC_DIR / name
         if path.is_file():
             digest.update(path.read_bytes())
@@ -127,6 +142,12 @@ def children_lab_page() -> str:
         page_path="/children-lab",
         api_prefix="/children-live-audio",
     )
+
+
+@app.get("/diag/vision", response_class=HTMLResponse)
+def camera_check_page() -> HTMLResponse:
+    """Public camera check: no sign-in, no data sent anywhere (see diag_page.py)."""
+    return HTMLResponse(render_diag_page(_asset_tag()), headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/favicon.ico", include_in_schema=False)

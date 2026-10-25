@@ -17,6 +17,7 @@ import FloatingSalesDemo from "./components/FloatingSalesDemo";
 import PresenceHeartbeat from "./components/PresenceHeartbeat";
 import { LocaleProvider } from "./lib/i18n";
 import { FlagsProvider } from "./lib/flags";
+import { STORAGE_SHIM_SCRIPT } from "./lib/storageShimScript.mjs";
 
 export const metadata: Metadata = {
   title: "Salareen — Agentic Online Education Platform",
@@ -75,6 +76,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={displaySerif.variable} suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: STORAGE_SHIM_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body>
