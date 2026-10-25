@@ -221,6 +221,9 @@ class PurchaseStore:
         return [row for row in (_json_load(x) for x in self._b.lrange(PREFIX + "audit")) if row]
 
     # ---- writes
+    def audit(self, event: str, **fields: Any) -> None:
+        self._audit(event, **fields)
+
     def _audit(self, event: str, **fields: Any) -> None:
         self._b.rpush(PREFIX + "audit", json.dumps({"event": event, "at": self._now(), **fields}, sort_keys=True))
 
@@ -284,6 +287,22 @@ class PurchaseStore:
             self._b.hdel(self._paid_hash(order["account_id"]), order["course_id"])
         self._audit(status, order_id=order["order_id"], account_id=order["account_id"], reason=reason, by=by)
         return order
+
+    def set_meta(self, order_id: str, **fields: Any) -> Optional[dict[str, Any]]:
+        """Attach small facts to an order (receipt emailed, refund requested). Never changes the status."""
+        order = self.get(order_id)
+        if order is None:
+            return None
+        order.setdefault("meta", {}).update(fields)
+        self._save(order)
+        return order
+
+    def mark_started(self, account_id: str, course_id: str) -> None:
+        """Remember that this account opened the full class (the refund rules read it as 'progress unknown')."""
+        self._b.hsetnx(PREFIX + "started", f"{account_id}:{course_id}", str(self._now()))
+
+    def has_started(self, account_id: str, course_id: str) -> bool:
+        return self._b.hget(PREFIX + "started", f"{account_id}:{course_id}") is not None
 
     def mark_refunded(self, order_id: str, *, reason: str, by: str, amount_cents: Optional[int] = None) -> Optional[dict[str, Any]]:
         return self._end(self.get(order_id), STATUS_REFUNDED, reason, by, amount_cents)

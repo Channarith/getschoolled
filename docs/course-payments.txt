@@ -1,4 +1,4 @@
-COURSE PAYMENTS (web card + PayPal; store purchases and policy come in the next PRs)
+COURSE PAYMENTS (web card + PayPal, receipts, refunds, tax; store purchases and policy pages come in the next PRs)
 =====================================================================================
 DRAFT for owner review. Not legal or tax advice.
 
@@ -69,3 +69,36 @@ Known limits
     STUDIO_VERIFY_CLAIMS=1; paid public courses and any explicit access=full request are always verified.
   * /demo/drivers-ed still redirects only admin/paid accounts to the full course page; VIP/premium reach it from the menu.
   * Course audio TTS (/api/studio/tts) is not entitlement-gated: it is the shared voice service, cost-capped separately.
+
+
+RECEIPTS, REFUNDS, TAX (part 2)  -- all wording is DRAFT for counsel / CPA review; every number is configuration
+  Receipts
+    GET  /api/studio/account/receipts/{order}.html | .pdf   (login + ownership; add ?type=credit-note after a refund)
+    POST /api/studio/account/receipts/{order}/email          ("email me this receipt": needs SMTP_HOST; says so when it cannot send)
+    GET  /api/studio/receipts/verify?order=&code=            (anyone with a receipt can check its code; no personal data returned)
+    One receipt per order (idempotent), with order number, UTC and local time, buyer email, item, price, tax line(s), total,
+    payment method type (card last four only), seller details, refund-policy link, AI-assisted-instruction disclaimer.
+    A confirmed payment emails the receipt once when SMTP is configured. Store purchases show our entitlement record only;
+    Apple and Google send their own receipt.
+    Config: SELLER_LEGAL_NAME, SELLER_ADDRESS, SELLER_SUPPORT_EMAIL, SELLER_PERMIT_NUMBER, SELLER_TIMEZONE, REFUND_POLICY_URL,
+    TERMS_URL, COURSE_DMV_DISCLAIMER, RECEIPT_SIGNING_KEY, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM.
+    Unset seller details print as "[to be set by the seller]": nothing is invented.
+  Refunds
+    Proposed default: 14 days from purchase, at most 20% of lessons completed, none after a certificate is issued.
+    Config: REFUND_WINDOW_DAYS, REFUND_MAX_PROGRESS_PCT, REFUND_BLOCK_AFTER_CERTIFICATE, REFUND_AUTO_APPROVE (0 = every
+    request goes to support).
+    POST /api/studio/account/purchases/{order}/refund-request   self-service, rule-checked; a "no" is always routed to support
+    POST /api/studio/admin/purchases/{order}/refund             verified admin only; full or partial; through the provider API
+    Provider calls carry idempotency keys (refund-<order>), so a retry can never refund twice. Access ends at once, a credit
+    note is available, and every step is in the audit list. Chargebacks/disputes revoke access through the webhooks.
+    Progress: until a lesson-progress source is wired, "never opened the full class" counts as 0% and "opened it" goes to
+    support for review (reason needs_review).
+    Store purchases: Apple/Google refund them; our server revokes access when the store notifies us.
+  Sales tax (COURSE_TAX_MODE = none | provider | manual)
+    none      no tax line (the owner or CPA decided). Default.
+    provider  Stripe Tax on hosted checkout (turn on Stripe Tax in the dashboard). Cards only.
+    manual    COURSE_TAX_RATES_JSON {"CA": 0.0725}: the buyer's state is asked for ONLY in this mode.
+    OPEN QUESTIONS FOR THE CPA (not answered here): is an online driver-education or food-safety course taxable in California
+    or elsewhere; does selling to other states create a collection duty (economic nexus); the seller's permit / CDTFA
+    registration. Apple and Google are the sellers of record for in-app purchases and handle tax themselves.
+  Policy endpoint: GET /api/studio/policy returns the configured numbers so the policy pages always match the server.
