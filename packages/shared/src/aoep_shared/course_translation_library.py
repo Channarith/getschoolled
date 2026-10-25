@@ -46,9 +46,13 @@ _LOCK = threading.Lock()
 
 def library_dir() -> Path:
     raw = os.environ.get("AOEP_COURSE_TRANSLATION_DIR", "").strip()
-    if raw:
-        return Path(raw).expanduser()
-    return Path.home() / ".cache" / "aoep" / "course_translations"
+    fallback = Path(raw).expanduser() if raw else Path.home() / ".cache" / "aoep" / "course_translations"
+    if os.environ.get("AOEP_TRANSLATIONS_BACKEND", "").strip().lower() != "bucket":
+        return fallback
+    # Delivered translations (private object storage mirrored to a local folder); the configured folder is the fallback.
+    from . import translation_store
+
+    return translation_store.active_root(fallback)
 
 
 def safe_course_id(course_id: str) -> str:
