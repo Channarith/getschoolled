@@ -445,7 +445,7 @@ STUDIO_CSS = """
     @media (max-height:520px) {
       html body.demo-clean.demo-clean.demo-clean .theodore-avatar-wrap { width:64px !important; height:84px !important; right:8px !important; bottom:8px !important; }
       html body.demo-clean #theodore-live-audio { display:none !important; }
-      html body.demo-clean .lesson-stage-content { padding:8px 84px 8px 12px; max-height:34%; }
+      html body.demo-clean .lesson-stage-content { padding:8px 12px 8px 64px; max-height:34%; }
       html body.demo-clean.demo-clean.demo-clean .theodore-avatar-wrap { display:block !important; visibility:visible !important; }
     html body.demo-clean #student-cam { width:72px; }
     }
@@ -454,7 +454,7 @@ STUDIO_CSS = """
       html body.demo-clean .visual-timeline-stage, html body.demo-clean .storyboard-stage,
       html body.demo-clean .lesson-photo { bottom:132px; height:auto; }
       html body.demo-clean #theodore-live-audio { display:none !important; }
-      html body.demo-clean .lesson-stage-content { min-height:132px; max-height:none; padding:10px 112px 12px 12px;
+      html body.demo-clean .lesson-stage-content { min-height:132px; max-height:none; padding:10px 12px 12px 88px;
         background:#0f172a; display:flex; align-items:center; }
       html body.demo-clean .lesson-stage-content > * { margin:0; }
       html body.demo-clean.demo-clean.demo-clean .theodore-avatar-wrap { bottom:10px !important; }
@@ -465,7 +465,7 @@ STUDIO_CSS = """
       height:clamp(84px,min(24vw,24vh),140px) !important; min-height:0 !important; z-index:6; border-radius:0;
       background:transparent; border:0; box-shadow:none; opacity:.78; }
     html body.demo-clean .lesson-stage-content { position:absolute; left:0; right:0; bottom:0; z-index:3; max-height:42%;
-      overflow:auto; padding:12px 130px 14px 16px; background:linear-gradient(transparent,rgba(15,23,42,.82) 25%,rgba(15,23,42,.94));
+      overflow:auto; padding:12px 16px 14px 112px; background:linear-gradient(transparent,rgba(15,23,42,.82) 25%,rgba(15,23,42,.94));
       color:#f6efe4; border:0; }
     html body.demo-clean #student-cam { left:10px; right:auto; top:10px; bottom:auto; width:92px; z-index:7; }
     html body.demo-clean #sample-clock { top:10px; left:12px; right:auto; min-width:0; padding:0; border-radius:0;
@@ -539,8 +539,85 @@ STUDIO_CSS = """
        holds the lesson (including the first slide, "California learner's permit") until the
        video is done. Only the tutorial and the ? button stay visible, over a see-through page. */
     html.sala-intro-hold, html.sala-intro-hold body { background:transparent !important; }
-    html.sala-intro-hold body > *:not(.sala-tutorial):not(.sala-help) { visibility:hidden !important; }
+    html.sala-intro-hold body > *:not(.sala-tutorial):not(.sala-help):not(#course-widget):not(.sala-mascot):not(.sala-cam-consent) { visibility:hidden !important; }
     html.sala-intro-hold .sala-tutorial { background:rgba(2,6,23,.55); }
+    /* The demo's Sala: a golden cutout, bottom-left, always on screen (over the intro video and the lesson). Tap to ask. */
+    .sala-mascot { position:fixed; left:max(10px, env(safe-area-inset-left)); bottom:max(10px, env(safe-area-inset-bottom)); z-index:10025;
+      height:clamp(96px, 24vh, 190px); aspect-ratio:323/845; padding:0; border:0; background:transparent; cursor:pointer;
+      touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
+    .sala-mascot .sala-art { position:absolute; inset:0; background:url(/api/studio/voice-overlay/sala-gold-cutout.png) center bottom/contain no-repeat;
+      filter:drop-shadow(0 8px 14px rgba(0,0,0,.45)); transition:transform .18s ease; transform-origin:50% 100%; }
+    .sala-mascot:hover .sala-art, .sala-mascot:focus-visible .sala-art { transform:scale(1.05); }
+    .sala-mascot:focus-visible { outline:3px solid #fde047; outline-offset:2px; border-radius:14px; }
+    .sala-mascot .sala-dot { position:absolute; right:-2px; top:6px; width:12px; height:12px; border-radius:50%; background:#eab308; box-shadow:0 0 0 2px rgba(11,16,32,.8); }
+    .sala-mascot[data-listen="on"] .sala-dot { background:#22c55e; box-shadow:0 0 0 2px rgba(11,16,32,.8), 0 0 10px #22c55e; }
+    .sala-mascot[data-listen="muted"] .sala-dot { background:#f87171; }
+    .sala-mascot .sala-tap { position:absolute; left:100%; bottom:30%; margin-left:6px; white-space:nowrap; padding:8px 14px; border-radius:99px;
+      background:#fde047; color:#1e1b4b; font:800 14px/1 system-ui,sans-serif; box-shadow:0 6px 18px rgba(0,0,0,.4); }
+    .sala-mascot .sala-tap[hidden] { display:none; }
+    body.demo-widget .theodore-avatar-wrap { display:none !important; }
+    /* Demo / full course: the two cream bars under the lesson (the spoken question and any translation notes) are not shown.
+       Their text stays for screen readers, and the widget menu's "Show captions" brings them back. */
+    body.demo-clean:not(.sala-captions) #teach-activity,
+    body.demo-clean:not(.sala-captions) #lang-warning,
+    body.demo-clean:not(.sala-captions) #lesson-caption {
+      position:absolute !important; width:1px !important; height:1px !important; margin:0 !important; padding:0 !important; border:0 !important;
+      overflow:hidden !important; clip:rect(0 0 0 0) !important; clip-path:inset(50%) !important; white-space:nowrap !important; }
+    /* Learning checks in the demo: the card is ABOVE the lesson stage (the stage grid used to cover it and swallow every click),
+       centred, scrollable, with big touch targets and visible picked / correct / wrong states. */
+    body.demo-clean #quiz-box:not([style*="none"]), body.demo-clean #game-box:not([style*="none"]) {
+      position:absolute !important; z-index:20; left:50%; top:50%; transform:translate(-50%,-50%); margin:0 !important;
+      width:min(720px, calc(100% - 32px)); max-height:calc(100% - 32px); overflow:auto; box-sizing:border-box;
+      box-shadow:0 18px 50px rgba(0,0,0,.45); }
+    body.demo-clean #quiz-box button[data-sync-choice], body.demo-clean #quiz-box .mic-btn { min-height:48px; }
+    #quiz-box button.is-correct { background:#d9ffe8 !important; border-color:#16a34a !important; color:#14532d !important; }
+    #quiz-box button.is-wrong { background:#fee2e2 !important; border-color:#dc2626 !important; color:#7f1d1d !important; }
+    #quiz-box button.is-picked { outline:3px solid #1e3a5f; outline-offset:1px; }
+    #quiz-box .quiz-feedback { margin:10px 0 6px; font-weight:700; min-height:1.3em; }
+    #quiz-box [hidden] { display:none !important; }
+    /* End of the anonymous demo: nothing else is usable behind the card. */
+    body.trial-ended > *:not(#trial-end) { visibility:hidden !important; pointer-events:none !important; }
+    #trial-end { position:fixed; inset:0; z-index:2147483600; display:grid; place-items:center; padding:16px; background:#0b1020; }
+    #trial-end[hidden] { display:none; }
+    #trial-end .trial-card { box-sizing:border-box; width:min(100%, 440px); padding:24px 22px 18px; border-radius:20px; text-align:center;
+      background:linear-gradient(160deg,#1e1b4b,#0f172a); border:2px solid rgba(212,175,55,.8); color:#f1f5f9;
+      box-shadow:0 20px 60px rgba(0,0,0,.6); font:500 16px/1.45 system-ui,"Avenir Next","Segoe UI",sans-serif; }
+    #trial-end h2 { margin:0 0 10px; font:800 22px/1.2 system-ui,sans-serif; color:#fde68a; }
+    #trial-end p { margin:0 0 16px; }
+    #trial-end .row { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+    #trial-end button { min-height:46px; padding:0 20px; border-radius:99px; border:2px solid rgba(255,255,255,.5); background:transparent; color:#f1f5f9;
+      font:800 15px/1 system-ui,sans-serif; cursor:pointer; }
+    #trial-end button.primary { background:#fde047; border-color:#fde047; color:#1e1b4b; }
+    #trial-end button.quiet { margin-top:12px; border-color:transparent; font-weight:600; opacity:.8; text-decoration:underline; }
+    #trial-end button:focus-visible { outline:3px solid #fde047; outline-offset:2px; }
+    /* Camera consent card: shown once, before the browser's own permission prompt. */
+    .sala-cam-consent { position:fixed; inset:0; z-index:2147483300; display:grid; place-items:center; padding:14px; background:rgba(2,6,23,.62); }
+    .sala-cam-consent .card { box-sizing:border-box; width:min(calc(100vw - 28px), 420px); padding:20px 20px 16px; border-radius:20px; text-align:center;
+      background:linear-gradient(160deg,#1e1b4b,#0f172a); border:2px solid rgba(212,175,55,.8); color:#f1f5f9; box-shadow:0 20px 60px rgba(0,0,0,.6);
+      font:500 16px/1.45 system-ui,"Avenir Next","Segoe UI",sans-serif; }
+    .sala-cam-consent h2 { margin:0 0 8px; font:800 20px/1.2 system-ui,sans-serif; color:#fde68a; }
+    .sala-cam-consent p { margin:0 0 14px; }
+    .sala-cam-consent .actions { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+    .sala-cam-consent button { min-height:44px; padding:0 18px; border-radius:99px; border:2px solid rgba(255,255,255,.5); background:transparent; color:#f1f5f9;
+      font:800 15px/1 system-ui,sans-serif; cursor:pointer; }
+    .sala-cam-consent button.primary { background:#fde047; border-color:#fde047; color:#1e1b4b; }
+    .sala-cam-consent button:focus-visible { outline:3px solid #fde047; outline-offset:2px; }
+    /* Widget: the timer sits in the bar (never over the picture); the folded widget is a small pill. */
+    #course-widget .cw-bar .cw-clock { flex:none; padding:0 4px; }
+    #course-widget .cw-cam { position:relative; }
+    #course-widget .cw-camtoggle { position:absolute; z-index:6; right:6px; bottom:6px; width:36px; height:36px; border:0; border-radius:50%; display:grid; place-items:center;
+      background:rgba(8,12,24,.72); color:#f6efe4; font:800 16px/1 system-ui,sans-serif; cursor:pointer; }
+    #course-widget .cw-camtoggle:focus-visible { outline:2px solid #fde047; outline-offset:2px; }
+    #course-widget .cw-cam[data-cam="off"], #course-widget .cw-cam[data-cam="denied"] { display:flex; align-items:center; justify-content:space-between; gap:8px;
+      min-height:48px; padding:6px 10px; background:rgba(255,255,255,.06); }
+    #course-widget .cw-cam[data-cam="off"] .cw-camtoggle, #course-widget .cw-cam[data-cam="denied"] .cw-camtoggle { position:static; flex:none; }
+    #course-widget .cw-camlabel { display:none; font:700 13px/1.2 system-ui,sans-serif; color:#cbd5e1; }
+    #course-widget .cw-cam[data-cam="off"] .cw-camlabel, #course-widget .cw-cam[data-cam="denied"] .cw-camlabel { display:block; }
+    #course-widget .cw-cam[data-cam="off"] #student-cam, #course-widget .cw-cam[data-cam="denied"] #student-cam { display:none !important; }
+    #course-widget[data-collapsed="1"] { width:auto; min-width:0; }
+    #course-widget[data-collapsed="1"] .cw-grip { display:none; }
+    #course-widget[data-collapsed="1"] .cw-bar { padding:4px 6px 4px 14px; }
+    #course-widget[data-collapsed="1"] .cw-status { flex:none; width:14px; }
     .sala-tutorial .card { box-sizing:border-box; width:min(calc(100vw - 28px),520px); max-height:94vh; overflow:auto; padding:20px 20px 16px; border-radius:24px;
       background:linear-gradient(160deg,#312e81,#1e1b4b); border:3px solid #fde047; color:#f1f5f9; text-align:center;
       font:500 16px/1.45 system-ui,"Avenir Next","Segoe UI",sans-serif; box-shadow:0 20px 60px rgba(0,0,0,.6); }
@@ -798,8 +875,9 @@ STUDIO_CSS = """
     body.phone-embed .teach-stage:not(.captions-off) #teach-examples,
     body.phone-embed .teach-stage:not(.captions-off) .visual-layer.kind-title,
     body.phone-embed .teach-stage:not(.captions-off) .visual-layer.kind-text { display:none !important; }
-    body.phone-embed .teach-stage.captions-off #quiz-box,
-    body.phone-embed .teach-stage.captions-off #game-box,
+    /* Not in the demo: there a learning check MUST show on a phone too (it blocks the lesson until answered). */
+    body.phone-embed:not(.demo-clean) .teach-stage.captions-off #quiz-box,
+    body.phone-embed:not(.demo-clean) .teach-stage.captions-off #game-box,
     body.audio-only .teach-stage.captions-off #quiz-box,
     body.audio-only .teach-stage.captions-off #game-box { display:none !important; }
     body.phone-embed .teach-stage.captions-off .visual-timeline-stage.layout-compare .visual-layer.kind-picture,
@@ -1325,7 +1403,7 @@ STUDIO_JS = """
         is_admin: adminFlag,
       };
     }
-    const TRIAL_ENDED = 'Your free 10-minute trial has ended. Thanks for spending time with the lesson. Pay for the course when you want to keep going.';
+    const TRIAL_ENDED = 'Your free 10-minute demo has ended. Create an account or log in to your account to keep learning.';
     let sampleTimer = 0;
     let sampleTick = 0;
     function sampleIsComplete() {
@@ -1352,7 +1430,10 @@ STUDIO_JS = """
       if (sampleTimer) { clearTimeout(sampleTimer); sampleTimer = 0; }
       if (sampleTick) { clearInterval(sampleTick); sampleTick = 0; }
     }
+    let trialEnded = false;
     function endSampleTrial(payload) {
+      if (trialEnded) return;
+      trialEnded = true;
       stopSampleClock();
       const base = payload || lastTeachPayload || {};
       lastTeachPayload = base;
@@ -1363,15 +1444,77 @@ STUDIO_JS = """
         minutes: (base.sample && base.sample.minutes) || 10,
         message: trialEndedMessage(base),
       });
+      // The demo is over: nothing keeps running. Narration, the mic and the webcam stream are released.
       lecturePaused = true;
-      if ($('btn-pause')) setPauseButton(true);
-      stopSpeech();
-      window.TheodoreLiveAudio?.pauseRecognition();
-      paintSampleBanner(base);
-      openPayScreen();
+      try { if ($('btn-pause')) setPauseButton(true); } catch (_) { /* page already tearing down */ }
+      try { stopSpeech(); } catch (_) { /* nothing playing */ }
+      try { stopStudentMic(); } catch (_) { /* no mic */ }
+      try { window.TheodoreLiveAudio?.pauseRecognition?.(); } catch (_) { /* optional */ }
+      try { window.TheodoreLiveAudio?.stop?.(); } catch (_) { /* optional */ }
+      try { window.salaCamera?.stop?.(); } catch (_) { /* optional */ }
+      try { stopStudentCamera(); } catch (_) { /* optional */ }
+      try { window.salaVoice?.dispose?.(); } catch (_) { /* optional */ }
+      document.body.classList.add('trial-ended');
+      showTrialEnd(base);
+      try { window.parent.postMessage({ type: 'sala-trial-ended' }, window.location.origin); } catch (_) { /* standalone */ }
     }
+    // End-of-demo card: no price and no payment (an anonymous visitor cannot pay without an account). The lesson cannot be
+    // used behind it, and "Not now" leaves for the two-button front page; Back cannot return to the demo.
+    function leaveTo(path) {
+      let target = window;
+      try { if (window.top && window.top.location.origin === window.location.origin) target = window.top; } catch (_) { target = window; }
+      target.location.replace(path);
+    }
+    function showTrialEnd(payload) {
+      let card = $('trial-end');
+      if (!card) return;
+      if (card.parentElement !== document.body) document.body.appendChild(card);
+      const msg = $('trial-end-copy');
+      if (msg) msg.textContent = trialEndedMessage(payload);
+      card.hidden = false;
+      const course = encodeURIComponent('/learn/' + (pinnedCourse || 'drivers-ed'));
+      $('trial-create').onclick = () => leaveTo('/login?mode=signup&next=' + course);
+      $('trial-login').onclick = () => leaveTo('/login?next=' + course);
+      $('trial-notnow').onclick = () => leaveTo('/');
+      const first = $('trial-create');
+      if (first && first.focus) first.focus({ preventScroll: true });
+    }
+    // Sleep/wake and background tabs: the clock is the server's start time, so check again whenever the page is back.
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState !== 'visible' || trialEnded || !lastTeachPayload) return;
+      const left = sampleRemainMs(lastTeachPayload);
+      if (left != null && left <= 0 && lastTeachPayload.access_mode === 'sample') endSampleTrial(lastTeachPayload);
+    });
     let payBusy = false;
-    function openPayScreen() {
+    // What the SERVER says this caller may do (free | paid | must_pay | login_required). The offer is only ever shown for
+    // must_pay: anonymous visitors never see a price, and admin/VIP/premium/paid accounts are never asked to pay.
+    var courseEntitlement = {state: '', offer: null};
+    function paintPayOffer() {
+      const offer = courseEntitlement.state === 'must_pay' ? courseEntitlement.offer : null;
+      const priceBtn = $('course-price');
+      if (offer) {
+        if (priceBtn) priceBtn.textContent = 'Full course ' + offer.label;
+        const amount = $('pay-price');
+        if (amount) amount.textContent = offer.label;
+        const copy = $('pay-copy');
+        if (copy) copy.textContent = 'One payment of ' + offer.label + ' unlocks the rest of this class.';
+      } else if (priceBtn) {
+        priceBtn.hidden = true;
+      }
+    }
+    async function loadEntitlement() {
+      const courseId = (lastTeachPayload && lastTeachPayload.session && lastTeachPayload.session.course_id) || pinnedCourse;
+      if (!courseId) return;
+      try {
+        const data = await api('/api/studio/entitlement?course_id=' + encodeURIComponent(courseId));
+        courseEntitlement = {state: String(data.entitlement || ''), offer: data.offer || null};
+      } catch (err) {
+        courseEntitlement = {state: '', offer: null};
+      }
+      paintPayOffer();
+    }
+    function openPayScreen(force) {
+      if (!force && !(courseEntitlement.state === 'must_pay' && courseEntitlement.offer)) return;
       const screen = $('pay-screen');
       const price = $('course-price');
       if (price && price.parentElement !== document.body) document.body.appendChild(price);
@@ -1393,24 +1536,22 @@ STUDIO_JS = """
       const status = $('pay-status');
       const courseId = (lastTeachPayload && lastTeachPayload.session && lastTeachPayload.session.course_id)
         || pinnedCourse;
-      if (!courseId) {
-        if (status) status.textContent = 'Open a course, then pay $19.99 for the full class.';
-        return;
-      }
+      if (!courseId) return;
       payBusy = true;
       if (status) status.textContent = 'Opening the secure payment page…';
       try {
+        // Only the course id and the method go up: the server owns the price, the title and who is paying.
         const data = await api('/api/studio/pay/checkout', {
           method: 'POST',
           headers: {'content-type': 'application/json'},
-          body: JSON.stringify({
-            course_id: courseId,
-            learner_id: (learnerId || '').replace(/:audio$/, ''),
-            method: method,
-            title: (selectedCourse && selectedCourse.title) || 'Full course',
-            return_url: location.href,
-          }),
+          body: JSON.stringify({course_id: courseId, method: method, return_url: location.href}),
         });
+        if (data.already_entitled) {
+          const again = new URLSearchParams(location.search);
+          again.set('access', 'full');
+          location.replace(location.pathname + '?' + again.toString());
+          return;
+        }
         if (!data.url) throw new Error('The payment page did not open.');
         location.assign(data.url);
       } catch (error) {
@@ -1424,21 +1565,19 @@ STUDIO_JS = """
       const sessionId = params.get('session_id') || params.get('token') || '';
       if (!sessionId) return;
       const status = $('pay-status');
-      openPayScreen();
-      if (status) status.textContent = 'Confirming the $19.99 payment…';
+      openPayScreen(true);
+      if (status) status.textContent = 'Confirming your payment…';
       try {
         await api('/api/studio/pay/confirm', {
           method: 'POST',
           headers: {'content-type': 'application/json'},
-          body: JSON.stringify({ session_id: sessionId }),
+          body: JSON.stringify({ session_id: sessionId, method: params.get('token') ? 'paypal' : 'card' }),
         });
         params.delete('paid');
         params.delete('session_id');
         params.delete('token');
         params.delete('PayerID');
         params.set('access', 'full');
-        params.set('registered', '1');
-        params.set('enrollment', 'paid');
         location.replace(location.pathname + '?' + params.toString());
       } catch (error) {
         if (status) status.textContent = String(error.message || error);
@@ -1490,7 +1629,8 @@ STUDIO_JS = """
       const priceBtn = $('course-price');
       if (priceBtn) {
         if (priceBtn.parentElement !== document.body) document.body.appendChild(priceBtn);
-        priceBtn.hidden = mode !== 'sample';
+        // Anonymous demo: no price anywhere; the end card asks for an account. Signed-in preview keeps the entitlement offer.
+        priceBtn.hidden = document.body.classList.contains('demo-clean') || !(mode === 'sample' && courseEntitlement.state === 'must_pay' && courseEntitlement.offer);
       }
     }
     function resolveLearnerId() {
@@ -3413,12 +3553,26 @@ STUDIO_JS = """
         startStudentTracking();
         return;
       }
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { announceCamera('denied'); return; }
+      // Camera consent comes first: the card (course_voice.js) is shown once per browser, then the browser's own prompt follows.
+      // "Not now" and the widget's off switch keep the lesson going without a camera.
+      const pref = readCamPref();
+      if (pref === 'no' || pref === 'off') { announceCamera('off'); return; }
+      if (pref !== 'yes') {
+        const gate = window.salaCamConsent;
+        if (gate && typeof gate.ensure === 'function') {
+          announceCamera('asking');
+          let allowed = false;
+          try { allowed = await gate.ensure(); } catch (_) { allowed = false; }
+          if (!allowed) { announceCamera('off'); return; }
+        }
+      }
       try {
         studentCamStream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 360 } },
           audio: false,
         });
+        announceCamera('on');
         watchCameraStream(studentCamStream);
         const video = $('student-cam-video');
         if (video) {
@@ -3432,11 +3586,32 @@ STUDIO_JS = """
         if (!studentAwayTimer) studentAwayTimer = window.setInterval(watchStudentPresence, 200);
         startStudentTracking();
       } catch (error) {
+        announceCamera('denied');
+        if (document.body.classList.contains('demo-clean')) return;   // demo: audio-only is fine, no nagging line
         setLearningStatus('Camera is required. Allow it to continue.');
         if (!studentCamTimer) studentCamTimer = window.setInterval(() => { void studentCameraSample(); }, 1000);
         if (!studentAwayTimer) studentAwayTimer = window.setInterval(watchStudentPresence, 200);
       }
     }
+
+    // The camera choice and its page API (read by the widget in course_voice.js).
+    const CAM_PREF_KEY = 'salareen_camera_pref_v1';   // 'yes' (allowed) | 'no' (declined) | 'off' (turned off in the widget)
+    function readCamPref() { try { return localStorage.getItem(CAM_PREF_KEY) || ''; } catch (_) { return ''; } }
+    function writeCamPref(value) {
+      try { if (value) localStorage.setItem(CAM_PREF_KEY, value); else localStorage.removeItem(CAM_PREF_KEY); } catch (_) { /* not kept */ }
+    }
+    function announceCamera(state) {
+      document.body.dataset.camera = state;
+      try { window.dispatchEvent(new CustomEvent('sala-camera', { detail: { state } })); } catch (_) { /* old browser */ }
+    }
+    window.salaCamera = {
+      state: () => document.body.dataset.camera || '',
+      pref: readCamPref,
+      turnOn: async () => { writeCamPref('yes'); await ensureStudentCamera(); },
+      turnOff: () => { writeCamPref('off'); stopStudentCamera(); announceCamera('off'); },
+      reset: () => { writeCamPref(''); stopStudentCamera(); announceCamera('off'); },
+      stop: () => { stopStudentCamera(); announceCamera('off'); },
+    };
 
     function setStudentCamHidden(hidden) {
       const box = $('student-cam');
@@ -3889,10 +4064,21 @@ STUDIO_JS = """
       return `<span class="pill ${cls}">${esc(q)}</span>`;
     }
 
+    function loginToken() {
+      try { return localStorage.getItem('aoep_token') || ''; } catch (err) { return ''; }
+    }
     async function api(path, opts) {
-      const res = await fetch(path, opts);
+      const options = Object.assign({}, opts || {});
+      const token = loginToken();
+      if (token && String(path).indexOf('/api/studio/') === 0) {
+        options.headers = Object.assign({authorization: 'Bearer ' + token}, options.headers || {});
+      }
+      const res = await fetch(path, options);
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.detail || res.statusText || 'request failed');
+      if (!res.ok) {
+        const detail = typeof data.detail === 'string' ? data.detail : '';
+        throw new Error(detail || data.friendly_message || 'Something went wrong. Please try again.');
+      }
       const method = String((opts && opts.method) || 'GET').toUpperCase();
       if (method !== 'GET' && window.ReactNativeWebView && String(path).indexOf('/api/studio/') === 0) {
         try {
@@ -4396,23 +4582,30 @@ STUDIO_JS = """
       lecturePaused = false;
       if ($('btn-pause')) setPauseButton(false);
       teachLanguage = $('teach-lang').value || 'en';
-      const data = await api('/api/studio/teach/start', {
-        method:'POST', headers:{
-          'content-type':'application/json',
-          ...(localStorage.getItem('aoep_token')
-            ? {'authorization':'Bearer ' + localStorage.getItem('aoep_token')}
-            : {})
-        },
-        body: JSON.stringify({
-          session_id: teachSession, course_id: selectedCourse, profile: profileFromForm(),
-          learner_id: learnerId,
-          focus_gaps: !!(opts && opts.focusGaps === false) ? false : true, known_objective_ids: [],
-          language: teachLanguage, use_voice_agent: true,
-          voice_gender: courseVoiceGender,
-          resume: opts.resume !== false,
-          ...teachAccessFields()
-        })
-      });
+      let data;
+      try {
+        data = await api('/api/studio/teach/start', {
+          method:'POST', headers:{
+            'content-type':'application/json',
+            ...(localStorage.getItem('aoep_token')
+              ? {'authorization':'Bearer ' + localStorage.getItem('aoep_token')}
+              : {})
+          },
+          body: JSON.stringify({
+            session_id: teachSession, course_id: selectedCourse, profile: profileFromForm(),
+            learner_id: learnerId,
+            focus_gaps: !!(opts && opts.focusGaps === false) ? false : true, known_objective_ids: [],
+            language: teachLanguage, use_voice_agent: true,
+            voice_gender: courseVoiceGender,
+            resume: opts.resume !== false,
+            ...teachAccessFields()
+          })
+        });
+      } catch (error) {
+        // The server refuses an anonymous demo that is over (a reload, Back or another language cannot reopen it).
+        if (/^trial_expired/.test(String((error && error.message) || ''))) { endSampleTrial(null); return; }
+        throw error;
+      }
       renderTeach(data);
       if (data.resume_message) toast(data.resume_message);
       else if (data.bookmark_available) toast('Saved place found — use Resume saved to continue');
@@ -4638,6 +4831,8 @@ STUDIO_JS = """
       if (!ok) return;
       stopSpeech();
       stopStudentMic();
+      // One recogniser at a time: the course's own always-on listener steps aside while this button listens.
+      try { window.dispatchEvent(new CustomEvent('sala:pause-recognition')); } catch (_) { /* old browser */ }
       const rec = new Ctor();
       studentRec = rec;
       rec.lang = recognitionLang();
@@ -4664,6 +4859,7 @@ STUDIO_JS = """
         if (heard) onText(heard, isFinal && !!finalText);
       };
       const finishRec = () => {
+        try { window.dispatchEvent(new CustomEvent('sala:resume-recognition')); } catch (_) { /* old browser */ }
         if (button) {
           button.classList.remove('is-listening');
           if (button.dataset.label) button.textContent = button.dataset.label;
@@ -4689,38 +4885,64 @@ STUDIO_JS = """
     }
 
     function spokenWords(text) {
-      return String(text || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\\s+/g, ' ').trim();
+      // Any language: letters and numbers of every script stay, accents are folded, everything else becomes a space.
+      return String(text || '').toLowerCase().normalize('NFKD').replace(/[\\u0300-\\u036f]/g, '')
+        .replace(/[^\\p{L}\\p{N} ]/gu, ' ').replace(/\\s+/g, ' ').trim();
     }
+
+    const CHOICE_LETTERS = { a:0, b:1, c:2, d:3, e:4, f:5 };
+    // First..sixth and one..six in the languages of the demo (accents folded), plus the CJK digits.
+    const CHOICE_ORDINALS = {
+      one:0, first:0, two:1, second:1, three:2, third:2, four:3, fourth:3, five:4, fifth:4, six:5, sixth:5,
+      uno:0, primero:0, primera:0, dos:1, segundo:1, segunda:1, tres:2, tercero:2, tercera:2, cuatro:3, cuarto:3, cuarta:3, cinco:4, quinto:4, seis:5, sexto:5,
+      un:0, premier:0, premiere:0, deux:1, deuxieme:1, trois:2, troisieme:2, quatre:3, quatrieme:3, cinq:4, cinquieme:4, six_fr:5,
+      eins:0, erste:0, ersten:0, zwei:1, zweite:1, zweiten:1, drei:2, dritte:2, dritten:2, vier:3, vierte:3, vierten:3, funf:4, funfte:4, sechs:5,
+      um:0, dois:1, segunda_pt:1, tres_pt:2, terceiro:2, quatro:3, quarto:3, sexto_pt:5,
+      due:1, tre:2, quattro:3, secondo:1, terzo:2, quarto_it:3,
+      '一':0, '二':1, '三':2, '四':3, '五':4, '六':5, '第一':0, '第二':1, '第三':2, '第四':3, '第五':4, '第六':5,
+      'ក្រោយ':-1
+    };
+    const CHOICE_FILLERS = new Set(['the','number','option','choice','answer','please','its','it','is','one','letter','opcion','respuesta','numero','la','el','reponse','choix','antwort','nummer']);
+    const CHOICE_STOP = new Set(['the','and','for','you','are','with','that','this','from','have','not','but','was','all','can','will','your','del','las','los','una','por','con','que','une','des','les','und','der','die','das']);
 
     function matchSpokenChoice(spoken, choices) {
       const said = spokenWords(spoken);
       if (!said) return -1;
-      const letters = { a:0, b:1, c:2, d:3, e:4, f:5 };
-      const ordinals = {
-        one:0, first:0, two:1, second:1, three:2, third:2,
-        four:3, fourth:3, five:4, fifth:4, six:5, sixth:5
-      };
-      if (Object.prototype.hasOwnProperty.call(letters, said) && letters[said] < choices.length) return letters[said];
-      if (Object.prototype.hasOwnProperty.call(ordinals, said) && ordinals[said] < choices.length) return ordinals[said];
-      const fillers = { the:1, number:1, option:1, choice:1, answer:1, please:1, its:1, it:1, is:1 };
-      const tokens = said.split(' ').filter((word) => word && !fillers[word]);
-      if (tokens.length === 1 && Object.prototype.hasOwnProperty.call(ordinals, tokens[0]) && ordinals[tokens[0]] < choices.length) {
-        return ordinals[tokens[0]];
-      }
-      if (tokens.length === 1 && Object.prototype.hasOwnProperty.call(letters, tokens[0]) && letters[tokens[0]] < choices.length) {
-        return letters[tokens[0]];
+      const count = choices.length;
+      const ordinal = (word) => (Object.prototype.hasOwnProperty.call(CHOICE_ORDINALS, word) && CHOICE_ORDINALS[word] >= 0 && CHOICE_ORDINALS[word] < count) ? CHOICE_ORDINALS[word] : -1;
+      if (Object.prototype.hasOwnProperty.call(CHOICE_LETTERS, said) && CHOICE_LETTERS[said] < count) return CHOICE_LETTERS[said];
+      const whole = ordinal(said);
+      if (whole >= 0) return whole;
+      const tokens = said.split(' ').filter(Boolean);
+      const content = tokens.filter((word) => !CHOICE_FILLERS.has(word) || ordinal(word) >= 0);
+      // "C", "option c", "letter b", "the third one", "number 2", "option three": a short phrase that names ONE position.
+      if (tokens.length <= 4) {
+        const picks = new Set();
+        for (const word of tokens) {
+          if (Object.prototype.hasOwnProperty.call(CHOICE_LETTERS, word) && CHOICE_LETTERS[word] < count && tokens.length > 1 && tokens.some((t) => ['option','choice','letter','answer','opcion','choix'].includes(t))) picks.add(CHOICE_LETTERS[word]);
+          const o = ordinal(word);
+          if (o >= 0 && word !== 'one' && word !== 'un' && word !== 'um' && word !== 'uno') picks.add(o);
+          if (/^\\d+$/.test(word)) { const n = parseInt(word, 10); if (n >= 1 && n <= count) picks.add(n - 1); }
+        }
+        if (picks.size === 1) return [...picks][0];
+        if (picks.size === 0 && tokens.length === 2 && tokens[1] === 'one') { const o = ordinal(tokens[0]); if (o >= 0) return o; }
       }
       const numbered = said.match(/^(?:number|option|choice|answer)?\\s*(\\d+)$/);
       const num = numbered ? parseInt(numbered[1], 10) : parseInt(said, 10);
-      if (num >= 1 && num <= choices.length && String(num) === said.replace(/\\D/g, '')) return num - 1;
-      let best = -1;
-      let bestScore = 0;
-      choices.forEach((choice, index) => {
-        const words = spokenWords(choice).split(' ').filter((word) => word.length > 2);
-        const score = words.filter((word) => said.includes(word)).length;
-        if (score > bestScore) { bestScore = score; best = index; }
-      });
-      return bestScore > 0 ? best : -1;
+      if (num >= 1 && num <= count && String(num) === said.replace(/\\D/g, '')) return num - 1;
+      // The words of an option: share of its meaningful words that were said; the best option wins if it is clearly ahead.
+      const saidWords = new Set(content);
+      const scored = choices.map((choice, index) => {
+        const words = spokenWords(choice).split(' ').filter((word) => word.length > 2 && !CHOICE_STOP.has(word));
+        const hit = words.filter((word) => saidWords.has(word) || said.includes(word)).length;
+        return { index, hit, share: words.length ? hit / words.length : 0 };
+      }).sort((x, y) => (y.share - x.share) || (y.hit - x.hit));
+      const best = scored[0];
+      const next = scored[1];
+      if (!best || best.hit === 0) return -1;
+      if (best.share >= 0.5 && (!next || best.share > next.share || best.hit > next.hit)) return best.index;
+      if (best.hit >= 2 && (!next || best.hit > next.hit)) return best.index;
+      return -1;
     }
 
     let spokenActivity = null;
@@ -4745,6 +4967,12 @@ STUDIO_JS = """
       if (heard) heard.textContent = 'Heard: ' + text;
       return spokenActivity(text) === true;
     }
+    // The demo listens with its own recogniser (course_voice.js). While a learning check is open it hands what it hears to this
+    // handler first, so an answer is never taken for a question to the course.
+    window.salaActivity = {
+      open: () => typeof spokenActivity === 'function',
+      handle: (text) => applySpokenActivity(text, 'user'),
+    };
     function saidCheck(text) {
       const said = spokenWords(text);
       return said === 'check' || said === 'done' || said === 'submit' || said === 'finished' ||
@@ -5054,6 +5282,9 @@ STUDIO_JS = """
         return true;
       }, prompt + ' Left: ' + (compare.left || '') + '. Right: ' + (compare.right || ''));
     }
+
+    // Test hook (only with ?e2e=1 in the page address): lets the browser tests open a learning check without waiting for a lesson.
+    if (studioQuery.get('e2e') === '1') window.__salaStudio = { present: (checkpoint) => presentActivityCheckpoint(checkpoint) };
 
     function presentActivityCheckpoint(checkpoint) {
       if (checkpoint && checkpoint.activity === 'compare' && checkpoint.compare) {
@@ -5693,14 +5924,16 @@ STUDIO_JS = """
     async function summaryQuizInteractive() {
       stopSpeech();
       theodoreAvatar?.setState('ask');
+      const box = $('quiz-box');
+      // Show the card at once (no empty dark stage while the questions load).
+      box.style.display = 'block';
+      box.innerHTML = '<p role="status">Getting your question…</p>';
       const quiz = await api('/api/studio/teach/summary-quiz', {
         method:'POST', headers:{'content-type':'application/json'},
         body: JSON.stringify({ session_id: teachSession })
       });
       const questions = quiz.questions || [];
       const answers = {};
-      const box = $('quiz-box');
-      box.style.display = 'block';
       if (!questions.length) {
         box.style.display = 'none';
         continueAfterActivity();
@@ -5752,17 +5985,55 @@ STUDIO_JS = """
         const choices = q.choices || [];
         box.innerHTML = `<div class="quiz-progress">Question ${at + 1} of ${questions.length}</div>
           <strong>${esc(q.prompt)}</strong>` +
-          choices.map((choice, i) => `<button type="button" data-sync-choice="${i}">${esc(choice)}</button>`).join('') +
+          choices.map((choice, i) => `<button type="button" data-sync-choice="${i}" aria-label="${String.fromCharCode(65 + i)}. ${esc(choice)}">${esc(choice)}</button>`).join('') +
           `<button type="button" class="secondary mic-btn" id="summary-sync-mic">Speak your answer</button>
-          <p class="heard" id="summary-sync-heard"></p>`;
+          <p class="heard" id="summary-sync-heard" role="status" aria-live="polite"></p>
+          <p class="quiz-feedback" id="summary-sync-feedback" role="status" aria-live="polite"></p>
+          <button type="button" class="primary" id="summary-sync-next" hidden>Next question</button>`;
         const spokenQuestion = q.prompt + '. ' +
           choices.map((choice, i) => `Option ${i + 1}: ${choice}`).join('. ');
         speakText(spokenQuestion, null, true, 'checkpoint');
+        let locked = false;
+        let advanced = false;
+        let timer = 0;
+        const noMatch = (text) => {
+          const heard = box.querySelector('#summary-sync-heard');
+          if (heard) heard.textContent = 'I heard “' + text + '”. Say A, B, C or D, a number, or the answer — or tap it.';
+        };
         const choose = (index) => {
+          if (locked) return;
+          locked = true;
           answers[q.question_id] = index;
-          at += 1;
-          if (at >= questions.length) finish();
-          else show();
+          clearSpokenActivity();
+          stopSpeech();
+          const right = Number.isInteger(q.correct_index) ? q.correct_index : -1;
+          box.querySelectorAll('button[data-sync-choice]').forEach((button) => {
+            const i = +button.dataset.syncChoice;
+            button.disabled = true;
+            if (i === index) button.classList.add('is-picked');
+            if (right >= 0 && i === right) button.classList.add('is-correct');
+            else if (right >= 0 && i === index) button.classList.add('is-wrong');
+          });
+          const correct = right < 0 ? null : index === right;
+          const feedback = box.querySelector('#summary-sync-feedback');
+          if (feedback) feedback.textContent = correct === null ? 'Got it.' : correct ? 'Correct!' : 'Not quite. The answer is: ' + (choices[right] || '');
+          const lastOne = at + 1 >= questions.length;
+          const next = box.querySelector('#summary-sync-next');
+          const go = () => {
+            if (advanced) return;
+            advanced = true;
+            window.clearTimeout(timer);
+            at += 1;
+            if (at >= questions.length) finish();
+            else show();
+          };
+          if (next) {
+            next.hidden = false;
+            next.textContent = lastOne ? 'See my results' : 'Next question';
+            next.onclick = go;
+            next.focus({ preventScroll: true });
+          }
+          timer = window.setTimeout(go, correct === false ? 3400 : 1700);
         };
         box.querySelectorAll('button[data-sync-choice]').forEach((button) => {
           button.onclick = () => choose(+button.dataset.syncChoice);
@@ -5773,13 +6044,13 @@ STUDIO_JS = """
             if (heard) heard.textContent = 'Heard: ' + text;
             if (!isFinal) return;
             const index = matchSpokenChoice(text, choices);
-            if (index < 0) return toast('Say the choice, or a number.');
+            if (index < 0) return noMatch(text);
             choose(index);
           }, box.querySelector('#summary-sync-mic'));
         };
         armSpokenActivity((text) => {
           const index = matchSpokenChoice(text, choices);
-          if (index < 0) return false;
+          if (index < 0) { noMatch(text); return false; }
           choose(index);
           return true;
         }, q.prompt + '. Choices: ' + choices.join(', '));
@@ -7109,6 +7380,7 @@ STUDIO_JS = """
         if (staleGame) { staleGame.style.display = 'none'; staleGame.innerHTML = ''; }
       }
       lastTeachPayload = payload;
+      loadEntitlement();
       beatHandled = false;
       showAbsorb(false);
       slideVariety = pickLearnVariety(payload);
@@ -7248,10 +7520,8 @@ STUDIO_JS = """
       const notices = [];
       if (payload.disclaimer) notices.push('ℹ ' + payload.disclaimer);
       if (spoken !== lang) {
-        // Coverage is per-slide, so the voice follows the words rather than
-        // reading English aloud with the requested language's voice.
-        notices.push('⚠ This screen is not translated yet — shown and read aloud in ' +
-          languageLabel(spoken) + '.');
+        // Coverage is per-slide, so the voice follows the words rather than reading English aloud with the requested
+        // language's voice. The learner is not told: it falls back silently (no "not translated yet" banner).
       } else if (payload.translation_source === 'xai') {
         notices.push('ℹ Machine-translated by Grok — review before classroom use.');
       } else if (payload.translation_source === 'curated' && payload.translation_note) {
@@ -7353,6 +7623,7 @@ STUDIO_JS = """
     on('pay-card', 'click', () => { beginCoursePayment('card'); });
     on('pay-paypal', 'click', () => { beginCoursePayment('paypal'); });
     on('pay-close', 'click', () => closePayScreen());
+    loadEntitlement();
     confirmCoursePayment();
     on('btn-pause', 'click', () => toggleLecturePause());
     on('btn-fullscreen', 'click', togglePresenterMode);
@@ -7741,13 +8012,13 @@ def render_studio_page() -> str:
             <p id="attention-aside" class="attention-aside" hidden></p>
             <div class="modality-row" id="teach-modalities"></div>
             <div class="examples-box" id="teach-examples"></div>
-            <div class="lang-warning" id="lang-warning" style="display:none"></div>
+            <div class="lang-warning" id="lang-warning" role="status" aria-live="polite" style="display:none"></div>
             <div class="sample-clock" id="sample-clock" hidden title="Free demo: time left">
               <span id="sample-clock-time">10:00</span>
               <small data-i18n="freeTrial">free trial</small>
             </div>
             <div class="sample-banner" id="sample-banner" style="display:none" role="status"></div>
-            <div class="activity" id="teach-activity" style="display:none"></div>
+            <div class="activity" id="teach-activity" role="status" aria-live="polite" style="display:none"></div>
             <div class="narr" id="teach-narr"></div>
             <div class="absorb-note" id="absorb-note" hidden data-i18n="absorb">Take a moment with this page. The next one waits so you can study it.</div>
             <div class="status" id="teach-adapt"></div>
@@ -7807,6 +8078,17 @@ def render_studio_page() -> str:
       <p id="pay-status" role="status"></p>
       <button id="pay-close" class="secondary" type="button">Not now</button>
     </form>
+  </div>
+  <div id="trial-end" hidden role="dialog" aria-modal="true" aria-labelledby="trial-end-title" data-testid="trial-end">
+    <div class="trial-card">
+      <h2 id="trial-end-title">Create or log in to your account</h2>
+      <p id="trial-end-copy">Your free 10-minute demo has ended. Create an account or log in to your account to keep learning.</p>
+      <div class="row">
+        <button id="trial-create" type="button" class="primary">Create account</button>
+        <button id="trial-login" type="button">Log in</button>
+      </div>
+      <button id="trial-notnow" type="button" class="quiet">Not now</button>
+    </div>
   </div>
   <div class="toast" id="toast"></div>
   <script>"""

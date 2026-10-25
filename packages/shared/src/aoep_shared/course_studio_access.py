@@ -49,16 +49,15 @@ PUBLIC_STUDIO_COURSES = (
 )
 
 SAMPLE_PREVIEW = (
-    "This free trial is 10 minutes. "
-    f"The full course is {COURSE_PRICE_LABEL}. "
-    "Pay for the course when you want the full class."
+    "This free demo is 10 minutes. "
+    "Create an account or log in to keep learning."
 )
 SAMPLE_ENDED = (
-    "Your free 10-minute trial has ended. "
-    "Thanks for spending time with the lesson. "
-    f"The full course is {COURSE_PRICE_LABEL}. "
-    "Pay for the course when you want to keep going."
+    "Your free 10-minute demo has ended. "
+    "Create an account or log in to your account to keep learning."
 )
+# After the demo ends, the same browser (learner) gets a new demo only after this long.
+SAMPLE_COOLDOWN_MINUTES = 24 * 60
 
 
 def full_class_allowed(
@@ -98,3 +97,12 @@ def resolve_teach_access(
             return "full"
         return "sample"
     return "full"
+
+
+def purchasable_course(course_id: str):
+    """The public paid course with this id, or None. Price and title come from here, never from the browser."""
+    wanted = (course_id or "").strip()
+    for course in PUBLIC_STUDIO_COURSES:
+        if course["id"] == wanted and course.get("price_cents"):
+            return course
+    return None

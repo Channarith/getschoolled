@@ -1,0 +1,180 @@
+COURSE PAYMENTS (web card + PayPal, receipts, refunds, tax; store purchases and policy pages come in the next PRs)
+=====================================================================================
+DRAFT for owner review. Not legal or tax advice.
+
+What the owner asked for
+  1. Never show a price or take payment from an anonymous visitor. The demo ends at "Create or log in to your account".
+  2. The price ($19.99, one time) applies ONLY to signed-in accounts that are not admin and not VIP/premium.
+  3. Admin, VIP (the identity service's name for the "premium" tier) and premium accounts take the class FREE.
+  4. Payment is offered only after login, when the account previews the full course (/learn/drivers-ed, /learn/food-safety).
+
+How it works
+  GET  /api/studio/entitlement?course_id=X   -> login_required | free | paid | must_pay (+ offer only for must_pay)
+  POST /api/studio/pay/checkout              {course_id, method: card|paypal, return_url}  (login required)
+  POST /api/studio/pay/confirm               {session_id, method}  (login required; the account must own the order)
+  POST /api/studio/pay/webhook/stripe        signed by Stripe (STRIPE_WEBHOOK_SECRET)
+  POST /api/studio/pay/webhook/paypal        verified through PayPal's own API (PAYPAL_WEBHOOK_ID)
+  GET  /api/studio/account/purchases         the caller's own orders
+
+  * One server-side decision: aoep_shared.course_entitlement.entitled_to_course(user, course_id). `user` is the account the
+    identity service returns for the login (/auth/me). Nothing the browser says (registered, enrollment, admin flags in the
+    URL or the request body) is used for a paid public course, with STUDIO_VERIFY_CLAIMS on OR off.
+  * The login reaches the studio as the Authorization bearer, or, when the page only holds the HttpOnly session cookie
+    (aoep_session), as that cookie. Both are checked by the identity service. State-changing calls also refuse a request
+    whose Origin is another site.
+  * The course, price and title come from the server's list (aoep_shared.course_studio_access.PUBLIC_STUDIO_COURSES),
+    never from the request. The browser never sends a card number.
+  * A purchase is recorded once per processor reference (Stripe session, PayPal order) in a durable ledger
+    (aoep_shared.purchases, Redis) bound to the ACCOUNT, so it unlocks the class on every device.
+  * Return page and webhook may both fire: the second is a no-op. A reference used by another account is refused.
+  * Refunds, disputes and reversals revoke access (webhook events charge.refunded, charge.dispute.*, PayPal
+    PAYMENT.CAPTURE.REFUNDED/REVERSED/DENIED). A late duplicate never re-activates a refunded order.
+  * Cloud never falls back to a store that forgets: with no Redis the ledger raises and payments answer 503 "paused".
+
+Why "request failed" appeared before (found in this work)
+  * The signed-in "Unlock full course" button called the IDENTITY service /enrollments/{id}/purchase. In the cloud that
+    route always answers 402 ("stays a 10-minute sample until payment is confirmed"): no processor sits behind it. In
+    local/sandbox it marked the course paid with no money. It is no longer used by the course page.
+  * The studio overlay's checkout had no login (it keyed a purchase to a browser-chosen learner id) and the studio's
+    own data folder, /tmp/course-studio, is erased on every restart: a paid learner would have lost access on a deploy.
+  * Unexpected network errors became a 500 with no body, which the page printed as "request failed".
+  * The studio's PayPal path needed PAYPAL_API_KEY / PAYPAL_API_SECRET, which are not in the cluster secret.
+
+Config (NAMES ONLY; values live in the Kubernetes secret aoep-secrets / config map aoep-config, never in the repo)
+  PAYMENT_API_KEY          Stripe secret key (sk_test_... for sandbox, sk_live_... for launch). Already a secret key name.
+  STRIPE_WEBHOOK_SECRET    whsec_... from the Stripe webhook endpoint (NEW)
+  PAYPAL_API_KEY, PAYPAL_API_SECRET   PayPal REST app client id / secret (NEW)
+  PAYPAL_ENV               "sandbox" for tests; unset/other = live (NEW)
+  PAYPAL_WEBHOOK_ID        id of the PayPal webhook (NEW)
+  COURSE_FREE_TIERS        comma list of tiers that take courses free; default "premium" (add "pro" if wanted)
+  COURSE_TAX_MODE          none | provider | manual   (see the tax section when it ships)
+  PURCHASES_BACKEND        auto | redis | memory | file; auto = Redis (REDIS_URL + REDIS_PASSWORD already present)
+
+Owner checklist
+  Stripe (test mode first)
+    1. Dashboard > Developers > API keys: put the TEST secret key in PAYMENT_API_KEY while testing.
+    2. Developers > Webhooks > Add endpoint: https://salareen.com/api/studio/pay/webhook/stripe, events:
+       checkout.session.completed, checkout.session.async_payment_succeeded, charge.refunded, charge.dispute.created.
+       Copy the signing secret into STRIPE_WEBHOOK_SECRET.
+    3. Test with card 4242 4242 4242 4242 (any future date, any CVC). Check the order appears under /api/studio/account/purchases.
+  PayPal (sandbox first)
+    1. developer.paypal.com > Apps: create a sandbox app; put client id/secret in PAYPAL_API_KEY / PAYPAL_API_SECRET, set PAYPAL_ENV=sandbox.
+    2. Add a webhook to https://salareen.com/api/studio/pay/webhook/paypal for PAYMENT.CAPTURE.COMPLETED, .REFUNDED, .REVERSED, .DENIED;
+       put its id in PAYPAL_WEBHOOK_ID. Pay with a sandbox personal account.
+  Go live: swap the keys for live ones and unset PAYPAL_ENV. Do not mix modes.
+  Decide: whether Pro members should take courses free (COURSE_FREE_TIERS), the price, and the refund policy (next PR).
+
+Known limits
+  * The authoring-studio default (empty access on a course that is not for sale) still trusts request fields until
+    STUDIO_VERIFY_CLAIMS=1; paid public courses and any explicit access=full request are always verified.
+  * /demo/drivers-ed still redirects only admin/paid accounts to the full course page; VIP/premium reach it from the menu.
+  * Course audio TTS (/api/studio/tts) is not entitlement-gated: it is the shared voice service, cost-capped separately.
+
+
+RECEIPTS, REFUNDS, TAX (part 2)  -- all wording is DRAFT for counsel / CPA review; every number is configuration
+  Receipts
+    GET  /api/studio/account/receipts/{order}.html | .pdf   (login + ownership; add ?type=credit-note after a refund)
+    POST /api/studio/account/receipts/{order}/email          ("email me this receipt": needs SMTP_HOST; says so when it cannot send)
+    GET  /api/studio/receipts/verify?order=&code=            (anyone with a receipt can check its code; no personal data returned)
+    One receipt per order (idempotent), with order number, UTC and local time, buyer email, item, price, tax line(s), total,
+    payment method type (card last four only), seller details, refund-policy link, AI-assisted-instruction disclaimer.
+    A confirmed payment emails the receipt once when SMTP is configured. Store purchases show our entitlement record only;
+    Apple and Google send their own receipt.
+    Config: SELLER_LEGAL_NAME, SELLER_ADDRESS, SELLER_SUPPORT_EMAIL, SELLER_PERMIT_NUMBER, SELLER_TIMEZONE, REFUND_POLICY_URL,
+    TERMS_URL, COURSE_DMV_DISCLAIMER, RECEIPT_SIGNING_KEY, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM.
+    Unset seller details print as "[to be set by the seller]": nothing is invented.
+  Refunds
+    Proposed default: 14 days from purchase, at most 20% of lessons completed, none after a certificate is issued.
+    Config: REFUND_WINDOW_DAYS, REFUND_MAX_PROGRESS_PCT, REFUND_BLOCK_AFTER_CERTIFICATE, REFUND_AUTO_APPROVE (0 = every
+    request goes to support).
+    POST /api/studio/account/purchases/{order}/refund-request   self-service, rule-checked; a "no" is always routed to support
+    POST /api/studio/admin/purchases/{order}/refund             verified admin only; full or partial; through the provider API
+    Provider calls carry idempotency keys (refund-<order>), so a retry can never refund twice. Access ends at once, a credit
+    note is available, and every step is in the audit list. Chargebacks/disputes revoke access through the webhooks.
+    Progress: until a lesson-progress source is wired, "never opened the full class" counts as 0% and "opened it" goes to
+    support for review (reason needs_review).
+    Store purchases: Apple/Google refund them; our server revokes access when the store notifies us.
+  Sales tax (COURSE_TAX_MODE = none | provider | manual)
+    none      no tax line (the owner or CPA decided). Default.
+    provider  Stripe Tax on hosted checkout (turn on Stripe Tax in the dashboard). Cards only.
+    manual    COURSE_TAX_RATES_JSON {"CA": 0.0725}: the buyer's state is asked for ONLY in this mode.
+    OPEN QUESTIONS FOR THE CPA (not answered here): is an online driver-education or food-safety course taxable in California
+    or elsewhere; does selling to other states create a collection duty (economic nexus); the seller's permit / CDTFA
+    registration. Apple and Google are the sellers of record for in-app purchases and handle tax themselves.
+  Policy endpoint: GET /api/studio/policy returns the configured numbers so the policy pages always match the server.
+
+POLICY PAGES, CHECKOUT AND ACCOUNT (part 3)
+  Pages (linked from the footer's "Legal & Compliance" hub and from the checkout card): /legal/terms-of-sale,
+  /legal/refund-policy, /legal/receipts-and-taxes. Plain-language DRAFTS in apps/web/content/legal/*.txt, English only.
+  Each page also shows the live numbers from GET /api/studio/policy so it cannot disagree with the server.
+  Checkout card: price, tax line and total when tax applies (asks for the state only in manual tax mode), the AI-assisted /
+  not-DMV-approved note, and the three policy links. Account > Purchases: receipt, PDF, credit note, "Email me this receipt",
+  "Request a refund" (wording from the server's verdict).
+  The regulatory question (is a DMV licence needed to sell this as driver education) is the TOP owner decision: see
+  docs/regulatory-driver-ed.txt, with sources and a copy audit.
+
+
+PART 4: APP STORE AND GOOGLE PLAY PURCHASES (server side)
+=========================================================
+Apps use the stores' in-app purchase only (no web checkout, no external payment links inside the apps). The server verifies
+every purchase itself and records it in the SAME ledger as web purchases (provider "apple" or "google"), so a course bought
+on a phone opens on the web and the other way round. Code: aoep_shared/store_iap.py, studio iap_routes.py.
+
+Routes (studio):
+  GET  /api/studio/iap/products?course_id=   login required; product ids + the account tokens the app attaches to the purchase
+  POST /api/studio/iap/apple/verify          {signed_transaction}  StoreKit 2 JWS
+  POST /api/studio/iap/google/verify         {product_id, purchase_token}
+  POST /api/studio/iap/apple/notifications   App Store Server Notifications V2 (signature chain is the authentication)
+  POST /api/studio/iap/google/notifications?token=<GOOGLE_RTDN_SECRET>   Pub/Sub push (RTDN)
+
+Guarantees: the phone's receipt is never trusted (Apple JWS chain checked to Apple Root CA G3 + Apple OIDs + dates + ES256;
+Google purchase fetched with purchases.products.get); bundle id / product / sandbox policy checked; appAccountToken (Apple) and
+obfuscatedExternalAccountId (Google) must equal the token derived from OUR account id; one transaction/token belongs to one
+account (another account gets 409); replays return the existing order; Google purchases are acknowledged (3-day deadline) and a
+failed acknowledge is retried on restore; REFUND/REVOKE (Apple) and voided/canceled (Google) revoke access and stay revoked;
+store orders show "refund through the store" in the refund UI; the stores handle sales tax (marketplace facilitators).
+Tests use generated certificate chains and mocked Google responses: no store is contacted and no money moves.
+
+Config (names only):
+  IAP_PRODUCTS_JSON            {"drivers-ed": {"apple": "<apple product id>", "google": "<play product id>"}}
+  APPLE_BUNDLE_ID, APPLE_ROOT_CA_PEM or APPLE_ROOT_CA_PEM_FILE (Apple Root CA - G3, from apple.com/certificateauthority)
+  APPLE_IAP_KEY_ID, APPLE_IAP_ISSUER_ID, APPLE_IAP_PRIVATE_KEY   (reserved for the App Store Server API; not required to verify
+                                                                  signed transactions and notifications)
+  GOOGLE_PLAY_PACKAGE_NAME, GOOGLE_PLAY_SERVICE_ACCOUNT_JSON (JSON or file path), GOOGLE_RTDN_SECRET
+  IAP_ALLOW_SANDBOX (default 1: App Review pays with sandbox purchases against production; they are marked sandbox in the ledger)
+  IAP_ACCOUNT_SALT (optional; defaults to AUTH_SIGNING_KEY. Changing it breaks token binding for new purchases, so set it once)
+
+OWNER CHECKLIST (store side, nothing here is done for you)
+  Apple: Paid Apps agreement, tax and banking in App Store Connect; create ONE non-consumable "Full course (drivers-ed)";
+         add Sandbox testers; set the Server Notifications V2 URL (production and sandbox) to .../api/studio/iap/apple/notifications;
+         put Apple Root CA G3 in APPLE_ROOT_CA_PEM.
+  Google: Play Console merchant account (tax/banking); create ONE managed product; License testers for sandbox; a service account
+         with "View financial data" and "Manage orders and subscriptions" permissions invited in Play Console; Pub/Sub topic for RTDN with a
+         push subscription to .../api/studio/iap/google/notifications?token=<GOOGLE_RTDN_SECRET>.
+  Review notes (both stores): sign-in comes first, then purchase; give reviewers a test account; mention that admin/VIP/premium
+         accounts are entitled without buying. Gotchas: a Restore Purchases button is required; no links to web payment inside the
+         apps; account deletion must be offered in-app.
+  Store fee: Apple and Google keep a commission on in-app sales (decision for the owner; web price is unchanged).
+
+
+PART 5: MOBILE APPS (client side of the store purchases)
+=========================================================
+Library: react-native-iap 12.16.4 (our own server validates; no RevenueCat, no third party or extra fee). It is a NATIVE module:
+it needs a development or release build (not Expo Go); "react-native-iap" is in the app.json plugins. Lockfile was updated with
+pnpm install --ignore-workspace --no-frozen-lockfile semantics.
+
+Flow (apps/mobile/src/studioCoursePrompt.ts, storeIap.ts):
+  1. The app asks the SERVER what the signed-in account may do (GET /api/studio/entitlement). free (admin/VIP/premium) and paid open the
+     full class with no price anywhere. Anonymous users get the demo only.
+  2. must_pay: a dialog offers "Buy (<store price>)", "Restore purchases" and the demo. No web checkout and no payment link.
+  3. Buy: GET iap/products gives the product id and the account token; the app starts the store purchase with appAccountToken (iOS) /
+     obfuscatedAccountIdAndroid; the app sends the transaction id (iOS) or product id + purchase token (Android) to the server; only
+     after the server records it does the app finish the transaction and open the class. Server refusal leaves it unfinished.
+  4. Restore Purchases re-verifies what the store says this person owns onto THIS account (App Review requires the button).
+  5. The class WebView receives the login as the aoep_session cookie so the studio server can verify the account; the URL carries no
+     admin/enrollment claims any more.
+iOS: the app sends the transaction id and the server asks Apple (App Store Server API, needs APPLE_IAP_KEY_ID, APPLE_IAP_ISSUER_ID,
+APPLE_IAP_PRIVATE_KEY) for the signed transaction, tries production then sandbox, and verifies the signature chain itself.
+Testing without money: StoreKit configuration file / Sandbox testers (iOS), license testers (Android); automated tests use fakes.
+Known limits: real-device purchase flows could not be run here (no store accounts); the native module is exercised only through the
+adapter in tests. Pending Google purchases unlock when a later restore or the RTDN purchased notification re-verifies them.

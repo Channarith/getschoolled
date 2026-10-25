@@ -1,27 +1,39 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import {
+  confirmCoursePayment,
+  friendlyApiError,
+  getCourseEntitlement,
+  getCoursePolicy,
+  getCourseQuote,
   getIdentityAssurance,
   getLessonAccreditation,
   getMe,
-  getPortfolio,
   getToken,
   listStudents,
-  purchaseCourse,
+  startCourseCheckout,
+  type CoursePolicy,
+  type CourseOffer,
+  type CourseQuote,
 } from "../lib/api";
-import {
-  COURSE_UNLOCK_PRICE_LABEL,
-  courseStudioFrameSrc,
-  fullClassAllowed,
-  type PublicCourseId,
-} from "../lib/courseStudio";
+import { cleanReturnSearch, gateForEntitlement, paymentReturn } from "../lib/courseGate.mjs";
+import { US_STATES, canStartCheckout } from "../lib/purchaseView.mjs";
+import { courseStudioFrameSrc, type PublicCourseId } from "../lib/courseStudio";
 import { CourseStudioFrame } from "./CourseStudioFrame";
 
-type Gate = "loading" | "signedout" | "pay" | "identity" | "full";
+type Gate = "loading" | "signedout" | "pay" | "confirming" | "identity" | "full";
 
+/**
+ * The full course page for a SIGNED-IN visitor. The server decides (GET /api/studio/entitlement):
+ *   free         admin, VIP or premium: straight into the class, no price anywhere
+ *   paid         this account bought it (on the web or in an app): into the class
+ *   must_pay     the one-time offer with Credit card and PayPal (the server owns the price)
+ *   login_required  no account: nothing to buy yet, send them to create or log in
+ * Payment is only ever offered here, after login. The anonymous demo never shows a price.
+ */
 export function CourseClassGate({
   courseId,
   title,
@@ -32,68 +44,98 @@ export function CourseClassGate({
   demoHref?: string;
 }) {
   const [gate, setGate] = useState<Gate>("loading");
-  const [accountId, setAccountId] = useState("");
-  const [isAdmin, setIsAdmin] = useState(false);
   const [studentId, setStudentId] = useState("");
+  const [offer, setOffer] = useState<CourseOffer | null>(null);
   const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<"" | "card" | "paypal">("");
+  const [quote, setQuote] = useState<CourseQuote | null>(null);
+  const [policy, setPolicy] = useState<CoursePolicy | null>(null);
+  const [billingState, setBillingState] = useState("");
 
   useEffect(() => {
+    if (gate !== "pay") return;
+    getCoursePolicy().then(setPolicy).catch(() => setPolicy(null));
+  }, [gate]);
+
+  useEffect(() => {
+    if (gate !== "pay") return;
+    getCourseQuote(courseId, billingState).then(setQuote).catch(() => setQuote(null));
+  }, [gate, courseId, billingState]);
+
+  const enter = useCallback(async () => {
     if (!getToken()) {
       setGate("signedout");
       return;
     }
-    Promise.all([getMe(), getPortfolio(), listStudents(), getLessonAccreditation(courseId)])
-      .then(async ([me, portfolio, students, accreditation]) => {
-        setAccountId(me.id);
-        const learnerId = students.students[0]?.id || "";
-        setStudentId(learnerId);
-        const admin = Boolean(me.is_admin);
-        setIsAdmin(admin);
-        const row = portfolio.enrollments.find((enrollment) => enrollment.course_id === courseId);
-        if (!fullClassAllowed(true, row?.status || "", admin)) {
-          setGate("pay");
-          return;
-        }
-        if (accreditation.requires_identity_assurance && learnerId) {
-          const assurance = await getIdentityAssurance(learnerId, true);
-          setGate(assurance.allowed ? "full" : "identity");
-          return;
-        }
-        setGate("full");
-      })
-      .catch(() => setGate("signedout"));
+    try {
+      const [, students, accreditation, entitlement] = await Promise.all([
+        getMe(),
+        listStudents(),
+        getLessonAccreditation(courseId),
+        getCourseEntitlement(courseId),
+      ]);
+      const learnerId = students.students[0]?.id || "";
+      setStudentId(learnerId);
+      const next = gateForEntitlement(entitlement.entitlement);
+      if (next === "signedout") {
+        setGate("signedout");
+        return;
+      }
+      if (next === "pay") {
+        setOffer(entitlement.offer || null);
+        setGate("pay");
+        return;
+      }
+      if (accreditation.requires_identity_assurance && learnerId) {
+        const assurance = await getIdentityAssurance(learnerId, true);
+        setGate(assurance.allowed ? "full" : "identity");
+        return;
+      }
+      setGate("full");
+    } catch {
+      setGate("signedout");
+    }
   }, [courseId]);
 
-  async function payForClass() {
-    setBusy(true);
+  useEffect(() => {
+    // Coming back from the processor: confirm with the server, then re-check what this account may do.
+    const back = paymentReturn(window.location.search);
+    if (back && getToken()) {
+      setGate("confirming");
+      confirmCoursePayment(back.sessionId, back.method as "card" | "paypal")
+        .catch((err) => setError(friendlyApiError(err, "We could not confirm your payment yet.")))
+        .finally(() => {
+          const clean = cleanReturnSearch(window.location.search);
+          window.history.replaceState(null, "", window.location.pathname + (clean ? `?${clean}` : ""));
+          void enter();
+        });
+      return;
+    }
+    void enter();
+  }, [enter]);
+
+  async function pay(method: "card" | "paypal") {
+    setBusy(method);
     setError("");
     try {
-      const enrollment = await purchaseCourse(courseId, title);
-      if (fullClassAllowed(true, enrollment.status, isAdmin)) setGate("full");
-      else setError("Payment was not recorded for this course.");
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      // jsonOrThrow raises Error("<status> <detail>"); surface a friendly
-      // message when payments aren't enabled in this environment instead of
-      // the raw "402 This class stays a 10-minute sample..." which looks like
-      // a client crash.
-      if (msg.startsWith("402")) {
-        setError(
-          "Paid checkout isn't enabled on this environment yet. The free 10-minute demo is open to everyone.",
-        );
-      } else {
-        setError(msg);
+      const session = await startCourseCheckout(courseId, method, billingState);
+      if (session.already_entitled) {
+        await enter();
+        return;
       }
-    } finally {
-      setBusy(false);
+      if (!session.url) throw new Error("The payment page did not open.");
+      window.location.assign(session.url);
+    } catch (err) {
+      setError(friendlyApiError(err, "Payments are not available right now. Please try again later."));
+      setBusy("");
     }
   }
 
-  if (gate === "loading") {
+  if (gate === "loading" || gate === "confirming") {
     return (
       <main className="container">
-        <p className="muted">Loading {title}…</p>
+        <p className="muted">{gate === "confirming" ? "Confirming your payment…" : `Loading ${title}…`}</p>
+        {error ? <p className="muted">{error}</p> : null}
       </main>
     );
   }
@@ -103,14 +145,14 @@ export function CourseClassGate({
       <main className="container">
         <h1>{title}</h1>
         <div className="card">
-          <p>Sign in to take this course. Admins open the full course. Everyone else pays.</p>
+          <p>Create or log in to your account to take this course.</p>
           {demoHref ? (
             <p>
               The 10-minute demo is free for anyone. <Link href={demoHref}>Start the demo</Link>
             </p>
           ) : null}
           <p>
-            <Link href="/login">Sign in or create an account</Link>
+            <Link href="/login">Create or log in to your account</Link>
           </p>
         </div>
       </main>
@@ -118,23 +160,52 @@ export function CourseClassGate({
   }
 
   if (gate === "pay") {
+    const ready = canStartCheckout(quote, billingState);
     return (
       <main className="container">
         <h1>{title}</h1>
         <div className="card">
           <p>
-            Full course unlock is a one-time {COURSE_UNLOCK_PRICE_LABEL} charge (separate from the
-            $19/month membership). An admin account takes it without paying.
+            Full course: one payment{offer ? ` of ${offer.label}` : ""} unlocks the whole class, on the web and in the
+            app.
           </p>
-          {demoHref ? (
+          {quote && quote.requires_state ? (
             <p>
-              Anyone can try the free 10-minute demo. <Link href={demoHref}>Start the demo</Link>
+              <label>
+                Your state (to calculate tax){" "}
+                <select value={billingState} onChange={(event) => setBillingState(event.target.value)}>
+                  <option value="">Choose…</option>
+                  {US_STATES.map((code) => (
+                    <option key={code} value={code}>{code}</option>
+                  ))}
+                </select>
+              </label>
             </p>
           ) : null}
-          <button type="button" onClick={() => { void payForClass(); }} disabled={busy}>
-            {busy ? "Recording payment…" : `Unlock full course (${COURSE_UNLOCK_PRICE_LABEL})`}
-          </button>
-          {error ? <p className="muted">{error}</p> : null}
+          {quote && quote.tax_cents > 0 ? (
+            <p className="muted">
+              {offer ? offer.label : ""} + {quote.tax_label} = <strong>{quote.total_label}</strong>
+            </p>
+          ) : null}
+          {demoHref ? (
+            <p>
+              Want to try it first? <Link href={demoHref}>Start the free 10-minute demo</Link>
+            </p>
+          ) : null}
+          <p>
+            <button type="button" onClick={() => { void pay("card"); }} disabled={Boolean(busy) || !ready}>
+              {busy === "card" ? "Opening secure checkout…" : "Credit card"}
+            </button>{" "}
+            <button type="button" onClick={() => { void pay("paypal"); }} disabled={Boolean(busy) || !ready}>
+              {busy === "paypal" ? "Opening PayPal…" : "PayPal"}
+            </button>
+          </p>
+          {error ? <p role="alert" className="muted">{error}</p> : null}
+          {policy ? <p className="muted" style={{ fontSize: 12 }}>{policy.disclaimer}</p> : null}
+          <p className="muted" style={{ fontSize: 12 }}>
+            <Link href="/legal/terms-of-sale">Terms of Sale</Link> · <Link href="/legal/refund-policy">Refund Policy</Link> ·{" "}
+            <Link href="/legal/receipts-and-taxes">Receipts &amp; Taxes</Link>
+          </p>
         </div>
       </main>
     );
@@ -160,13 +231,7 @@ export function CourseClassGate({
         fill
         clean
         title={`${title} full course`}
-        src={courseStudioFrameSrc({
-          access: "full",
-          course: courseId,
-          accountId,
-          learnerId: studentId,
-          isAdmin,
-        })}
+        src={courseStudioFrameSrc({ access: "full", course: courseId, learnerId: studentId })}
       />
     </main>
   );

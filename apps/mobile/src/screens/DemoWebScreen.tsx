@@ -17,7 +17,7 @@ import { SERENITY_HERO, SERENITY_NAME } from "../serenity";
 import { ensureLoudSpeaker } from "../tts";
 import { EXPLICIT_VOICE_KEY, getSelectedVoice } from "../cloneVoice";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { getSettings } from "../storage";
+import { getSettings, getToken } from "../storage";
 import { CAMERA_CHECK_PATH, diagBridgeScript, isCameraCheckPath, routeDiagMessage } from "../diag/webDiag";
 import { armDiagForBugReport, diagLog, initDiag, isDebugMode, shareDiagReport } from "../diag/diagLog";
 import { APP_VERSION } from "../version";
@@ -25,6 +25,7 @@ import { loadVoiceAgentChoice } from "../voiceAgentPref";
 import AdaptiveContent from "../layout/AdaptiveContent";
 import { useLayoutMetrics } from "../layout";
 import { theme } from "../theme";
+import { studioSessionScript } from "../studioSession";
 
 async function ensureMicrophonePermission(): Promise<string> {
   if (Platform.OS !== "android") return "ios-prompts-on-use";
@@ -82,7 +83,8 @@ export default function DemoWebScreen({
   const touchScript = path.includes("/children-lab") ? childrenLabTouchScript() : undefined;
   const waveScript = audioOnly ? driverWaveScript() : undefined;
   const phoneAudio = liveAudioPhoneScript();
-  const beforeLoad = [diagBridgeScript(), voiceScript, phoneAudio, waveScript, localeScript, touchScript].filter(Boolean).join("\n");
+  const sessionScript = studioCourse ? studioSessionScript(getToken()) : undefined;
+  const beforeLoad = [diagBridgeScript(), sessionScript, voiceScript, phoneAudio, waveScript, localeScript, touchScript].filter(Boolean).join("\n");
   const { overlayBottomPad } = useLayoutMetrics();
   useAndroidBackTo(onBack);
 

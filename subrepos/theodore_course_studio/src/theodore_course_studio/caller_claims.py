@@ -22,6 +22,26 @@ _TTL_S = 60.0
 _CACHE_MAX = 2048
 
 
+SESSION_COOKIE = "aoep_session"  # the HttpOnly cookie the identity service sets at login (same signed token as the bearer)
+
+
+def authorization_from(authorization: str, cookies: Optional[Any] = None) -> str:
+    """The Authorization header if the caller sent one, else the login cookie as a bearer.
+
+    The web app keeps the bearer in memory (the legacy localStorage copy is removed), so a same-origin iframe or a plain
+    fetch carries only the HttpOnly session cookie. Both forms are verified the same way by the identity service.
+    """
+    header = (authorization or "").strip()
+    if header:
+        return header
+    token = ""
+    try:
+        token = str((cookies or {}).get(SESSION_COOKIE, "")).strip()
+    except AttributeError:
+        token = ""
+    return f"Bearer {token}" if token else ""
+
+
 def verification_enabled() -> bool:
     return os.environ.get("STUDIO_VERIFY_CLAIMS", "").strip() == "1"
 
@@ -60,6 +80,17 @@ def verified_caller(
     return who
 
 
+def verification_required(course_id: str, access: str) -> bool:
+    """Claims are never trusted for a paid public course or an explicit 'full' request, even with the flag off.
+
+    STUDIO_VERIFY_CLAIMS still controls the authoring studio and the trial-run composer (legacy callers); the paid gate
+    must fail closed on its own so a non-entitled caller cannot ship `{"access":"full","is_admin":true}` to get a class.
+    """
+    from aoep_shared.course_studio_access import purchasable_course
+
+    return verification_enabled() or bool(purchasable_course(course_id)) or (access or "").strip().lower() == "full"
+
+
 def effective_access(
     *,
     authorization: str,
@@ -67,16 +98,30 @@ def effective_access(
     registered: bool,
     is_admin: bool,
     enrollment_status: str,
+    course_id: str = "",
+    purchases: Any = None,
     fetch: Optional[Callable[[str], Optional[dict]]] = None,
     now: Callable[[], float] = time.time,
 ) -> dict[str, Any]:
-    """The access fields to trust: the request's own when verification is off, the verified caller's when it is on."""
-    if not verification_enabled():
+    """The access fields to trust: the request's own for legacy authoring calls, the verified caller's otherwise."""
+    if not verification_required(course_id, access):
         return {"access": access, "registered": registered, "is_admin": is_admin,
-                "enrollment_status": enrollment_status, "verified": None, "caller": None}
+                "enrollment_status": enrollment_status, "verified": None, "caller": None, "entitlement": None}
+    from aoep_shared.course_entitlement import entitled_to_course, unlocks_full_class
+    from aoep_shared.course_studio_access import purchasable_course
+
     who = verified_caller(authorization, fetch=fetch, now=now)
     admin = bool(who and who.get("is_admin"))
-    # No verified admin means no authoring-studio default: an empty request is the 10-minute sample, never "full".
-    requested = (access or "").strip().lower() or ("" if admin else "sample")
+    mode = (access or "").strip().lower()
+    if purchasable_course(course_id):
+        ent = entitled_to_course(who, course_id, purchases=purchases)
+        unlocked = unlocks_full_class(ent)
+        requested = "full" if (unlocked and mode != "sample") else "sample"
+        return {"access": requested, "registered": who is not None, "is_admin": admin,
+                "enrollment_status": "paid" if unlocked else "", "verified": who is not None, "caller": who,
+                "entitlement": ent}
+    # Authoring studio with the flag on: no verified admin means no 'full' default.
+    requested = mode or ("" if admin else "sample")
     return {"access": requested, "registered": who is not None, "is_admin": admin,
-            "enrollment_status": enrollment_status if who is not None else "", "verified": who is not None, "caller": who}
+            "enrollment_status": enrollment_status if who is not None else "", "verified": who is not None, "caller": who,
+            "entitlement": None}

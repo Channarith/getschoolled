@@ -28,20 +28,12 @@ from aoep_shared.background_jobs import (
 )
 from aoep_shared.course_studio_access import resolve_teach_access
 
-from .course_pay import (
-    CoursePayStore,
-    card_is_paid,
-    course_price,
-    paypal_is_paid,
-    payer_id,
-    same_site_return,
-    start_card_checkout,
-    start_paypal_checkout,
-)
+from .pay_routes import get_store as _purchase_store, router as _pay_router
+from .iap_routes import router as _iap_router
 from aoep_shared.friendly_errors import install_friendly_errors
 from aoep_shared.live_audio_agents import inject_client, install_live_audio_routes
 
-from .caller_claims import effective_access
+from .caller_claims import authorization_from, effective_access
 from .certification_prep import (
     CertCourseRequest,
     CertTrackId,
@@ -74,7 +66,7 @@ from .studio_tuning import (
 )
 from .studio_languages import list_languages, normalize_language
 from .studio_page import render_studio_page
-from .teach import TeachEngine
+from .teach import SampleTrialExpired, TeachEngine
 from .training_run import run_training_pass
 from .tts_client import build_tts_get_url, tts_client_hints, tts_status
 from .neural_tts import (
@@ -101,6 +93,8 @@ async def _invalid_course_id(_request: Request, exc: InvalidCourseId):
 
 
 install_friendly_errors(app, script_url="/api/studio/voice-overlay/friendly_error.js")
+app.include_router(_pay_router)
+app.include_router(_iap_router)
 install_live_audio_routes(
     app,
     lab_name="Theodore Course Studio",
@@ -148,7 +142,13 @@ _teach = TeachEngine(_builder)
 _JOBS_PATH = "/api/studio/jobs"
 _jobs = JobRunner(max_workers=2, store_dir=default_data_dir() / "jobs")
 _swap_lock = threading.Lock()
-_pay_store = CoursePayStore(_builder.data_dir / "payments" / "course_payments.json")
+
+
+def _purchases_for(course_id: str):
+    """The purchase ledger, only for a paid public course (the authoring studio never touches Redis)."""
+    from aoep_shared.course_studio_access import purchasable_course
+
+    return _purchase_store() if purchasable_course(course_id) else None
 
 
 class TrainingRunRequest(BaseModel):
@@ -777,10 +777,10 @@ class TrialRunRequest(BaseModel):
 
 
 @app.post("/api/studio/teach/trial-run")
-def teach_trial_run(req: TrialRunRequest, authorization: str = Header(default="")) -> dict[str, Any]:
+def teach_trial_run(req: TrialRunRequest, request: Request, authorization: str = Header(default="")) -> dict[str, Any]:
     """Compose the default segment sequence, persist it, and start teaching."""
     trusted = effective_access(
-        authorization=authorization, access=req.access, registered=req.registered,
+        authorization=authorization_from(authorization, request.cookies), access=req.access, registered=req.registered,
         is_admin=req.is_admin, enrollment_status=req.enrollment_status,
     )
     course = compose_course_from_segments(
@@ -841,112 +841,33 @@ def build_course(req: BuildCourseRequest):
 install_job_status_route(app, _jobs, _JOBS_PATH)
 
 
-class CoursePayRequest(BaseModel):
-    course_id: str
-    learner_id: str
-    method: str = "card"
-    return_url: str = ""
-    title: str = ""
-
-
-class CoursePayConfirmRequest(BaseModel):
-    session_id: str
-
-
-def _paid_enrollment(learner_id: str, course_id: str, requested: str) -> str:
-    if _pay_store.is_paid(learner_id, course_id):
-        return "paid"
-    return requested
-
-
-@app.get("/api/studio/pay/price")
-def pay_price() -> dict[str, Any]:
-    return course_price()
-
-
-@app.post("/api/studio/pay/checkout")
-def pay_checkout(req: CoursePayRequest, request: Request) -> dict[str, Any]:
-    method = (req.method or "").strip().lower()
-    if method not in {"card", "paypal"}:
-        raise HTTPException(status_code=422, detail="choose card or paypal")
-    learner = payer_id(req.learner_id)
-    course_id = (req.course_id or "").strip()
-    if not learner or not course_id:
-        raise HTTPException(status_code=400, detail="course and learner are required")
-    try:
-        return_url = same_site_return(req.return_url, request.headers.get("host", ""))
-        if method == "card":
-            session = start_card_checkout(
-                learner_id=learner,
-                course_id=course_id,
-                title=req.title or "Full course",
-                return_url=return_url,
-            )
-        else:
-            session = start_paypal_checkout(
-                learner_id=learner,
-                course_id=course_id,
-                title=req.title or "Full course",
-                return_url=return_url,
-            )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except RuntimeError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
-    _pay_store.remember(
-        session_id=session["session_id"],
-        learner_id=learner,
-        course_id=course_id,
-        method=method,
-    )
-    return {**session, **course_price()}
-
-
-@app.post("/api/studio/pay/confirm")
-def pay_confirm(req: CoursePayConfirmRequest) -> dict[str, Any]:
-    session_id = (req.session_id or "").strip()
-    if not session_id:
-        raise HTTPException(status_code=400, detail="session_id is required")
-    pending = _pay_store.pending(session_id)
-    if pending is None:
-        raise HTTPException(status_code=404, detail="checkout session not found")
-    try:
-        authorized = (
-            paypal_is_paid(session_id)
-            if pending.get("method") == "paypal"
-            else card_is_paid(session_id)
-        )
-    except RuntimeError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
-    if not authorized:
-        raise HTTPException(status_code=402, detail="payment is not authorized yet")
-    saved = _pay_store.mark_paid(session_id)
-    if saved is None:
-        raise HTTPException(status_code=404, detail="checkout session not found")
-    return {"status": "paid", "course_id": saved["course_id"], **course_price()}
-
-
 @app.post("/api/studio/teach/start")
 def teach_start(
     req: TeachStartRequest,
+    request: Request,
     authorization: str = Header(default=""),
 ) -> dict[str, Any]:
+    authorization = authorization_from(authorization, request.cookies)
+    # Access comes from the verified caller (identity /auth/me) for the paid public courses, flag or no flag: free for
+    # admin/VIP/premium, paid when this account has a purchase on record, otherwise the 10-minute sample.
     trusted = effective_access(
         authorization=authorization, access=req.access, registered=req.registered,
         is_admin=req.is_admin, enrollment_status=req.enrollment_status,
+        course_id=req.course_id, purchases=_purchases_for(req.course_id),
     )
-    # Paid status comes from the pay store; with verification on it only counts for a verified caller.
-    enrollment = (
-        _paid_enrollment(req.learner_id, req.course_id, trusted["enrollment_status"])
-        if trusted["verified"] in (None, True) else ""
-    )
-    registered = trusted["registered"] or enrollment == "paid"
+    enrollment = trusted["enrollment_status"]
+    registered = trusted["registered"]
     access = resolve_teach_access(
         requested=trusted["access"],
         registered=registered,
         enrollment_status=enrollment,
         is_admin=trusted["is_admin"],
     )
+    if access == "full" and trusted.get("caller") and _purchases_for(req.course_id) is not None:
+        try:
+            _purchases_for(req.course_id).mark_started(str(trusted["caller"].get("id") or ""), req.course_id)
+        except Exception:  # noqa: BLE001 - bookkeeping for the refund rules must never block a lesson
+            pass
     course = _builder.get_course(req.course_id)
     from aoep_shared.accreditation import requires_identity_assurance_for_category
 
@@ -1006,6 +927,12 @@ def teach_start(
             voice_gender=req.voice_gender,
             access=access,
         )
+    except SampleTrialExpired as exc:
+        raise HTTPException(
+            status_code=403,
+            detail=f"trial_expired: {exc.message}",
+            headers={"X-AOEP-Gate": "trial_expired"},
+        ) from exc
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=f"missing: {exc}") from exc
     except ValueError as exc:

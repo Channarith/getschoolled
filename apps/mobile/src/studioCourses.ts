@@ -6,14 +6,14 @@ export const STUDIO_COURSES = [
   {
     id: "drivers-ed",
     title: "Driver's Education",
-    blurb: "The full California permit course, taught by Serenity with Salane Voice. The 10-minute demo is free. The rest is paid unless you are an admin.",
+    blurb: "The full California permit course, taught by Serenity with Salane Voice. The 10-minute demo is free. The rest is a one-time purchase unless your account includes it.",
     emoji: "🚗",
     hasDemo: true,
   },
   {
     id: "food-safety",
     title: "Food Health & Safety",
-    blurb: "The full California food handler course, taught by Serenity with Salane Voice. Admins take it. Everyone else pays.",
+    blurb: "The full California food handler course, taught by Serenity with Salane Voice. Included with some accounts; otherwise a one-time purchase.",
     emoji: "🍽️",
     hasDemo: false,
   },
@@ -23,15 +23,6 @@ export type StudioCourseId = (typeof STUDIO_COURSES)[number]["id"];
 
 export function studioCourseById(id: string): (typeof STUDIO_COURSES)[number] | undefined {
   return STUDIO_COURSES.find((course) => course.id === id);
-}
-
-export function fullClassAllowed(
-  registered: boolean,
-  enrollmentStatus: string,
-  isAdmin = false,
-): boolean {
-  if (isAdmin) return true;
-  return registered && enrollmentStatus.trim().toLowerCase() === "paid";
 }
 
 /** Catalog ids and /learn links that should open a studio course, not Drive Mode. */
@@ -49,18 +40,13 @@ export function studioCourseFromLink(id: string, deepLink?: string): StudioCours
 export function studioCoursePath(
   courseId: StudioCourseId,
   access: "sample" | "full",
-  opts: { accountId?: string; isAdmin?: boolean; presentation?: "audio" } = {},
+  opts: { accountId?: string; presentation?: "audio" } = {},
 ): string {
   const params = new URLSearchParams();
   params.set("access", access);
   params.set("course", courseId);
   params.set("embed", "mobile");
   if (opts.presentation === "audio") params.set("presentation", "audio");
-  if (access === "full") {
-    params.set("registered", "1");
-    if (opts.isAdmin) params.set("admin", "1");
-    else params.set("enrollment", "paid");
-  }
   if (opts.accountId) params.set("account", opts.accountId);
   return `/studio?${params.toString()}`;
 }
@@ -70,7 +56,6 @@ export function studioCourseDemo(
   access: "sample" | "full",
   opts: {
     accountId?: string;
-    isAdmin?: boolean;
     presentation?: "audio";
     title?: string;
     subtitle?: string;

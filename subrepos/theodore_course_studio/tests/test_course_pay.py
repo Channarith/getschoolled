@@ -1,20 +1,15 @@
-"""A $19.99 card or PayPal payment unlocks the rest of the course."""
+"""Provider calls for a course purchase: server price, account binding, signed webhooks. No real money moves here."""
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
 
-from fastapi.testclient import TestClient
-
 from theodore_course_studio.course_pay import (
-    CoursePayStore,
-    payer_id,
-    same_site_return,
-    start_card_checkout,
-    start_paypal_checkout,
+    paid_from_paypal_order, paid_from_stripe_session, same_site_return, start_card_checkout, start_paypal_checkout,
+    verify_paypal_webhook, verify_stripe_signature,
 )
-from theodore_course_studio.generate import CourseBuilder
-from theodore_course_studio.types import CourseSlide, StudioCourse
 
 
 class _Body:
@@ -31,10 +26,6 @@ class _Body:
         return False
 
 
-def test_payer_id_shares_the_audio_trial_account():
-    assert payer_id("learner-a:audio") == "learner-a"
-
-
 def test_return_url_must_stay_on_this_site():
     kept = same_site_return("http://testserver/studio?access=sample&paid=1", "testserver")
     assert kept == "http://testserver/studio?access=sample"
@@ -46,118 +37,110 @@ def test_return_url_must_stay_on_this_site():
         raise AssertionError("off-site return was accepted")
 
 
-def test_card_checkout_asks_stripe_for_1999_cents(monkeypatch):
+def test_card_checkout_uses_the_server_price_and_binds_the_account(monkeypatch):
     monkeypatch.setenv("PAYMENT_API_KEY", "sk_test_example")
     seen = {}
 
     def opener(request, timeout=30):
-        seen["url"] = request.full_url
-        seen["body"] = request.data.decode()
-        seen["auth"] = request.headers["Authorization"]
+        seen.update(url=request.full_url, body=request.data.decode(), auth=request.headers["Authorization"])
         return _Body({"id": "cs_test_123", "url": "https://checkout.stripe.com/c/pay/cs_test_123"})
 
     session = start_card_checkout(
-        learner_id="learner-a",
-        course_id="drivers-ed",
-        title="Driver's Education",
-        return_url="http://testserver/studio?access=sample",
-        opener=opener,
+        account_id="acct-1", course_id="drivers-ed", title="Driver's Education", amount_cents=1999,
+        return_url="http://testserver/studio", email="a@example.com", opener=opener,
     )
     assert session["url"].startswith("https://checkout.stripe.com/")
-    assert "1999" in seen["body"]
-    assert "card" in seen["body"]
-    assert "{CHECKOUT_SESSION_ID}" in seen["body"]
-    assert "card_number" not in seen["body"]
+    body = seen["body"]
+    assert "unit_amount%5D=1999" in body or "unit_amount]=1999" in body
+    assert "metadata%5Baccount_id%5D=acct-1" in body or "metadata[account_id]=acct-1" in body
+    assert "customer_email" in body and "{CHECKOUT_SESSION_ID}" in body
+    assert "card_number" not in body and "automatic_tax" not in body
     assert seen["auth"] == "Bearer sk_test_example"
 
 
-def test_paypal_checkout_asks_for_19_99(monkeypatch):
+def test_card_checkout_can_ask_stripe_to_calculate_tax(monkeypatch):
+    monkeypatch.setenv("PAYMENT_API_KEY", "sk_test_example")
+    seen = {}
+    start_card_checkout(
+        account_id="a", course_id="drivers-ed", title="T", amount_cents=1999, return_url="http://t/s", automatic_tax=True,
+        opener=lambda request, timeout=30: (seen.update(body=request.data.decode()), _Body({"id": "cs_1", "url": "https://x"}))[1],
+    )
+    assert "automatic_tax" in seen["body"] and "tax_behavior" in seen["body"]
+
+
+def test_paypal_checkout_amount_comes_from_the_server_price(monkeypatch):
     monkeypatch.setenv("PAYPAL_API_KEY", "client")
     monkeypatch.setenv("PAYPAL_API_SECRET", "secret")
     calls = []
 
     def opener(request, timeout=30):
-        calls.append(request.full_url)
+        calls.append((request.full_url, request.data))
         if request.full_url.endswith("/v1/oauth2/token"):
             return _Body({"access_token": "tok"})
-        return _Body({
-            "id": "ORDER1",
-            "links": [{"rel": "approve", "href": "https://www.paypal.com/checkoutnow?token=ORDER1"}],
-        })
+        return _Body({"id": "ORDER1", "links": [{"rel": "approve", "href": "https://www.paypal.com/checkoutnow?token=ORDER1"}]})
 
     session = start_paypal_checkout(
-        learner_id="learner-a",
-        course_id="drivers-ed",
-        title="Driver's Education",
-        return_url="http://testserver/studio",
-        opener=opener,
+        account_id="acct-1", course_id="drivers-ed", title="Driver's Education", amount_cents=1999,
+        return_url="http://testserver/studio", opener=opener,
     )
-    assert session["session_id"] == "ORDER1"
-    assert "paypal.com" in session["url"]
-    assert any(url.endswith("/v2/checkout/orders") for url in calls)
+    assert session["session_id"] == "ORDER1" and "paypal.com" in session["url"]
+    order = json.loads([data for url, data in calls if url.endswith("/v2/checkout/orders")][0])
+    assert order["purchase_units"][0]["amount"]["value"] == "19.99"
+    assert order["purchase_units"][0]["custom_id"] == "acct-1:drivers-ed"
 
 
-def test_checkout_without_keys_does_not_unlock(tmp_path, monkeypatch):
-    import theodore_course_studio.main as main_mod
-
-    for name in ("PAYMENT_API_KEY", "STRIPE_SECRET_KEY", "STRIPE_API_KEY", "PAYPAL_API_KEY", "PAYPAL_API_SECRET"):
-        monkeypatch.delenv(name, raising=False)
-    old_store = main_mod._pay_store
-    main_mod._pay_store = CoursePayStore(tmp_path / "payments.json")
-    try:
-        client = TestClient(main_mod.app)
-        missing = client.post("/api/studio/pay/checkout", json={
-            "course_id": "drivers-ed",
-            "learner_id": "learner-a",
-            "method": "card",
-            "return_url": "http://testserver/studio",
-        })
-        assert missing.status_code == 503, missing.text
-        assert "PAYMENT_API_KEY" in missing.text
-    finally:
-        main_mod._pay_store = old_store
+def test_a_stripe_session_normalizes_only_when_paid():
+    base = {"id": "cs_1", "client_reference_id": "acct-1:drivers-ed", "metadata": {"account_id": "acct-1", "course_id": "drivers-ed"},
+            "amount_total": 2144, "total_details": {"amount_tax": 145}, "currency": "usd",
+            "customer_details": {"email": "a@example.com"}, "payment_intent": "pi_1"}
+    assert paid_from_stripe_session({**base, "payment_status": "unpaid"}) is None
+    paid = paid_from_stripe_session({**base, "payment_status": "paid"})
+    assert (paid["account_id"], paid["course_id"], paid["amount_cents"], paid["tax_cents"]) == ("acct-1", "drivers-ed", 1999, 145)
+    assert paid["provider_ref"] == "cs_1" and paid["payment_intent"] == "pi_1"
 
 
-def test_authorized_payment_opens_the_full_course(tmp_path, monkeypatch):
-    import theodore_course_studio.main as main_mod
+def test_a_paypal_order_normalizes_only_when_completed():
+    order = {"id": "O1", "status": "COMPLETED", "payer": {"email_address": "p@example.com"},
+             "purchase_units": [{"custom_id": "acct-1:drivers-ed", "payments": {"captures": [{"id": "CAP1", "amount": {"value": "19.99"}}]}}]}
+    paid = paid_from_paypal_order(order)
+    assert (paid["account_id"], paid["amount_cents"], paid["capture_id"]) == ("acct-1", 1999, "CAP1")
+    assert paid_from_paypal_order({**order, "status": "APPROVED"}) is None
 
-    old_builder = main_mod._builder
-    old_teach_builder = main_mod._teach._builder
-    old_store = main_mod._pay_store
-    shared = CourseBuilder(data_dir=tmp_path / "data")
-    main_mod._builder = shared
-    main_mod._teach._builder = shared
-    main_mod._pay_store = CoursePayStore(tmp_path / "payments.json")
-    monkeypatch.setattr(main_mod, "card_is_paid", lambda session_id: session_id == "cs_paid")
-    try:
-        course = StudioCourse(
-            course_id="paid-mini",
-            title="Paid Mini",
-            category="other",
-            slides=[
-                CourseSlide(index=0, title="One", body="First body of the class."),
-                CourseSlide(index=1, title="Two", body="Second body of the class."),
-            ],
-        )
-        shared.save_course(course)
-        store = main_mod._pay_store
-        store.remember(session_id="cs_paid", learner_id="learner-a:audio", course_id=course.course_id, method="card")
-        client = TestClient(main_mod.app)
-        confirmed = client.post("/api/studio/pay/confirm", json={"session_id": "cs_paid"})
-        assert confirmed.status_code == 200, confirmed.text
-        assert confirmed.json()["status"] == "paid"
-        assert confirmed.json()["label"] == "$19.99"
-        started = client.post("/api/studio/teach/start", json={
-            "session_id": "paid-session",
-            "course_id": course.course_id,
-            "learner_id": "learner-a:audio",
-            "access": "full",
-            "use_voice_agent": False,
-        })
-        assert started.status_code == 200, started.text
-        assert started.json()["access_mode"] == "full"
-        assert started.json()["price"]["label"] == "$19.99"
-    finally:
-        main_mod._builder = old_builder
-        main_mod._teach._builder = old_teach_builder
-        main_mod._pay_store = old_store
+
+def _sign(payload: bytes, secret: str, ts: int) -> str:
+    return f"t={ts},v1=" + hmac.new(secret.encode(), f"{ts}.".encode() + payload, hashlib.sha256).hexdigest()
+
+
+def test_stripe_signature_accepts_only_a_fresh_correct_signature():
+    body, secret, now = b'{"type":"x"}', "whsec_test", 1_800_000_000
+    assert verify_stripe_signature(body, _sign(body, secret, now), secret, now=lambda: now)
+    assert not verify_stripe_signature(body, _sign(body, "wrong", now), secret, now=lambda: now)  # forged
+    assert not verify_stripe_signature(b'{"type":"y"}', _sign(body, secret, now), secret, now=lambda: now)  # body changed
+    assert not verify_stripe_signature(body, _sign(body, secret, now - 3600), secret, now=lambda: now)  # replay
+    assert not verify_stripe_signature(body, "", secret, now=lambda: now)
+    assert not verify_stripe_signature(body, _sign(body, secret, now), "", now=lambda: now)  # secret not configured
+    rotated = _sign(body, "old", now) + "," + _sign(body, secret, now).split(",", 1)[1]
+    assert verify_stripe_signature(body, rotated, secret, now=lambda: now)
+
+
+def test_paypal_webhook_is_verified_by_paypals_own_api(monkeypatch):
+    monkeypatch.setenv("PAYPAL_API_KEY", "c")
+    monkeypatch.setenv("PAYPAL_API_SECRET", "s")
+    headers = {"PayPal-Auth-Algo": "a", "PayPal-Cert-Url": "https://api.paypal.com/c", "PayPal-Transmission-Id": "t",
+               "PayPal-Transmission-Sig": "s", "PayPal-Transmission-Time": "now"}
+
+    def good(request, timeout=30):
+        if request.full_url.endswith("/v1/oauth2/token"):
+            return _Body({"access_token": "tok"})
+        return _Body({"verification_status": "SUCCESS"})
+
+    def bad(request, timeout=30):
+        if request.full_url.endswith("/v1/oauth2/token"):
+            return _Body({"access_token": "tok"})
+        return _Body({"verification_status": "FAILURE"})
+
+    body = json.dumps({"event_type": "PAYMENT.CAPTURE.COMPLETED"}).encode()
+    assert verify_paypal_webhook(headers, body, "WH-1", opener=good)
+    assert not verify_paypal_webhook(headers, body, "WH-1", opener=bad)
+    assert not verify_paypal_webhook(headers, body, "", opener=good)  # webhook id not configured
+    assert not verify_paypal_webhook({}, body, "WH-1", opener=good)  # no signature headers

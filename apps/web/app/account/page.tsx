@@ -33,6 +33,7 @@ import { INTRO_VARIANTS } from "../lib/introAnimations";
 import { useT } from "../lib/i18n";
 import VoicePrefsControls from "../components/VoicePrefsControls";
 import AdminAccountsTable from "../components/AdminAccountsTable";
+import PurchasesPanel from "../components/PurchasesPanel";
 // AvatarPicker (the grid of ~20 face thumbnails + the "realistic" style
 // toggle) is intentionally NOT imported here. The user asked us to hide the
 // avatar grid in profile settings because the current palette looked
@@ -466,6 +467,8 @@ export default function AccountPage() {
               </p>
             )}
           </div>
+
+          <PurchasesPanel />
 
           <div className="card">
             <h3>{t("account.myCourses")}</h3>
