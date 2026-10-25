@@ -423,6 +423,16 @@ class TeachEngine:
             # Start over and a new tab keep the same trial. The 10 minutes
             # began the first time this learner opened the sample.
             started_at = existing.started_at_ms
+        if sample_only and learner_id and learner_id != "learner-demo":
+            # The trial belongs to the learner, not to one course. Picking another language rebuilds the
+            # Driver's Ed program under a new course id, which used to hand out a fresh 10 minutes.
+            earlier = [
+                cp.started_at_ms
+                for cp in self._checkpoints.list_for_learner(learner_id)
+                if cp.sample_only and cp.started_at_ms
+            ]
+            if earlier:
+                started_at = min([started_at, *earlier])
         program = bool((course.profile_adaptations or {}).get("program"))
         if program:
             # The full program stays one path, even when the learner still has gaps.

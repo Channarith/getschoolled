@@ -254,3 +254,29 @@ def test_studio_page_offers_the_sample_banner():
     assert "grid-template-columns:minmax(260px, 0.9fr)" not in page
     assert "public-course .library-panel { display:none" not in page
     assert "library.filter((row) => row.id === pinnedCourse)" not in STUDIO_JS
+
+
+def test_changing_language_or_course_keeps_the_same_trial_clock(tmp_path):
+    """The Driver's Ed program is rebuilt per language under a new course id: the 10 minutes must not start over."""
+    builder = CourseBuilder(data_dir=tmp_path)
+    engine = TeachEngine(builder)
+    _mini(builder, "program-en")
+    _mini(builder, "program-es")
+    engine.start(session_id="lang-1", course_id="program-en", learner_id="browser-abc", access="sample",
+                 language="en", use_voice_agent=False)
+    first = engine._sessions["lang-1"]
+    first.started_at_ms = int(time.time() * 1000) - 4 * 60_000
+    engine._persist_live(first, status="in_progress")
+    spanish = engine.start(session_id="lang-2", course_id="program-es", learner_id="browser-abc", access="sample",
+                           language="es", use_voice_agent=False)
+    assert spanish["session"]["started_at_ms"] == first.started_at_ms
+    # ...and it cannot be used to dodge the end of the trial either.
+    first.started_at_ms = int(time.time() * 1000) - 11 * 60_000
+    engine._persist_live(first, status="in_progress")
+    expired = engine.start(session_id="lang-3", course_id="program-es", learner_id="browser-abc", access="sample",
+                           language="km", resume=False, use_voice_agent=False)
+    assert expired["sample"]["complete"] is True
+    # A different learner still gets their own full 10 minutes.
+    other = engine.start(session_id="lang-4", course_id="program-es", learner_id="browser-other", access="sample",
+                         language="es", use_voice_agent=False)
+    assert other["sample"]["complete"] is False

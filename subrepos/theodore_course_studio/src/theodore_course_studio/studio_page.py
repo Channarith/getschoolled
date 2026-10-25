@@ -445,7 +445,7 @@ STUDIO_CSS = """
     @media (max-height:520px) {
       html body.demo-clean.demo-clean.demo-clean .theodore-avatar-wrap { width:64px !important; height:84px !important; right:8px !important; bottom:8px !important; }
       html body.demo-clean #theodore-live-audio { display:none !important; }
-      html body.demo-clean .lesson-stage-content { padding:8px 84px 8px 12px; max-height:34%; }
+      html body.demo-clean .lesson-stage-content { padding:8px 12px 8px 64px; max-height:34%; }
       html body.demo-clean.demo-clean.demo-clean .theodore-avatar-wrap { display:block !important; visibility:visible !important; }
     html body.demo-clean #student-cam { width:72px; }
     }
@@ -454,7 +454,7 @@ STUDIO_CSS = """
       html body.demo-clean .visual-timeline-stage, html body.demo-clean .storyboard-stage,
       html body.demo-clean .lesson-photo { bottom:132px; height:auto; }
       html body.demo-clean #theodore-live-audio { display:none !important; }
-      html body.demo-clean .lesson-stage-content { min-height:132px; max-height:none; padding:10px 112px 12px 12px;
+      html body.demo-clean .lesson-stage-content { min-height:132px; max-height:none; padding:10px 12px 12px 88px;
         background:#0f172a; display:flex; align-items:center; }
       html body.demo-clean .lesson-stage-content > * { margin:0; }
       html body.demo-clean.demo-clean.demo-clean .theodore-avatar-wrap { bottom:10px !important; }
@@ -465,7 +465,7 @@ STUDIO_CSS = """
       height:clamp(84px,min(24vw,24vh),140px) !important; min-height:0 !important; z-index:6; border-radius:0;
       background:transparent; border:0; box-shadow:none; opacity:.78; }
     html body.demo-clean .lesson-stage-content { position:absolute; left:0; right:0; bottom:0; z-index:3; max-height:42%;
-      overflow:auto; padding:12px 130px 14px 16px; background:linear-gradient(transparent,rgba(15,23,42,.82) 25%,rgba(15,23,42,.94));
+      overflow:auto; padding:12px 16px 14px 112px; background:linear-gradient(transparent,rgba(15,23,42,.82) 25%,rgba(15,23,42,.94));
       color:#f6efe4; border:0; }
     html body.demo-clean #student-cam { left:10px; right:auto; top:10px; bottom:auto; width:92px; z-index:7; }
     html body.demo-clean #sample-clock { top:10px; left:12px; right:auto; min-width:0; padding:0; border-radius:0;
@@ -539,8 +539,59 @@ STUDIO_CSS = """
        holds the lesson (including the first slide, "California learner's permit") until the
        video is done. Only the tutorial and the ? button stay visible, over a see-through page. */
     html.sala-intro-hold, html.sala-intro-hold body { background:transparent !important; }
-    html.sala-intro-hold body > *:not(.sala-tutorial):not(.sala-help) { visibility:hidden !important; }
+    html.sala-intro-hold body > *:not(.sala-tutorial):not(.sala-help):not(#course-widget):not(.sala-mascot):not(.sala-cam-consent) { visibility:hidden !important; }
     html.sala-intro-hold .sala-tutorial { background:rgba(2,6,23,.55); }
+    /* The demo's Sala: a golden cutout, bottom-left, always on screen (over the intro video and the lesson). Tap to ask. */
+    .sala-mascot { position:fixed; left:max(10px, env(safe-area-inset-left)); bottom:max(10px, env(safe-area-inset-bottom)); z-index:10025;
+      height:clamp(96px, 24vh, 190px); aspect-ratio:323/845; padding:0; border:0; background:transparent; cursor:pointer;
+      touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
+    .sala-mascot .sala-art { position:absolute; inset:0; background:url(/api/studio/voice-overlay/sala-gold-cutout.png) center bottom/contain no-repeat;
+      filter:drop-shadow(0 8px 14px rgba(0,0,0,.45)); transition:transform .18s ease; transform-origin:50% 100%; }
+    .sala-mascot:hover .sala-art, .sala-mascot:focus-visible .sala-art { transform:scale(1.05); }
+    .sala-mascot:focus-visible { outline:3px solid #fde047; outline-offset:2px; border-radius:14px; }
+    .sala-mascot.sala-giggle .sala-art { animation:salaGiggle .72s ease; }
+    .sala-mascot .sala-dot { position:absolute; right:-2px; top:6px; width:12px; height:12px; border-radius:50%; background:#eab308; box-shadow:0 0 0 2px rgba(11,16,32,.8); }
+    .sala-mascot[data-listen="on"] .sala-dot { background:#22c55e; box-shadow:0 0 0 2px rgba(11,16,32,.8), 0 0 10px #22c55e; }
+    .sala-mascot[data-listen="muted"] .sala-dot { background:#f87171; }
+    .sala-mascot .sala-tap { position:absolute; left:100%; bottom:30%; margin-left:6px; white-space:nowrap; padding:8px 14px; border-radius:99px;
+      background:#fde047; color:#1e1b4b; font:800 14px/1 system-ui,sans-serif; box-shadow:0 6px 18px rgba(0,0,0,.4); }
+    .sala-mascot .sala-tap[hidden] { display:none; }
+    body.demo-widget .theodore-avatar-wrap { display:none !important; }
+    /* Demo / full course: the two cream bars under the lesson (the spoken question and any translation notes) are not shown.
+       Their text stays for screen readers, and the widget menu's "Show captions" brings them back. */
+    body.demo-clean:not(.sala-captions) #teach-activity,
+    body.demo-clean:not(.sala-captions) #lang-warning,
+    body.demo-clean:not(.sala-captions) #lesson-caption {
+      position:absolute !important; width:1px !important; height:1px !important; margin:0 !important; padding:0 !important; border:0 !important;
+      overflow:hidden !important; clip:rect(0 0 0 0) !important; clip-path:inset(50%) !important; white-space:nowrap !important; }
+    /* Camera consent card: shown once, before the browser's own permission prompt. */
+    .sala-cam-consent { position:fixed; inset:0; z-index:2147483300; display:grid; place-items:center; padding:14px; background:rgba(2,6,23,.62); }
+    .sala-cam-consent .card { box-sizing:border-box; width:min(calc(100vw - 28px), 420px); padding:20px 20px 16px; border-radius:20px; text-align:center;
+      background:linear-gradient(160deg,#1e1b4b,#0f172a); border:2px solid rgba(212,175,55,.8); color:#f1f5f9; box-shadow:0 20px 60px rgba(0,0,0,.6);
+      font:500 16px/1.45 system-ui,"Avenir Next","Segoe UI",sans-serif; }
+    .sala-cam-consent h2 { margin:0 0 8px; font:800 20px/1.2 system-ui,sans-serif; color:#fde68a; }
+    .sala-cam-consent p { margin:0 0 14px; }
+    .sala-cam-consent .actions { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+    .sala-cam-consent button { min-height:44px; padding:0 18px; border-radius:99px; border:2px solid rgba(255,255,255,.5); background:transparent; color:#f1f5f9;
+      font:800 15px/1 system-ui,sans-serif; cursor:pointer; }
+    .sala-cam-consent button.primary { background:#fde047; border-color:#fde047; color:#1e1b4b; }
+    .sala-cam-consent button:focus-visible { outline:3px solid #fde047; outline-offset:2px; }
+    /* Widget: the timer sits in the bar (never over the picture); the folded widget is a small pill. */
+    #course-widget .cw-bar .cw-clock { flex:none; padding:0 4px; }
+    #course-widget .cw-cam { position:relative; }
+    #course-widget .cw-camtoggle { position:absolute; z-index:6; right:6px; bottom:6px; width:36px; height:36px; border:0; border-radius:50%; display:grid; place-items:center;
+      background:rgba(8,12,24,.72); color:#f6efe4; font:800 16px/1 system-ui,sans-serif; cursor:pointer; }
+    #course-widget .cw-camtoggle:focus-visible { outline:2px solid #fde047; outline-offset:2px; }
+    #course-widget .cw-cam[data-cam="off"], #course-widget .cw-cam[data-cam="denied"] { display:flex; align-items:center; justify-content:space-between; gap:8px;
+      min-height:48px; padding:6px 10px; background:rgba(255,255,255,.06); }
+    #course-widget .cw-cam[data-cam="off"] .cw-camtoggle, #course-widget .cw-cam[data-cam="denied"] .cw-camtoggle { position:static; flex:none; }
+    #course-widget .cw-camlabel { display:none; font:700 13px/1.2 system-ui,sans-serif; color:#cbd5e1; }
+    #course-widget .cw-cam[data-cam="off"] .cw-camlabel, #course-widget .cw-cam[data-cam="denied"] .cw-camlabel { display:block; }
+    #course-widget .cw-cam[data-cam="off"] #student-cam, #course-widget .cw-cam[data-cam="denied"] #student-cam { display:none !important; }
+    #course-widget[data-collapsed="1"] { width:auto; min-width:0; }
+    #course-widget[data-collapsed="1"] .cw-grip { display:none; }
+    #course-widget[data-collapsed="1"] .cw-bar { padding:4px 6px 4px 14px; }
+    #course-widget[data-collapsed="1"] .cw-status { flex:none; width:14px; }
     .sala-tutorial .card { box-sizing:border-box; width:min(calc(100vw - 28px),520px); max-height:94vh; overflow:auto; padding:20px 20px 16px; border-radius:24px;
       background:linear-gradient(160deg,#312e81,#1e1b4b); border:3px solid #fde047; color:#f1f5f9; text-align:center;
       font:500 16px/1.45 system-ui,"Avenir Next","Segoe UI",sans-serif; box-shadow:0 20px 60px rgba(0,0,0,.6); }
@@ -3413,12 +3464,26 @@ STUDIO_JS = """
         startStudentTracking();
         return;
       }
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { announceCamera('denied'); return; }
+      // Camera consent comes first: the card (course_voice.js) is shown once per browser, then the browser's own prompt follows.
+      // "Not now" and the widget's off switch keep the lesson going without a camera.
+      const pref = readCamPref();
+      if (pref === 'no' || pref === 'off') { announceCamera('off'); return; }
+      if (pref !== 'yes') {
+        const gate = window.salaCamConsent;
+        if (gate && typeof gate.ensure === 'function') {
+          announceCamera('asking');
+          let allowed = false;
+          try { allowed = await gate.ensure(); } catch (_) { allowed = false; }
+          if (!allowed) { announceCamera('off'); return; }
+        }
+      }
       try {
         studentCamStream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 360 } },
           audio: false,
         });
+        announceCamera('on');
         watchCameraStream(studentCamStream);
         const video = $('student-cam-video');
         if (video) {
@@ -3432,11 +3497,32 @@ STUDIO_JS = """
         if (!studentAwayTimer) studentAwayTimer = window.setInterval(watchStudentPresence, 200);
         startStudentTracking();
       } catch (error) {
+        announceCamera('denied');
+        if (document.body.classList.contains('demo-clean')) return;   // demo: audio-only is fine, no nagging line
         setLearningStatus('Camera is required. Allow it to continue.');
         if (!studentCamTimer) studentCamTimer = window.setInterval(() => { void studentCameraSample(); }, 1000);
         if (!studentAwayTimer) studentAwayTimer = window.setInterval(watchStudentPresence, 200);
       }
     }
+
+    // The camera choice and its page API (read by the widget in course_voice.js).
+    const CAM_PREF_KEY = 'salareen_camera_pref_v1';   // 'yes' (allowed) | 'no' (declined) | 'off' (turned off in the widget)
+    function readCamPref() { try { return localStorage.getItem(CAM_PREF_KEY) || ''; } catch (_) { return ''; } }
+    function writeCamPref(value) {
+      try { if (value) localStorage.setItem(CAM_PREF_KEY, value); else localStorage.removeItem(CAM_PREF_KEY); } catch (_) { /* not kept */ }
+    }
+    function announceCamera(state) {
+      document.body.dataset.camera = state;
+      try { window.dispatchEvent(new CustomEvent('sala-camera', { detail: { state } })); } catch (_) { /* old browser */ }
+    }
+    window.salaCamera = {
+      state: () => document.body.dataset.camera || '',
+      pref: readCamPref,
+      turnOn: async () => { writeCamPref('yes'); await ensureStudentCamera(); },
+      turnOff: () => { writeCamPref('off'); stopStudentCamera(); announceCamera('off'); },
+      reset: () => { writeCamPref(''); stopStudentCamera(); announceCamera('off'); },
+      stop: () => { stopStudentCamera(); announceCamera('off'); },
+    };
 
     function setStudentCamHidden(hidden) {
       const box = $('student-cam');
@@ -7246,10 +7332,8 @@ STUDIO_JS = """
       const notices = [];
       if (payload.disclaimer) notices.push('ℹ ' + payload.disclaimer);
       if (spoken !== lang) {
-        // Coverage is per-slide, so the voice follows the words rather than
-        // reading English aloud with the requested language's voice.
-        notices.push('⚠ This screen is not translated yet — shown and read aloud in ' +
-          languageLabel(spoken) + '.');
+        // Coverage is per-slide, so the voice follows the words rather than reading English aloud with the requested
+        // language's voice. The learner is not told: it falls back silently (no "not translated yet" banner).
       } else if (payload.translation_source === 'xai') {
         notices.push('ℹ Machine-translated by Grok — review before classroom use.');
       } else if (payload.translation_source === 'curated' && payload.translation_note) {
@@ -7739,13 +7823,13 @@ def render_studio_page() -> str:
             <p id="attention-aside" class="attention-aside" hidden></p>
             <div class="modality-row" id="teach-modalities"></div>
             <div class="examples-box" id="teach-examples"></div>
-            <div class="lang-warning" id="lang-warning" style="display:none"></div>
+            <div class="lang-warning" id="lang-warning" role="status" aria-live="polite" style="display:none"></div>
             <div class="sample-clock" id="sample-clock" hidden title="Free demo: time left">
               <span id="sample-clock-time">10:00</span>
               <small data-i18n="freeTrial">free trial</small>
             </div>
             <div class="sample-banner" id="sample-banner" style="display:none" role="status"></div>
-            <div class="activity" id="teach-activity" style="display:none"></div>
+            <div class="activity" id="teach-activity" role="status" aria-live="polite" style="display:none"></div>
             <div class="narr" id="teach-narr"></div>
             <div class="absorb-note" id="absorb-note" hidden data-i18n="absorb">Take a moment with this page. The next one waits so you can study it.</div>
             <div class="status" id="teach-adapt"></div>
