@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   adminListAccounts,
   changePassword,
@@ -42,6 +43,7 @@ import AdminAccountsTable from "../components/AdminAccountsTable";
 const STATUS_ORDER = ["paid", "in_progress", "enrolled", "saved", "passed", "failed"];
 
 export default function AccountPage() {
+  const router = useRouter();
   const { t } = useT();
   const consoleOn = useFlag<boolean>("access.educator_console", true);
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
@@ -224,6 +226,7 @@ export default function AccountPage() {
     clearToken();
     setLoggedIn(false);
     setPortfolio(null);
+    router.push("/");   // signed-out visitors land on the front page with Login and the demo picker
   }
 
   return (

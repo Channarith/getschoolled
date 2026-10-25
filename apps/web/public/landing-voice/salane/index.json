@@ -1,0 +1,15 @@
+{
+ "voice": "salane",
+ "engine": "edge-tts",
+ "ext": "mp3",
+ "edge_voice": {
+  "en": "en-US-AriaNeural"
+ },
+ "clips": {
+  "en": [
+   "05c3d88b4ba589",
+   "0facb010ee7eff",
+   "189e23fd6b3bd9"
+  ]
+ }
+}

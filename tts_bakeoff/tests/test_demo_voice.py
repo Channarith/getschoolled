@@ -121,3 +121,23 @@ def test_mobile_test_vectors_are_in_sync():
     mobile = (Path(__file__).resolve().parents[2] / "apps" / "mobile" / "src" / "__tests__" / "cloneVoice.test.ts").read_text(encoding="utf-8")
     for case in json.loads(VECTORS.read_text(encoding="utf-8"))["cases"]:
         assert case["hash"] in mobile
+
+
+def test_landing_lines_are_in_the_manifest_and_shipped_as_default_clips():
+    import json
+    from pathlib import Path
+
+    from tts_bakeoff.demo_voice import manifest as mf
+    from tts_bakeoff.demo_voice.clip_hash import clip_hash, normalize
+
+    rows = mf.landing()
+    assert [r["demo"] for r in rows] == ["landing"] * len(rows) and len(rows) == 3
+    committed = json.loads(mf.MANIFEST.read_text(encoding="utf-8"))
+    in_manifest = {(c["lang"], c["hash"]) for c in committed["clips"] if c["demo"] == "landing"}
+    web = Path(mf.ROOT) / "apps" / "web" / "public" / "landing-voice" / "salane"
+    index = json.loads((web / "index.json").read_text(encoding="utf-8"))
+    for r in rows:
+        h = clip_hash(r["lang"], normalize(r["text"]))
+        assert (r["lang"], h) in in_manifest
+        assert h in index["clips"][r["lang"]]
+        assert (web / r["lang"] / f"{h}.mp3").stat().st_size > 2000

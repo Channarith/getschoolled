@@ -6,6 +6,13 @@ import { AUTH_EVENT, getToken } from "../lib/api";
 import OrbitalMascotStage, { type MascotSpotlight } from "./OrbitalMascotStage";
 import type { Expression } from "./mascot3d/expressions";
 import type { ClipName } from "./MascotMeshy";
+import { landingClipUrl } from "../lib/cloneVoice";
+import landingVoiceLines from "../lib/landingVoiceLines.json";
+
+// The spoken lines live in landingVoiceLines.json so the pre-rendered clips (scripts/render_landing_voice.py) and this
+// component always read the same text.
+const LANDING_LANG = "en";
+const SPOKEN: Record<string, string> = Object.fromEntries(landingVoiceLines.lines.map((l) => [l.id, l.text]));
 
 /**
  * DN "Dark Navy" landing hero — modeled 1:1 on the DN mockup.
@@ -44,7 +51,7 @@ const FEATURES: Array<{
     icon: "👤",
     title: "One tutor per student",
     body: "A dedicated AI tutor that adapts to how you learn.",
-    line: "You get one tutor, just for you. I notice how you think, then I change the lesson so it fits.",
+    line: SPOKEN.tutor,
     clip: "Big_Wave_Hello",
     expression: "cute",
   },
@@ -53,7 +60,7 @@ const FEATURES: Array<{
     icon: "🎮",
     title: "Learn by playing",
     body: "Adaptive games and webcam vision labs for every age.",
-    line: "Learning feels like play here. Adaptive games and webcam labs meet you at any age.",
+    line: SPOKEN.play,
     clip: "Indoor_Swing",
     expression: "excited",
   },
@@ -62,7 +69,7 @@ const FEATURES: Array<{
     icon: "💬",
     title: "Live human-paced classes",
     body: "Real teachers, real conversations, your pace.",
-    line: "Live class moves with you. A real teacher talks with you, and I stay right beside you.",
+    line: SPOKEN.live,
     clip: "Confident_Strut",
     expression: "curious",
   },
@@ -104,6 +111,8 @@ export default function DNLandingHero() {
   const enterTimer = useRef<number | null>(null);
   const leaveTimer = useRef<number | null>(null);
   const spokenFor = useRef<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const userActive = useRef(false);
   const activeId = hoverId ?? pinnedId;
   const spotlight: MascotSpotlight | null = useMemo(() => {
     const feature = FEATURES.find((item) => item.id === activeId);
@@ -126,15 +135,6 @@ export default function DNLandingHero() {
   }, []);
 
   useEffect(() => {
-    const synth = window.speechSynthesis;
-    if (!synth) return;
-    const warm = () => synth.getVoices();
-    warm();
-    synth.addEventListener("voiceschanged", warm);
-    return () => synth.removeEventListener("voiceschanged", warm);
-  }, []);
-
-  useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       setPinnedId(null);
@@ -144,43 +144,109 @@ export default function DNLandingHero() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // Autoplay rule: nothing speaks until the visitor has pressed, tapped or typed something on the page.
   useEffect(() => {
-    const synth = window.speechSynthesis;
-    if (!spotlight) {
-      spokenFor.current = null;
-      synth?.cancel();
-      return;
+    userActive.current = Boolean(
+      (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation?.hasBeenActive,
+    );
+    const mark = () => {
+      userActive.current = true;
+    };
+    const opts = { capture: true, passive: true } as const;
+    window.addEventListener("pointerdown", mark, opts);
+    window.addEventListener("keydown", mark, opts);
+    window.addEventListener("touchstart", mark, opts);
+    return () => {
+      window.removeEventListener("pointerdown", mark, opts);
+      window.removeEventListener("keydown", mark, opts);
+      window.removeEventListener("touchstart", mark, opts);
+    };
+  }, []);
+
+  function stopAudio() {
+    const audio = audioRef.current;
+    audioRef.current = null;
+    if (audio) {
+      audio.onended = null;
+      audio.onerror = null;
+      audio.pause();
     }
-    // Hover shows the line. Speech waits for a click when motion is reduced,
-    // and otherwise starts once per topic so a pin does not repeat it.
-    const shouldSpeak = pinnedId === spotlight.id || !reduced;
-    if (!shouldSpeak || spokenFor.current === spotlight.id) return;
+    window.speechSynthesis?.cancel();
+  }
+
+  // Last resort only: used when a pre-rendered clip is missing or fails to load.
+  function speakWithBrowserVoice(line: string) {
+    const synth = window.speechSynthesis;
     if (!synth) return;
-    const topicId = spotlight.id;
-    const utter = new SpeechSynthesisUtterance(spotlight.line);
+    const utter = new SpeechSynthesisUtterance(line);
     utter.rate = 1.02;
     utter.pitch = 1.08;
     const voice = pickVoice();
     if (voice) utter.voice = voice;
-    let alive = true;
     synth.cancel();
-    const timer = window.setTimeout(() => {
+    synth.speak(utter);
+  }
+
+  useEffect(() => {
+    if (!spotlight) {
+      spokenFor.current = null;
+      stopAudio();
+      return;
+    }
+    if (spokenFor.current !== spotlight.id) stopAudio();
+    // Hover shows the line. Speech needs a prior user gesture and waits for a click when motion is reduced,
+    // and starts once per topic so a pin does not repeat it.
+    const shouldSpeak = pinnedId === spotlight.id || (!reduced && userActive.current);
+    if (!shouldSpeak || spokenFor.current === spotlight.id) return;
+    const topicId = spotlight.id;
+    const line = spotlight.line;
+    let alive = true;
+    const timer = window.setTimeout(async () => {
       if (!alive) return;
       spokenFor.current = topicId;
-      synth.speak(utter);
+      const url = await landingClipUrl(LANDING_LANG, line).catch(() => null);
+      if (!alive) return;
+      if (!url) {
+        speakWithBrowserVoice(line);
+        return;
+      }
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audio.onended = () => {
+        if (audioRef.current === audio) audioRef.current = null;
+      };
+      audio.onerror = () => {
+        if (audioRef.current !== audio) return;
+        audioRef.current = null;
+        speakWithBrowserVoice(line);
+      };
+      try {
+        await audio.play();
+      } catch (err) {
+        // Blocked by the browser's autoplay policy: stay silent (the text is on screen).
+        if (audioRef.current === audio && !(err instanceof DOMException && err.name === "NotAllowedError")) {
+          audioRef.current = null;
+          speakWithBrowserVoice(line);
+        }
+      }
     }, 60);
     return () => {
       alive = false;
       window.clearTimeout(timer);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spotlight, pinnedId, reduced]);
 
   useEffect(() => {
+    const onHide = () => stopAudio();
+    window.addEventListener("pagehide", onHide);
     return () => {
+      window.removeEventListener("pagehide", onHide);
       if (enterTimer.current) window.clearTimeout(enterTimer.current);
       if (leaveTimer.current) window.clearTimeout(leaveTimer.current);
-      window.speechSynthesis?.cancel();
+      stopAudio();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function clearTimers() {

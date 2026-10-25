@@ -2,7 +2,7 @@
 
   python3 -m tts_bakeoff.demo_voice.manifest [--langs en,es,...] [--api https://salareen.com] [--extra-texts misses.jsonl]
 
-Sources: the On the Go demo course (public curriculum API, one course, every language it is translated into), Vision Play
+Sources: the home-page mascot lines (apps/web/app/lib/landingVoiceLines.json), the On the Go demo course (public curriculum API, one course, every language it is translated into), Vision Play
 (literal prompts in its JS, plus the quiz bank questions) and any extra texts (a JSON-lines file of {demo, lang, text},
 for example the clips a demo reported missing) and the translated lines in tts_manifest/translations/ (demo_voice.translations; each
 clip then carries the review status of its translation). Strings built at run time (scores, names, letters) are not enumerable here;
@@ -92,6 +92,15 @@ def vision_play(static: Path = VISION_STATIC):
     return [{"demo": "vision_play", "lang": "en", "text": t} for t in texts]
 
 
+LANDING_LINES = ROOT / "apps" / "web" / "app" / "lib" / "landingVoiceLines.json"
+
+
+def landing(path: Path = LANDING_LINES):
+    """The home-page mascot lines (DNLandingHero.tsx imports the same JSON, so the text cannot drift)."""
+    rows = json.loads(Path(path).read_text(encoding="utf-8"))["lines"]
+    return [{"demo": "landing", "lang": primary_lang(r["lang"]), "text": r["text"]} for r in rows]
+
+
 def extra(path: Path | None):
     if not path:
         return []
@@ -105,7 +114,7 @@ def extra(path: Path | None):
 
 def build(langs=DEFAULT_LANGS, api="https://salareen.com", extra_texts=None, vision=True, log=print, translated=True) -> dict:
     from .translations import clips as translated_clips   # lazy: translations imports this module for MANIFEST
-    items = on_the_go(langs, api, log) + (vision_play() if vision else []) + extra(extra_texts) + (translated_clips() if translated else [])
+    items = on_the_go(langs, api, log) + (vision_play() if vision else []) + landing() + extra(extra_texts) + (translated_clips() if translated else [])
     seen, clips = set(), []
     for it in items:
         text = normalize(it["text"])
@@ -129,8 +138,14 @@ def refresh_offline(path: Path = MANIFEST) -> dict:
     """Re-merge voices.json and tts_manifest/translations/ into the committed manifest without calling the curriculum API."""
     from .translations import clips as translated_clips
     m = json.loads(Path(path).read_text(encoding="utf-8"))
-    clips = [c for c in m["clips"] if "status" not in c]
+    clips = [c for c in m["clips"] if "status" not in c and c["demo"] != "landing"]
     seen = {(c["lang"], c["hash"]) for c in clips}
+    for it in landing():
+        text = normalize(it["text"])
+        h = clip_hash(it["lang"], text)
+        if text and (it["lang"], h) not in seen:
+            seen.add((it["lang"], h))
+            clips.append({"id": f"landing:{it['lang']}:{h}", "demo": "landing", "lang": it["lang"], "text": text, "hash": h})
     for it in translated_clips():
         text = normalize(it["text"])
         h = clip_hash(it["lang"], text)

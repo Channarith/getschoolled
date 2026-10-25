@@ -1,0 +1,23 @@
+{
+ "voice": "salane",
+ "default_edge_voice": {
+  "en": "en-US-AriaNeural"
+ },
+ "lines": [
+  {
+   "id": "tutor",
+   "lang": "en",
+   "text": "You get one tutor, just for you. I notice how you think, then I change the lesson so it fits."
+  },
+  {
+   "id": "play",
+   "lang": "en",
+   "text": "Learning feels like play here. Adaptive games and webcam labs meet you at any age."
+  },
+  {
+   "id": "live",
+   "lang": "en",
+   "text": "Live class moves with you. A real teacher talks with you, and I stay right beside you."
+  }
+ ]
+}
