@@ -5,7 +5,10 @@ in certification_prep.py; this module only overlays display/spoken strings.
 """
 from __future__ import annotations
 
+import json
+import os
 from dataclasses import dataclass
+from pathlib import Path
 
 
 @dataclass(frozen=True)
@@ -1726,21 +1729,109 @@ def _canonical(language: str) -> str:
     return (language or "").strip().lower().replace("_", "-").split("-")[0]
 
 
-def translate_cert_slide(slide_key: str, language: str) -> CertSlideTranslation | None:
-    """Return curated translation for slide_key, or None if missing."""
-    by_key = CURATED.get(_canonical(language))
-    if not by_key:
+def machine_dir() -> Path:
+    """Folder of machine-translated driver's ed overlays, one ``<lang>.json`` each.
+
+    Curated Khmer always wins. These files fill every other language so the
+    demo speaks that language instead of English. ``AOEP_CERT_MACHINE_DIR``
+    overrides the repo ``data/cert_machine`` folder.
+    """
+    override = os.environ.get("AOEP_CERT_MACHINE_DIR", "").strip()
+    if override:
+        return Path(override).expanduser()
+    parents = Path(__file__).resolve().parents
+    for parent in parents:
+        if (parent / "VERSION").is_file() and (parent / "scripts").is_dir():
+            return parent / "data" / "cert_machine"
+    if len(parents) > 4:
+        return parents[4] / "data" / "cert_machine"
+    return Path("/app/data/cert_machine")
+
+
+_MACHINE: dict[str, tuple[float, dict]] = {}
+
+
+def _machine_doc(language: str) -> dict:
+    lang = _canonical(language)
+    path = machine_dir() / f"{lang}.json"
+    try:
+        mtime = path.stat().st_mtime
+    except OSError:
+        _MACHINE.pop(lang, None)
+        return {}
+    cached = _MACHINE.get(lang)
+    if cached and cached[0] == mtime:
+        return cached[1]
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(doc, dict):
+        return {}
+    _MACHINE[lang] = (mtime, doc)
+    return doc
+
+
+def _text_list(value) -> tuple[str, ...]:
+    if not isinstance(value, list):
+        return ()
+    return tuple(str(item).strip() for item in value if str(item).strip())
+
+
+def _machine_slide(slide_key: str, language: str) -> CertSlideTranslation | None:
+    slides = _machine_doc(language).get("slides")
+    if not isinstance(slides, dict):
         return None
-    return by_key.get(slide_key)
+    row = slides.get(slide_key)
+    if not isinstance(row, dict):
+        return None
+    title = str(row.get("title") or "").strip()
+    body = str(row.get("body") or "").strip()
+    say = str(row.get("say") or "").strip()
+    if not title or not body or not say:
+        return None
+    return CertSlideTranslation(
+        title=title,
+        body=body,
+        say=say,
+        activity=str(row.get("activity") or "").strip(),
+        examples=_text_list(row.get("examples")),
+        quiz_prompt=str(row.get("quiz_prompt") or "").strip(),
+        quiz_choices=_text_list(row.get("quiz_choices")) if len(_text_list(row.get("quiz_choices"))) == 4 else (),
+        quiz_explanation=str(row.get("quiz_explanation") or "").strip(),
+        game_prompt=str(row.get("game_prompt") or "").strip(),
+        game_options=_text_list(row.get("game_options")),
+        game_steps=_text_list(row.get("game_steps")),
+    )
+
+
+def translate_cert_slide(slide_key: str, language: str) -> CertSlideTranslation | None:
+    """Curated overlay first, then a machine-translated file, else None."""
+    lang = _canonical(language)
+    curated = CURATED.get(lang)
+    if curated and slide_key in curated:
+        return curated[slide_key]
+    return _machine_slide(slide_key, lang)
 
 
 def scaffold_for(language: str) -> CertScaffold | None:
-    """Connective phrases for `language`, or None when we have none curated.
+    """Connective phrases for `language`, or None when we have none.
 
     None means "say nothing extra": silence is correct where English would
     otherwise be spoken in the middle of a translated slide.
     """
-    return SCAFFOLD.get(_canonical(language))
+    lang = _canonical(language)
+    found = SCAFFOLD.get(lang)
+    if found is not None:
+        return found
+    raw = _machine_doc(lang).get("scaffold")
+    if not isinstance(raw, dict):
+        return None
+    heading = str(raw.get("examples_heading") or "").strip()
+    lead = str(raw.get("examples_lead") or "").strip()
+    if not heading or not lead:
+        return None
+    return CertScaffold(examples_heading=heading, examples_lead=lead)
 
 
 def coverage(language: str) -> tuple[int, int]:

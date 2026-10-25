@@ -73,6 +73,48 @@ def clip_path(root: Path, voice: str, lang: str, h: str, ext: str = "mp3") -> Pa
     return root / voice / lang / f"{h}.{ext}"
 
 
+def audio_ok(mp3: Path) -> bool:
+    """A finished clip is a real audio file. A tiny or unreadable file is redone, not skipped."""
+    if not mp3.is_file():
+        return False
+    try:
+        if mp3.stat().st_size <= 500:
+            return False
+        head = mp3.read_bytes()[:4]
+    except OSError:
+        return False
+    if head.startswith((b"ID3", b"RIFF")):
+        return True
+    return len(head) >= 2 and head[0] == 0xFF and (head[1] & 0xE0) == 0xE0
+
+
+def sidecar_ok(mp3: Path) -> bool:
+    side = mp3.with_suffix(".json")
+    if not side.is_file():
+        return False
+    try:
+        doc = json.loads(side.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return isinstance(doc, dict) and bool(doc.get("text"))
+
+
+def _discard(mp3: Path) -> None:
+    mp3.unlink(missing_ok=True)
+    mp3.with_suffix(".json").unlink(missing_ok=True)
+
+
+def _write_sidecar(mp3: Path, cfg: dict, clip: dict, stock: bool, own: set[str] | None) -> None:
+    mp3.with_suffix(".json").write_text(json.dumps({
+        "text": clip["text"], "lang": clip["lang"], "demo": clip["demo"], "model": cfg["model"],
+        "speaker": cfg.get("speaker") or cfg["id"],
+        "ai_generated": True, "label": cfg.get("ai_label", f"AI-generated voice of {cfg['label']}"),
+        **({"designed": True, "stock": cfg["id"]} if stock else {}),
+        **({"translation_status": clip["status"]} if clip.get("status") else {}),
+        **({"cross_lingual": True} if own and clip["lang"] not in own else {}),
+    }, ensure_ascii=False, indent=1), encoding="utf-8")
+
+
 def wav_to_mp3(wav: Path, mp3: Path) -> None:
     if not shutil.which("ffmpeg"):
         raise SystemExit("ffmpeg is required to write mp3 clips")
@@ -198,12 +240,15 @@ def run(voice: str, root: Path, shard: str | None, langs: set[str] | None, limit
         if limit is not None and stats["ok"] >= limit:
             break
         mp3 = clip_path(root, voice, c["lang"], c["hash"])
-        if mp3.exists() and mp3.stat().st_size > 500:
+        if audio_ok(mp3):
+            if not sidecar_ok(mp3):
+                _write_sidecar(mp3, cfg, c, stock, own)
             stats["skipped_existing"] += 1
             continue
         if supported and c["lang"] not in supported:
             stats["skipped_unsupported"] += 1
             continue
+        _discard(mp3)
         mp3.parent.mkdir(parents=True, exist_ok=True)
         ad = adapter
         if stock and built_here:
@@ -217,17 +262,16 @@ def run(voice: str, root: Path, shard: str | None, langs: set[str] | None, limit
                 wav = Path(td) / "c.wav"
                 ad.synthesize(c["text"], c["lang"], wav)
                 convert(wav, mp3)
-            mp3.with_suffix(".json").write_text(json.dumps({
-                "text": c["text"], "lang": c["lang"], "demo": c["demo"], "model": cfg["model"], "speaker": cfg.get("speaker") or cfg["id"],
-                "ai_generated": True, "label": cfg.get("ai_label", f"AI-generated voice of {cfg['label']}"),
-                **({"designed": True, "stock": cfg["id"]} if stock else {}),
-                **({"translation_status": c["status"]} if c.get("status") else {}),
-                **({"cross_lingual": True} if own and c["lang"] not in own else {}),
-            }, ensure_ascii=False, indent=1), encoding="utf-8")
+            if not audio_ok(mp3):
+                _discard(mp3)
+                raise RuntimeError(f"clip {c['hash']} is not playable audio")
+            _write_sidecar(mp3, cfg, c, stock, own)
             stats["ok"] += 1
             print(f"[{n}/{len(todo)}] ok {c['demo']} {c['lang']} {c['hash']}", flush=True)
         except Exception as exc:  # noqa: BLE001
             stats["failed"] += 1
+            if mp3.exists() and not audio_ok(mp3):
+                _discard(mp3)
             print(f"[{n}/{len(todo)}] FAILED {c['lang']} {c['hash']}: {str(exc)[:120]}", flush=True)
     publish(root, manifest, reviewed_only=reviewed_only)
     return stats

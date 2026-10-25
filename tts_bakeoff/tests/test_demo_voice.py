@@ -92,6 +92,22 @@ def test_render_skips_unsupported_and_existing_then_publishes(tmp_path, consente
     assert [c["lang"] for c in vf.missing(tmp_path, m, "channarith", "voxcpm2")] == ["km"]   # the fake adapter never speaks km
 
 
+def test_render_keeps_finished_audio_and_redoes_a_corrupt_clip(tmp_path, consented):
+    m = _manifest()
+    rd.run("channarith", tmp_path, None, {"en"}, None, m, FakeAdapter(), _convert)
+    en = tmp_path / "channarith" / "en"
+    finished, corrupt = sorted(en.glob("*.mp3"))
+    corrupt.write_bytes(b"\x00" * 800)
+    corrupt.with_suffix(".json").write_text("{", encoding="utf-8")
+    missing_side = finished.with_suffix(".json")
+    missing_side.unlink()
+    again = FakeAdapter()
+    stats = rd.run("channarith", tmp_path, None, {"en"}, None, m, again, _convert)
+    assert stats["ok"] == 1 and stats["skipped_existing"] == 1 and stats["failed"] == 0
+    assert len(again.calls) == 1
+    assert rd.audio_ok(corrupt) and rd.sidecar_ok(corrupt) and rd.sidecar_ok(finished)
+
+
 def test_shards_partition_the_work(tmp_path, consented):
     m = _manifest()
     a = rd.run("channarith", tmp_path / "a", "0/2", None, None, m, FakeAdapter(), _convert)
