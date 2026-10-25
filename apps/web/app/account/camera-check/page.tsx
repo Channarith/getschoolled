@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
+import { safeReturnPath } from "../../lib/safeRedirect";
 import { useRouter, useSearchParams } from "next/navigation";
 import BiometricSetupAssistant from "../../components/BiometricSetupAssistant";
 import { completeOnboarding, getToken, listStudents, type StudentProfile } from "../../lib/api";
@@ -63,7 +64,7 @@ function CameraCheckContent() {
       localStorage.removeItem("onboarding_learner_name");
       localStorage.removeItem("onboarding_age_band");
     }
-    router.push(returnTo || (required ? "/courses" : onboarding ? "/" : "/account"));
+    router.push(safeReturnPath(returnTo, required ? "/courses" : onboarding ? "/" : "/account"));
   }
 
   if (!student) {

@@ -25,6 +25,7 @@ from pydantic import BaseModel, Field
 from . import __version__, tts
 from .analytics import AggregateAnalytics
 from .children_page import FAVICON_SVG, render_children_page
+from .diag_page import render_diag_page
 from .game_engine import (
     AUDIO_BANK,
     PICTURE_WORDS,
@@ -79,8 +80,11 @@ class VisionStaticFiles(StaticFiles):
 
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
 if VISION_ASSET_DIR.is_dir():
     mimetypes.add_type("application/octet-stream", ".task")
+    mimetypes.add_type("application/octet-stream", ".tflite")   # was served as text/plain
     # The folder URL itself is not a page. Starlette would 307 "/vendor/vision" to "/vendor/vision/" while the site's Next proxy strips the
     # trailing slash with a 308, so a browser or crawler on the folder bounced between the two forever. Answer 404 for it instead.
     app.add_api_route("/vendor/vision", lambda: Response(status_code=404), include_in_schema=False)
@@ -126,7 +130,7 @@ def _asset_tag() -> str:
     the code changes.
     """
     digest = hashlib.sha256(__version__.encode())
-    for name in ("app.js", "vision_math.js", "pop_quiz.js", "pop_quiz_game.js", "game_tutorial.js", "game_howto.js", "app.css"):
+    for name in ("app.js", "vision_math.js", "vision_diag.js", "vision_diag_page.js", "vision_assets.js", "pop_quiz.js", "pop_quiz_game.js", "game_tutorial.js", "game_howto.js", "app.css"):
         path = STATIC_DIR / name
         if path.is_file():
             digest.update(path.read_bytes())
@@ -141,6 +145,12 @@ def children_lab_page() -> str:
         page_path="/children-lab",
         api_prefix="/children-live-audio",
     )
+
+
+@app.get("/diag/vision", response_class=HTMLResponse)
+def camera_check_page() -> HTMLResponse:
+    """Public camera check: no sign-in, no data sent anywhere (see diag_page.py)."""
+    return HTMLResponse(render_diag_page(_asset_tag()), headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/favicon.ico", include_in_schema=False)

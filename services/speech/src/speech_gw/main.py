@@ -15,7 +15,7 @@ from aoep_shared.languages import SUPPORTED_LANGUAGES
 from aoep_shared.live_audio_agents import install_live_audio_routes
 from aoep_shared.service import create_service
 from aoep_shared.translation import is_pair_supported, plan_delivery
-from fastapi import HTTPException, Response
+from fastapi import HTTPException, Request, Response
 from pydantic import BaseModel
 
 # Load config/local.env (+ .env.local) so XAI_API_KEY / ELEVENLABS_API_KEY
@@ -139,7 +139,7 @@ def tts_instructors() -> dict:
 
 
 @app.get("/tts")
-def tts_get(text: str, language: str = "en", voice_style: str = "standard",
+def tts_get(request: Request, text: str, language: str = "en", voice_style: str = "standard",
             voice: str = "", instructor: str = "", slang: bool = True, tone: str = "") -> Response:
     """GET variant so mobile (expo-av) can load audio directly from a URI.
 
@@ -153,11 +153,11 @@ def tts_get(text: str, language: str = "en", voice_style: str = "standard",
             detail="text exceeds 1000-character limit for GET /tts; use POST /tts instead",
         )
     return _render_tts(text, language=language, voice_style=voice_style, voice=voice,
-                       instructor=instructor, slang=slang, tone=tone)
+                       instructor=instructor, slang=slang, tone=tone, client=_client_of(request))
 
 
 @app.post("/tts")
-def tts(req: TtsRequest) -> Response:
+def tts(req: TtsRequest, request: Request) -> Response:
     """Render narration to natural MP3 audio in the chosen accent + personality.
 
     A ``voice`` id (from /tts/voices) selects an accent (British, Texan,
@@ -167,11 +167,32 @@ def tts(req: TtsRequest) -> Response:
     ElevenLabs -> edge-tts neural -> 501 (client on-device fallback).
     """
     return _render_tts(req.text, language=req.language, voice_style=req.voice_style,
-                       voice=req.voice, instructor=req.instructor, slang=req.slang, tone=req.tone)
+                       voice=req.voice, instructor=req.instructor, slang=req.slang, tone=req.tone,
+                       client=_client_of(request))
+
+
+def _client_of(request: Request) -> str:
+    from aoep_shared.client_ip import client_ip
+
+    return client_ip(request.headers, request.client.host if request.client else None)
+
+
+def _paid_tts_allowed(client: str, chars: int) -> bool:
+    """Per-address budget for the PAID engine (ElevenLabs): a character budget per minute (AOEP_PAID_TTS_CHARS_PER_MIN, default
+    20000). Over budget the request still gets audio from the free edge-tts engine; it just does not reach the paid provider."""
+    if not client:
+        return True
+    limit = int(os.environ.get("AOEP_PAID_TTS_CHARS_PER_MIN", "20000") or 0)
+    if limit <= 0:
+        return True
+    from aoep_shared.ratelimit import RateLimit
+
+    limiter = app.state.rate_limiter
+    return bool(limiter.allow(f"speech:paidtts:{client}", cost=max(1, min(chars, limit)), rule=RateLimit(limit, 60.0)).allowed)
 
 
 def _render_tts(text: str, *, language: str, voice_style: str,
-                voice: str = "", instructor: str = "", slang: bool = True, tone: str = "") -> Response:
+                voice: str = "", instructor: str = "", slang: bool = True, tone: str = "", client: str = "") -> Response:
     text = (text or "").strip()
     if not text:
         raise HTTPException(status_code=400, detail="text is required")
@@ -248,7 +269,7 @@ def _render_tts(text: str, *, language: str, voice_style: str,
 
     from aoep_shared import elevenlabs_tts
 
-    el_ready = elevenlabs_tts.elevenlabs_configured(cfg.elevenlabs_api_key)
+    el_ready = elevenlabs_tts.elevenlabs_configured(cfg.elevenlabs_api_key) and _paid_tts_allowed(client, len(text))
 
     # 1) ElevenLabs when a specific EL voice is mapped, OR when no accent-specific
     #    edge voice is requested (EL is the most natural default).

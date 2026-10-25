@@ -19,6 +19,8 @@ import {
 import {createPopQuizGame} from "./pop_quiz_game.js";
 import {createGameTutorial} from "./game_tutorial.js";
 import {cloneClipUrl, mountVoiceSelect} from "./clone_voice.js";
+import {diag as trace} from "./vision_diag.js";
+import {loadVisionAssets} from "./vision_assets.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -173,6 +175,7 @@ const target = $("target");
 // live rect there forced dozens of synchronous layouts per frame. The observer
 // already tells us when it changed, so measure once and reuse.
 let stageRect = {w:0,h:0};
+trace.expose({getState: () => state, getVisionDiag: () => state.visionDiag ? {...state.visionDiag, face: state.visionDiag.face, hands: state.visionDiag.hands, segment: state.visionDiag.segment} : null, getVideo: () => video, getCanvas: () => canvas});
 function stageBox() { return stageRect; }
 
 function resizeCanvas() {
@@ -367,6 +370,8 @@ async function start(camera=true) {
         if (first?.name === "NotAllowedError" || first?.name === "SecurityError") throw first;
         state.stream = await navigator.mediaDevices.getUserMedia({video:true, audio:false});
       }
+      trace.attachStream(state.stream);
+      trace.attachVideo(video);
       if (video) {
         video.srcObject = state.stream;
         // autoplay + muted + playsinline normally start it; a rejected play() must not
@@ -420,47 +425,72 @@ async function initVision() {
   for (const source of visionSources(selfHosted)) {
     try {
       diag.source = source.name;
+      const endLibrary = trace.begin("library import", {source: source.name});
       const vision = await import(source.module);
       diag.library = "ok";
-      const files = await vision.FilesetResolver.forVisionTasks(source.wasm);
+      endLibrary();
+      // Three MediaPipe tasks mean three wasm heaps and three GL contexts. A low-memory phone (2 GB or less)
+      // skips the optional body outline instead of risking the whole page being killed.
+      const lowMemory = Number(navigator.deviceMemory) > 0 && Number(navigator.deviceMemory) <= 2;
+      // Our own files come from persistent storage (downloaded once; a phone's HTTP cache often refuses 9 MB entries).
+      let assets = null;
+      if (source.name === "this site") {
+        const endAssets = trace.begin("asset cache");
+        try {
+          assets = await loadVisionAssets({segment: !lowMemory});
+          endAssets({backend: assets.stats.backend, hits: assets.stats.hits, misses: assets.stats.misses, networkMB: Math.round(assets.stats.networkBytes / 104857.6) / 10});
+          diag.assets = `${assets.stats.backend} (${assets.stats.hits} cached, ${assets.stats.misses} downloaded)`;
+        } catch (error) { note("asset cache", error); endAssets({ok: false, reason: String(error?.message || error).slice(0, 120)}); assets = null; }
+      }
+      const endWasm = trace.begin("wasm fileset", {source: source.name});
+      const files = assets ? assets.files : await vision.FilesetResolver.forVisionTasks(source.wasm);
+      endWasm();
+      const modelBase = (key, path, delegate) => assets?.models?.[key] ? {modelAssetBuffer: assets.models[key].slice(), delegate} : {modelAssetPath: path, delegate};
       state.face = null; state.hands = null;
       diag.face = "pending"; diag.hands = "pending";
       for (const delegate of ["GPU", "CPU"]) {
+        const endFace = trace.begin(`face model ${delegate}`);
         try {
           state.face = await vision.FaceLandmarker.createFromOptions(files, {
-            baseOptions: {modelAssetPath: source.face, delegate},
+            baseOptions: modelBase("face", source.face, delegate),
             runningMode:"VIDEO",numFaces:1,outputFaceBlendshapes:true
           });
           diag.face = `ready (${delegate})`;
+          endFace({ok: true, delegate});
           break;
-        } catch (error) { note(`face ${delegate}`, error); }
+        } catch (error) { note(`face ${delegate}`, error); endFace({ok: false, delegate, reason: String(error?.message || error).slice(0, 160)}); }
       }
       if (!state.face) diag.face = "failed";
       for (const delegate of ["GPU", "CPU"]) {
+        const endHands = trace.begin(`hand model ${delegate}`);
         try {
           state.hands = await vision.HandLandmarker.createFromOptions(files, {
-            baseOptions: {modelAssetPath: source.hand, delegate},
+            baseOptions: modelBase("hand", source.hand, delegate),
             runningMode:"VIDEO",numHands:2
           });
           state.handConnections = (vision.HandLandmarker.HAND_CONNECTIONS || []).map((c) => (
             Array.isArray(c) ? [c[0], c[1]] : [c.start, c.end]
           )).filter((pair) => Number.isFinite(pair[0]) && Number.isFinite(pair[1]));
           diag.hands = `ready (${delegate})`;
+          endHands({ok: true, delegate});
           break;
-        } catch (error) { note(`hands ${delegate}`, error); }
+        } catch (error) { note(`hands ${delegate}`, error); endHands({ok: false, delegate, reason: String(error?.message || error).slice(0, 160)}); }
       }
       if (!state.hands) diag.hands = "failed";
-      if (!state.segmenter && source.segment) {
+      if (lowMemory && !state.segmenter) { diag.segment = "off (low memory)"; trace.stage("outline skipped", {deviceMemory: navigator.deviceMemory}); }
+      if (!state.segmenter && source.segment && !lowMemory) {
         diag.segment = "pending";
         for (const delegate of ["GPU", "CPU"]) {
+          const endSeg = trace.begin(`outline model ${delegate}`);
           try {
             state.segmenter = await vision.ImageSegmenter.createFromOptions(files, {
-              baseOptions: {modelAssetPath: source.segment, delegate},
+              baseOptions: modelBase("segment", source.segment, delegate),
               runningMode: "VIDEO", outputCategoryMask: true, outputConfidenceMasks: false,
             });
             diag.segment = `ready (${delegate})`;
+            endSeg({ok: true, delegate});
             break;
-          } catch (error) { note(`outline ${delegate}`, error); }
+          } catch (error) { note(`outline ${delegate}`, error); endSeg({ok: false, delegate, reason: String(error?.message || error).slice(0, 160)}); }
         }
         if (!state.segmenter) diag.segment = "off";
       }
@@ -639,24 +669,36 @@ function detectFrame() {
   state.lastDetectAt=nowMs;
   const now=Math.max((state.lastMpTs||0)+1, performance.now());
   state.lastMpTs=now;
+  const sample = {};
   try {
     if (state.face) {
+      const t0 = performance.now();
       const result=state.face.detectForVideo(video,now);
       const points=result.faceLandmarks?.[0];
       state.faceData=faceMetrics(points,blendshapeMap(result));
+      sample.faceMs = performance.now() - t0; sample.face = Boolean(points);
     }
   } catch (error) { console.warn("[children-lab] face frame skipped",error); }
   try {
     if (state.hands && (!screenTouch() || state.game === "ninja-weave")) {
+      const t1 = performance.now();
       const result=state.hands.detectForVideo(video,now);
+      sample.handsMs = performance.now() - t1;
       const labels=(result.handedness||[]).map(row=>row?.[0]?.categoryName||"");
       const previous=state.handData.map(hand=>hand.tip);
       state.handData=(result.landmarks||[]).map((points,i)=>handMetrics(points,labels[i])).filter(Boolean);
       state.handMotion=state.handData.reduce((max,hand,i)=>Math.max(max,previous[i]?distance(hand.tip,previous[i]):0),0);
+      sample.hands = state.handData.length;
     }
   } catch (error) { console.warn("[children-lab] hand frame skipped",error); }
-  try { if (state.segmenter && switchedOn("show-outline")) segmentFrame(now); }
-  catch (error) { console.warn("[children-lab] outline frame skipped",error); }
+  try {
+    if (state.segmenter && switchedOn("show-outline")) {
+      const t2 = performance.now();
+      segmentFrame(now);
+      if (OUTLINE.at && performance.now() - OUTLINE.at < 5) { sample.segRan = true; sample.segMs = performance.now() - t2; }
+    }
+  } catch (error) { console.warn("[children-lab] outline frame skipped",error); }
+  trace.frame(sample);
 }
 
 // ---- Quiet redesign (quiet-v4): a soft gold outline traced around the person, plus a small gold star on the shoulder.

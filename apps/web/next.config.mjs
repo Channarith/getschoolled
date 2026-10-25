@@ -24,10 +24,32 @@ function serviceOrigin(name) {
   return process.env[`${name.toUpperCase()}_ORIGIN`] || `http://${name}:8000`;
 }
 
+// Report-Only: browsers log what this policy WOULD block (DevTools console) without blocking anything. 'unsafe-inline' stays
+// until Next's inline scripts get nonces; 'wasm-unsafe-eval' and blob: are for the on-device vision models. Once the console is
+// quiet on every page, rename this header to Content-Security-Policy to enforce it.
+const CSP_REPORT_ONLY = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://accounts.google.com https://connect.facebook.net https://appleid.cdn-apple.com",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "img-src 'self' data: blob: https:",
+  "media-src 'self' blob: https://salareen-prod.sjc1.vultrobjects.com",
+  "font-src 'self' data: https://fonts.gstatic.com",
+  "connect-src 'self' https: wss:",
+  "worker-src 'self' blob:",
+  "frame-src 'self' https://accounts.google.com https://www.youtube.com https://appleid.apple.com https://www.facebook.com",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'self'",
+].join("; ");
+
 const SECURITY_HEADERS = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "Content-Security-Policy", value: "frame-ancestors 'self'" },
+  { key: "Content-Security-Policy-Report-Only", value: CSP_REPORT_ONLY },
+  // The games need this page's own camera and microphone and nothing else.
+  { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=(), usb=(), serial=(), bluetooth=(), interest-cohort=()" },
 ];
 
 const nextConfig = {
@@ -62,6 +84,7 @@ const nextConfig = {
       { source: "/api/tts", destination: `${childrenLab}/api/tts` },
       { source: "/api/tts/:path*", destination: `${childrenLab}/api/tts/:path*` },
       { source: "/vendor/vision/:path*", destination: `${childrenLab}/vendor/vision/:path*` },
+      { source: "/diag/vision", destination: `${childrenLab}/diag/vision` },
       // Drive embeds /audio-lab. The lab app serves that page at /lab.
       // Ingress must send /audio-lab to web; the /audio prefix is curriculum
       // and otherwise returns FastAPI {"detail":"Not Found"}.

@@ -178,9 +178,7 @@ def create_consent(base: Path, p: dict) -> dict:
     existing = (p.get("existing_form_path") or "").strip()
     with tempfile.TemporaryDirectory() as t:
         if existing:
-            form = Path(existing).expanduser()
-            if form.suffix.lower() not in FORM_EXT or not form.is_file():
-                raise UiError(400, f"no signed form at {form} (pdf, png, jpg, heic or txt)")
+            form = vet_form_path(existing)
             evidence["existing_form_path"] = str(form)
         else:
             try:
@@ -207,7 +205,29 @@ def create_consent(base: Path, p: dict) -> dict:
             raise UiError(400, str(exc)) from exc
     if proof is not None:
         (registry.speaker_dir(speaker, base) / "forms" / "consent-statement.wav").write_bytes(proof)
+    registry.tighten(registry.speaker_dir(speaker, base))
     return {"speaker": speaker, "name": rec["name"], "role": rec["role"], "date": rec["date"], "method": "web-ui"}
+
+
+FORM_MAX_BYTES = 25 * 1024 * 1024
+_FORM_DENY_PREFIXES = ("/etc", "/proc", "/sys", "/dev", "/root", "/boot", "/var/lib", "/var/run", "/run", "/private/etc", "/System", "/Library")
+
+
+def vet_form_path(raw: str) -> Path:
+    """The "I already signed a form" option names a file on this machine. The page must not become a way to copy arbitrary files
+    into the voices folder or to read what a path happens to point at: the file has to be a plain document type, not hidden or
+    inside a hidden folder (.ssh, .aws, .config ...), not a system location (also after symlinks are resolved), and not huge."""
+    form = Path(raw).expanduser()
+    if form.suffix.lower() not in FORM_EXT or not form.is_file():
+        raise UiError(400, f"no signed form at {form} (pdf, png, jpg, heic or txt)")
+    real = form.resolve()
+    if any(part.startswith(".") for part in real.parts) or form.name.startswith("."):
+        raise UiError(400, "that path is hidden or inside a hidden folder: put the signed form in an ordinary folder such as Documents")
+    if any(str(real) == p or str(real).startswith(p + "/") for p in _FORM_DENY_PREFIXES):
+        raise UiError(400, "that is a system location, not a signed form")
+    if real.stat().st_size > FORM_MAX_BYTES:
+        raise UiError(400, "that file is too large to be a signed form (25 MB limit)")
+    return real
 
 
 def _prompt(lang: str, prompt_id: str) -> dict:
@@ -233,6 +253,7 @@ def save_take(base: Path, speaker: str, lang: str, prompt_id: str, body: bytes) 
     dest = registry.speaker_dir(speaker, base) / "raw" / lang / f"{prompt_id}.wav"
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_bytes(body)
+    registry.tighten(registry.speaker_dir(speaker, base))
     warnings = []
     if info["peak"] >= 0.999:
         warnings.append("clipping: move back from the microphone")
@@ -515,7 +536,10 @@ def make_handler(base: Path):
             return True
 
         def _body(self) -> bytes:
-            n = int(self.headers.get("Content-Length") or 0)
+            try:
+                n = int(self.headers.get("Content-Length") or 0)
+            except ValueError as exc:
+                raise UiError(400, "bad Content-Length") from exc
             if n < 0 or n > MAX_BODY:
                 raise UiError(413, "upload too large")
             return self.rfile.read(n)
@@ -594,8 +618,12 @@ def make_handler(base: Path):
                 self._json(exc.code, {"error": exc.message})
             except registry.ConsentError as exc:
                 self._json(403, {"error": str(exc)})
-            except Exception as exc:  # noqa: BLE001 - never leak a traceback to the page
-                self._json(500, {"error": f"{type(exc).__name__}: {str(exc)[:200]}"})
+            except Exception as exc:  # noqa: BLE001 - never leak a traceback or a file path to the page
+                import sys
+                import traceback
+
+                traceback.print_exc(file=sys.stderr)   # the operator reads the server log; the page gets a generic message
+                self._json(500, {"error": f"internal error ({type(exc).__name__}); see the server log"})
 
         def _post(self, path: str):
             if path == "/api/consent":
@@ -629,4 +657,5 @@ class Server(socketserver.ThreadingMixIn, http.server.HTTPServer):
 
 def serve(base: Path, port: int = 8780) -> Server:
     base.mkdir(parents=True, exist_ok=True)
+    registry.tighten(base)
     return Server(("127.0.0.1", port), make_handler(base))

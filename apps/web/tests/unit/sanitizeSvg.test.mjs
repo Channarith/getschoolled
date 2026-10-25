@@ -31,3 +31,18 @@ test("only same-document or image data hrefs survive", () => {
   assert.ok(sanitizeSvg('<image href="data:image/png;base64,AAAA"/>').includes("data:image/png"));
   assert.ok(!sanitizeSvg('<image href="data:text/html;base64,AAAA"/>').includes("data:text"));
 });
+
+test("style blocks cannot fetch from other sites", () => {
+  const dirty = [
+    "<svg><style>@import url(https://evil.example/x.css);</style></svg>",
+    '<svg><style>@import "//evil.example/x.css";</style></svg>',
+    "<svg><style>.a{fill:url(https://evil.example/p.svg#a)}</style></svg>",
+    "<svg><style>.a{background:url( '//evil.example/t.png' )}</style></svg>",
+  ];
+  for (const svg of dirty) {
+    const clean = sanitizeSvg(svg);
+    assert.ok(!/evil\.example/i.test(clean), `still remote: ${clean}`);
+  }
+  assert.ok(sanitizeSvg("<svg><style>.a{fill:#fff}</style></svg>").includes("fill:#fff"));
+  assert.ok(sanitizeSvg("<svg><style>.a{fill:url(#grad)}</style></svg>").includes("url(#grad)"));
+});

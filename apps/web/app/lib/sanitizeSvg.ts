@@ -3,6 +3,9 @@
 
 const BLOCKED_ELEMENTS = ["script", "foreignobject", "iframe", "object", "embed", "audio", "video", "animate", "set", "handler"];
 const EVENT_ATTR = /[\s/"']on[a-z0-9_-]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]*)/gi;
+// A <style> block may not pull anything from another site: no @import, no url() to http(s) or protocol-relative addresses.
+const CSS_IMPORT = /@import[^;{}]*;?/gi;
+const CSS_REMOTE_URL = /url\(\s*(?:"|')?\s*(?:https?:)?\/\/[^)]*\)/gi;
 const HREF_ATTR = /\s(?:xlink:)?href\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]*))/gi;
 
 function stripElements(input: string): string {
@@ -25,6 +28,8 @@ export function sanitizeSvg(svg: string): string {
         const value = String(dq ?? sq ?? bare ?? "").trim();
         return value.startsWith("#") || /^data:image\/(png|jpe?g|gif|webp);/i.test(value) ? match : "";
       })
+      .replace(CSS_IMPORT, "")
+      .replace(CSS_REMOTE_URL, "none")
       .replace(/javascript\s*:/gi, "")
       .replace(/<!ENTITY[\s\S]*?>/gi, "");
     if (out === before) break;

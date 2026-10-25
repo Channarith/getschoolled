@@ -57,6 +57,7 @@ import { promptStudioCourse } from "./src/studioCoursePrompt";
 import { studioCourseFromLink, type StudioCourseId } from "./src/studioCourses";
 import type { PublicDemo } from "./src/publicDemos";
 import { visionLabPath, type VisionGame } from "./src/visionArcade";
+import { CAMERA_CHECK_DEMO } from "./src/diag/webDiag";
 import WorldsScreen from "./src/screens/WorldsScreen";
 import GameScreen from "./src/screens/GameScreen";
 import LessonScreen from "./src/screens/LessonScreen";
@@ -632,7 +633,7 @@ function AppInner() {
   } else if (studioDemo) {
     screen = <DemoWebScreen demo={studioDemo} onBack={() => setStudioDemo(null)} />;
   } else if (visionLab) {
-    screen = <DemoWebScreen demo={visionLab} onBack={() => setVisionLab(null)} />;
+    screen = <DemoWebScreen demo={visionLab} onBack={() => setVisionLab(null)} onReportBug={bugReporterEnabled ? () => void openBugReporter() : undefined} />;
   } else if (studyMode) {
     screen = <StudyToolsScreen mode={studyMode} onBack={() => setStudyMode(null)} />;
   } else if (showBilling) {
@@ -865,6 +866,7 @@ function AppInner() {
         onOpenHomework={() => setStudyMode("homework")}
         onOpenTraining={() => setStudyMode("training")}
         onOpenBugReport={bugReporterEnabled ? () => void openBugReporter() : undefined}
+        onOpenCameraCheck={() => setVisionLab(CAMERA_CHECK_DEMO)}
       />
     );
   }

@@ -1,0 +1,31 @@
+On the Go demo: courses, avatar, face presence, always-on questions
+====================================================================
+Page: /demo/on-the-go (hidden: four quick clicks on the logo). Component: apps/web/app/components/OnTheGo.tsx (mode "demo").
+
+What the learner gets
+  - Course picker: search, category chips, title, length, a "Resume at part N" mark. Demo shows 16 curated courses
+    (apps/web/app/lib/onTheGoCatalog.ts DEMO_COURSE_IDS; every id exists in the audio catalog). Signed-in users keep the full catalog dropdown.
+    Flag on_the_go.demo_course_picker (default on) turns the demo picker off (the demo then plays the single pinned course as before).
+  - Resume: the segment each course was left at is stored on the device (localStorage salareen.onTheGo.progress.v1, last 60 courses).
+  - Voice commands (after "Hey Sala", or just spoken while a lesson plays): "play the Roman Empire course", "next course",
+    "previous course", "play another course", "what courses are there". Playback commands (pause, faster, repeat) are unchanged.
+  - Sala avatar, bottom left: tap to ask. A green dot shows the always-on microphone is listening.
+  - Top-right widget (movable, position remembered): camera preview with a status dot, mic mute, camera on/off.
+    Face away for 4 s pauses the lesson; back for 0.7 s resumes it. A pause the learner made themselves is never undone by it.
+  - Always-on questions: while a lesson plays the browser recognizer listens (wake word, or a real question that is not the lesson's own audio).
+    The lesson pauses, the answer is spoken in the voice picked in the account menu (same-gender fallback for custom voices), then the lesson resumes.
+    Demo answers come from the course text itself (no paid model call). Signed-in users keep the Sala voice agent.
+
+Privacy and limits
+  - The camera opens only after the learner taps Start, and only if it is not switched off (salareen.onTheGo.camera = off is remembered).
+    Frames go to the browser's own face detector (MediaPipe Face Landmarker from /vendor/vision, else the Shape Detection API). Nothing is uploaded or stored.
+  - A hidden tab, a locked screen or a phone call stops the camera and the recognizer; both come back when the page is visible again.
+  - Question limiter: 6 questions a minute and 40 a session (friendly spoken message). Course and playback commands do not count.
+  - Browser limits: the Web Speech recognizer needs Chrome/Edge/Safari and a secure context; Firefox has none (the mic button is disabled, lessons still play).
+    Android WebView and iOS WKWebView stop microphone and camera when the app is in the background or the screen is off; narration may continue
+    only where the OS allows background audio. Use headphones: the recognizer cannot subtract the lesson's own sound (a text echo filter catches most of it).
+  - Not verified on real phones: needs the Camera check screen / device test checklist.
+
+Tests
+  - Logic: apps/web/tests/unit/onTheGoCatalog.test.mjs (npm run test:unit).
+  - Browser (stubbed API, camera detector, speech recognizer and voice): node apps/web/e2e/on-the-go-demo.mjs http://127.0.0.1:3000 /tmp/shots

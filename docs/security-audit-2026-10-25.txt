@@ -1,0 +1,301 @@
+SECURITY AUDIT - 2026-10-25 (v0.97.64 + this PR)
+================================================
+
+Scope: the voice stack added in the last days (enrollment page, consent registry, clone/say/tone/stock voices, demo voice assets
+and the object-storage bucket), the public web/API surface of salareen.com, the VKE cluster configuration (read-only), the
+mobile app (Expo), supply chain and secrets hygiene.
+
+Method: code review, live read-only checks of salareen.com, structural read of the cluster with kubectl (names, structure and
+booleans only: secret VALUES were never printed or stored), dependency audit (npm audit), tracked-tree and git-history secret
+scan (locations only). No credential guessing, no login attempts, no exploitation. A small number of cheap, bounded requests
+were sent to the public site to measure rate limiting (about 4,400 requests in total, validation-only POSTs and one cacheable GET).
+
+Not covered (no access or deliberately out of bounds): authenticated testing (no test credentials are used or stored), the
+Spark and iBuyPower hosts (SSH is not available from the audit session), native iOS/Android binaries, penetration of the login
+and admin endpoints, pod internals (kubectl exec is currently unavailable: the cluster agent tunnel is down), pip-audit (not
+installed), pnpm audit for the mobile lockfile.
+
+Counts: CRITICAL 3, HIGH 8, MEDIUM 10, LOW/INFO 9.
+Fixed in code by this PR: 15 (listed). Needs the owner (rotation, infrastructure, decisions): 14 (listed).
+
+
+-------------------------------------------------------------------------------------------------------
+CRITICAL
+-------------------------------------------------------------------------------------------------------
+
+C1  The production admin account uses the password that the repo publishes as its default.
+    Evidence: services/identity/src/identity/bootstrap.py seeds admin@salareen.com from DEFAULT_ADMIN_PASSWORD (default
+    value lives in the code and in _PUBLIC_WEAK_VALUES). Live Secret aoep-secrets/DEFAULT_ADMIN_PASSWORD has 8 characters, one
+    repeated character, and equals a value on that published list. ConfigMap aoep-config has SEED_DEFAULT_ADMIN=1,
+    DEFAULT_ADMIN_EMAIL and DEFAULT_ADMIN_USERNAME (so the login name is public too). /identity/auth/login is reachable on the
+    internet. The password is re-synced on every identity start ("force-sync known passwords").
+    Exploit: anyone who can read the repo, or simply guesses "eight of the same digit", logs in as the platform admin. The
+    account lockout (5 failures, 15 minutes, store.py) slows brute force but the correct value is the first guess; the lockout
+    also lets anyone lock the admin out by failing 5 times.
+    Status: OWNER. Rotate (runbook below). Not changed in code, because enforcing strong secrets before rotation would
+    crash-loop identity.
+
+C2  The production ADMIN_SECRET is a repeated digit and equals the repo-published value; it guards internet-reachable operator
+    routes with no lockout.
+    Evidence: Secret aoep-secrets/ADMIN_SECRET: 8 chars, 1 distinct character, on the published list. Services read ADMIN_SECRET
+    via envFrom [aoep-config, aoep-secrets]; for a key present in both, the LAST source wins, so the weak Secret value is the
+    effective one (the ConfigMap holds a different 16-character value, see H1).
+    Reachable with only the X-Admin-Secret header (ingress /identity, /speech, /memory, /api/admin on salareen.com): POST
+    /identity/admin/ops/reseed-seeded (resets the seeded admin and QA accounts), /identity/telemetry/errors and /metrics
+    (tracebacks and request context), memory /admin/bugs* (bug reports with screenshots, client logs, app snapshots) through
+    the web BFF /api/admin/bugs, which forwarded any X-Admin-Secret a visitor typed.
+    Verified (benign): a request with a deliberately wrong secret returns 401/403 from both operator routes, so they are
+    reachable from the internet; the weak value itself was NOT tried.
+    Fixed in code (this PR): (a) lockout on wrong operator credentials: 10 misses per 15 minutes per client address, also on
+    /metrics and /telemetry/*, which were on the rate-limit bypass list (service.py); (b) the web BFF no longer forwards a
+    visitor-supplied secret in cloud mode (adminBffPolicy.ts, ADMIN_BFF_ALLOW_SECRET_HEADER=1 restores it).
+    OWNER: rotate the secret (runbook). The lockout and the BFF change do not make a 8-repeated-digit secret safe.
+
+C3  QA accounts are seeded in production with a repo-published password.
+    Evidence: ConfigMap SEED_QA_ACCOUNTS=1; Secret QA_ACCOUNTS_PASSWORD (9 chars) equals a value on the published list. The
+    identity service creates the QA personas at start and force-syncs their password.
+    Exploit: log in as a QA persona on the live site (tiers, flags and data of those personas depend on how they are seeded).
+    Status: OWNER. Set SEED_QA_ACCOUNTS=0 for the cloud, delete the QA accounts, rotate. Mobile PR #691 (strip QA accounts on
+    native release builds) is still open and related.
+
+
+-------------------------------------------------------------------------------------------------------
+HIGH
+-------------------------------------------------------------------------------------------------------
+
+H1  The admin secret exists twice with different values, and one of them is published in the repo.
+    ConfigMap aoep-config/ADMIN_SECRET (16 chars) equals the literal in infra/k8s-vke/RUNBOOK.txt line 299 (an example
+    X-Admin-Secret header). A ConfigMap is plain, widely readable config, not a Secret. The web deployment mounts only
+    aoep-config, so web uses this published value (adminProxy.ts), while memory/identity use the weak Secret value: the
+    "operator-admin session" path of the web BFF therefore presents a secret the memory service rejects (admin bug viewer broken)
+    and every script that reads the ConfigMap value (k8s_diagnose_identity.sh, k8s_ops_reseed_identity.sh, k8s_reseed_accounts.sh)
+    authenticates with the wrong one. The same duplication exists for DEPLOY_MODE (identical values: harmless today).
+    Status: OWNER (runbook). Code: scripts/k8s_diagnose_identity.sh no longer echoes the secret (FIXED).
+
+H2  No NetworkPolicy in namespace aoep.
+    Any pod can reach every service, including redis:6379, billing, identity, memory and the LLM backends. A compromise of any
+    one container (for example the public-facing web or speech pods) is lateral movement to everything.
+    Status: OWNER (proposal below).
+
+H3  Voice recordings and signed consent forms are readable by other local accounts on the Spark.
+    Evidence: the Spark listing showed ~/voices as drwxrwxr-x (0775), samples and forms are created with the default umask
+    (0664), and the Spark has other local accounts (the llama servers run as a different user: signals to them were refused).
+    These are employees' voice recordings and their signed consents (personal data; voice is biometric-adjacent).
+    Fixed in code (registry.tighten, enroll_ui): directories 0700 and files 0600 on every write and at server start; never walks
+    a home directory or filesystem root (a mistyped GS_VOICES_DIR cannot rewrite unrelated files).
+    OWNER, once, on the Spark: chmod -R go-rwx ~/voices ~/voice-assets/_stock 2>/dev/null; chmod 700 ~/voices
+    (the code fix applies to files written from now on and re-tightens a speaker folder on its next write).
+
+H4  Mobile: the demo WebView hands camera and microphone to ANY page it shows, with no navigation guard.
+    apps/mobile/src/screens/DemoWebScreen.tsx used mediaCapturePermissionGrantType="grant" (iOS grants to every origin, no
+    prompt) and no onShouldStartLoadWithRequest (Android's WebChromeClient grants likewise). Chain with M1 (open redirect on the
+    site): a crafted link lands the in-app browser on an attacker's page that captures the camera silently.
+    Fixed (this PR): src/webNavigation.ts allows only https on salareen.com and subdomains (and the configured app host);
+    everything else opens in the system browser. Look-alikes, userinfo tricks (https://salareen.com:443@evil.example) and
+    scheme tricks are covered by tests.
+
+H5  Revoking a speaker's consent does not reach the audio already made.
+    registry.revoke refused new synthesis (verified: every synthesis path calls require_consent, including say, tones, demo
+    render and publish), but (a) the demo-voice `sync` uploaded every *.mp3 under the assets folder whether or not the voice was
+    active, so a later sync republished a revoked voice's clips publicly; (b) public clips stay at their (guessable: hash of the
+    public text) URLs until `withdraw`; (c) the Listening Lab serves local clip folders with no consent check; (d) browsers cache
+    clips for a year (immutable).
+    Fixed (this PR): sync includes only clips of voices that are ACTIVE in voices.json and not marked REVOKED; revoke writes a
+    REVOKED marker next to the speaker's published clips. Still OWNER: run `scripts/sync_voice_assets.sh withdraw --speaker ID --yes`
+    on every revoke, delete the speaker's folders under runs/*-clones, and accept the cache tail (documented in docs/demo-voice.txt).
+
+H6  Next.js 14.2.5 (exact pin) has many published advisories (cache poisoning, authorization bypass in pages, image-optimizer
+    DoS, server-actions DoS and others; npm audit: critical).
+    Fixed in part (this PR): apps/web/package.json and package-lock.json move to 14.2.35 (the last 14.2 patch). Verified with a
+    clean `npm ci` and a full `next build` in an isolated copy (exit 0) and the 132 web unit tests. npm audit still reports
+    next as critical after the bump: the remaining advisories (image-optimization and request-deserialization DoS) are fixed only
+    in Next 15/16, a major upgrade that needs its own test pass. Also open: nanoid, postcss (via next), source-map-js (DoS),
+    uuid via @react-three/drei (moderate).
+
+H7  Rate limiting is not protecting production in practice, and had several gaps.
+    Measured: 1,500 validation-only POSTs to /speech/tts in 19 s (about 79 per second) from one address all reached the app
+    (HTTP 422), with and without a rotating X-Forwarded-For; the default limit is 120 per 60 s, and the ingress is annotated
+    limit-rps 60. The root cause could not be established from outside (pod inspection unavailable). Code gaps found and fixed:
+    (a) the limiter keyed on the FIRST X-Forwarded-For entry, which the client controls, so a client could mint a new bucket per
+    request and grow the in-memory table without bound (now: the entry our own proxy added, AOEP_TRUSTED_PROXY_HOPS, default 1,
+    validated as an IP; the table is capped); (b) /metrics, /telemetry/* and /health bypassed the limiter although the first two
+    accept operator secrets (see C2); (c) the paid TTS engine (ElevenLabs) had no budget of its own: up to 5,000 characters per
+    request at 120 requests per minute per address (now a per-address character budget, default 20,000 per minute, over budget the
+    request is served by the free engine); (d) there is no per-route limit on /translate.
+    OWNER: find out why the limiter is inactive (check RATE_LIMIT_DISABLED in the live pods, the Redis limiter's fallback logs,
+    and whether the ingress limit applies), then add per-route limits for the paid endpoints.
+
+H8  Secrets existed in git history.
+    config/local.env and config/cloud.env were tracked until commit 1d2c82fa (2026-07-22, "remove secrets from VCS"). Revisions
+    144b6727, 39224995 and d630c895 each contain at least one key-like assignment with a long value in each file (cannot tell
+    from the pattern whether it was a real key; values not read). They stay in history until it is rewritten.
+    Status: OWNER: look at those revisions, rotate any real key from that era (Google/Apple/Facebook client secrets, LLM keys),
+    and consider a history rewrite if the repository is or was ever shared.
+
+
+-------------------------------------------------------------------------------------------------------
+MEDIUM
+-------------------------------------------------------------------------------------------------------
+
+M1  Open redirect: /account/camera-check?returnTo=<anything> navigated to the value (router.push). FIXED: safeReturnPath
+    (same-site paths only; rejects //host, \host, schemes, control characters, long values). Tests.
+
+M2  Content-Security-Policy is only frame-ancestors 'self', so it does nothing against injected script. FIXED in part: a
+    Content-Security-Policy-Report-Only policy and a Permissions-Policy (camera and microphone for this page only) were added.
+    Report-Only blocks nothing: browse the site with DevTools open, and once the console is quiet rename the header to enforce.
+    'unsafe-inline' remains until Next inline scripts get nonces.
+
+M3  The enrollment page's "I already signed a form" option accepted any file path on the machine (pdf/png/jpg/heic/txt) and
+    copied it into the voices folder as the consent proof. No verification of what the file is. FIXED in part (vet_form_path):
+    not hidden or in a hidden folder (.ssh, .aws, .config), not a system location (also after symlinks), not over 25 MB.
+    Remaining by design: the page trusts the operator on the tunnel; whoever can open http://localhost:8780 can attest a form,
+    enroll or withdraw anyone. The SSH tunnel is the only authentication. Keep the port bound to 127.0.0.1 (it is).
+
+M4  Mobile stores the login token in AsyncStorage (apps/mobile/src/storage.ts:291): plain text on the device, included in
+    Android backups because android.allowBackup is not set (default true). OWNER: move to expo-secure-store and set
+    allowBackup=false. (Not changed here: a storage migration needs a device test and a native build.)
+
+M5  Two ingresses (aoep-ip, aoep-ip-apis) serve the site by raw IP over plain HTTP with ssl-redirect false and no TLS: a login
+    over http://<ip> is sent in clear text. OWNER: redirect to HTTPS or remove them.
+
+M6  Container hardening: cosyvoice, harvester, llm, nemotron and friendly-errors have no securityContext at all; the others set
+    runAsNonRoot but not readOnlyRootFilesystem, allowPrivilegeEscalation=false, capabilities.drop=[ALL] or a seccomp profile;
+    all images use :latest (not reproducible, rollbacks by tag are impossible); every pod uses the default service account with
+    the token mounted. OWNER (snippets below).
+
+M7  "Sign-in is always required" and the 10-minute anonymous demo timer are client-side only. The demo narration endpoints
+    (/speech/tts, /api/tts, /api/studio/tts, /speech/translate) are public by design and are limited only by IP rate limits
+    (H7). A visitor can clear storage to reset the timer or call the APIs directly. DECISION: if the policy must hold, issue a
+    short-lived signed demo token on the server and check it on these routes.
+
+M8  The learner bug-report endpoint (POST /memory/bugs) is unauthenticated, accepts up to 3 screenshots of 2 MB plus logs, and
+    stores them (the code is careful: size caps, strict base64, sanitized file names, no traversal). It can be used to fill the
+    disk or spam the private GitHub mirror. The retention CronJob and the IP rate limit are the only brakes. OWNER: a per-address
+    daily cap.
+
+M9  Mobile WebViews: originWhitelist ["*"] in CourseStoryboardView and MobileMascotMeshy, allowFileAccess on the mascot viewer,
+    mixedContentMode "compatibility" in WorldsScreen. They show local or first-party content today; the settings make a future
+    navigation to a foreign page more dangerous. OWNER (review).
+
+M10 Voice-stack hardening found while reading the code, all FIXED with tests: the speaker-slug and bucket-voice-id regexes used
+    "$" (accepts a trailing newline: "wei\n") and are now fullmatch; the enrollment 500 handler returned exception text and file
+    paths to the page (now a generic message and a server-log traceback); a non-numeric Content-Length raised an unhandled
+    error (now 400); `withdraw` wrote a predictable /tmp/.voices-<pid>.json (symlink race; now mkstemp, mode 0600).
+
+
+-------------------------------------------------------------------------------------------------------
+LOW / INFORMATION
+-------------------------------------------------------------------------------------------------------
+
+L1  scripts/run_livekit.sh prints the dev LiveKit key and secret to the terminal (dev server only).
+L2  Fallback constants "dev-admin-secret" and "dev-internal-token" exist in several services and in the web BFFs. They fail
+    closed in the cloud today (the real values differ), but a missing env var would silently select them.
+L3  packages/shared config.py has a default database URL with a default password for local development.
+L4  sanitizeSvg let a <style> block @import or url() an external site (IP leak, CSS tracking). FIXED. The sanitizer itself held
+    up against nested-tag, entity-encoded href, animate/set and mXSS payloads in testing; it is still a regex sanitizer: prefer
+    DOMPurify or sanitizing at the source for untrusted authors.
+L5  Pre-rendered voice clip URLs are public and derive from a hash of public text (voice/lang/hash.mp3): listing is disabled
+    (403), but a revoked voice's clips can be fetched by anyone who can compute the hash until withdrawn (H5).
+L6  The mobile app requests location (fine and coarse) and activity recognition permissions: review whether a children's
+    learning app needs them (privacy and store-review risk).
+L7  test_cross_site_and_rebinding_are_refused and test_oversize_body_refused (enroll UI) are flaky about 1 run in 4 on clean
+    main: the server answers 413 without draining the upload, so the client sometimes sees a connection reset. Not a security
+    hole (the request is refused) but it hides real failures.
+L8  DEFAULT_ADMIN_EMAIL/USERNAME and the seeding flags sit in a plain ConfigMap (fine) but make C1 trivial to exploit.
+L9  PAYMENT_API_KEY in the cluster is 10 characters long: confirm it is a real key and not a placeholder.
+
+What was checked and found sound: the enrollment server binds 127.0.0.1 only and checks Host and Origin plus a custom header
+(DNS rebinding and cross-site posts are refused; a literal "null" Origin is refused); fixed route set with anchored regexes (no
+path traversal through speaker, language or prompt ids); subprocesses use argument lists (no shell=True anywhere in the Python
+code); WAV validation bounds size and duration; every synthesis path requires consent and the stylized-tone scope; the bucket
+upload keeps credentials in the environment (never argv, never printed), refuses odd bucket/prefix characters, merges CORS and
+policy instead of replacing them, and allowlists voice ids before building delete prefixes; CORS on salareen.com is an origin
+allowlist (a hostile Origin gets no Access-Control-Allow-Origin); HTTP redirects to HTTPS with HSTS; the strong secrets
+(INTERNAL_TOKEN, AUTH_SIGNING_KEY, REDIS_PASSWORD, LIVEKIT secret) are long and not published; the homework BFF verifies an
+identity admin and guards its path; the TTS route accepts tones only from a fixed table and voices only from the catalog (no
+SSML injection); the bug-report attachment code sanitizes names and caps sizes; the retention CronJob exists.
+
+
+-------------------------------------------------------------------------------------------------------
+WHAT THIS PR CHANGES
+-------------------------------------------------------------------------------------------------------
+packages/shared: client_ip.py (new), service.py (client address, operator lockout before the bypass list), ratelimit.py
+  (bounded buckets); tests test_client_ip.py, test_operator_lockout.py.
+services/speech: per-address budget for the paid TTS engine; tests test_paid_tts_budget.py.
+apps/web: adminBffPolicy.ts + adminProxy.ts (no visitor-supplied admin secret in cloud), safeRedirect.ts + camera-check page,
+  sanitizeSvg.ts (style imports), next.config.mjs (Report-Only CSP, Permissions-Policy), next 14.2.35 (package.json and lockfile);
+  unit tests safeRedirect, adminProxy, securityHeaders, sanitizeSvg.
+apps/mobile: webNavigation.ts + DemoWebScreen.tsx (navigation allowlist); test webNavigation.test.ts.
+tts_bakeoff: registry.py (fullmatch slug, tighten permissions, REVOKED marker), enroll_ui (vet_form_path, tighten, generic 500,
+  Content-Length), demo_voice/assets.py (active-only sync, REVOKED, fullmatch, mkstemp); tests test_voice_security.py.
+scripts/k8s_diagnose_identity.sh: does not print the admin secret.
+Nothing was deployed and no live configuration, secret or infrastructure was changed.
+
+
+-------------------------------------------------------------------------------------------------------
+OWNER ACTIONS, IN ORDER
+-------------------------------------------------------------------------------------------------------
+1. Rotate the three published credentials (C1, C2, C3) with the runbook below. This is the single most important thing.
+2. Deploy this PR's web/speech/identity changes AFTER the rotation, not before (the BFF change in cloud mode makes the web
+   admin bug viewer depend on the identity session; verify it afterwards).
+3. chmod the voices folders on the Spark (H3).
+4. Check the three historic revisions for real keys and rotate those (H8).
+5. Find why the rate limiter is inactive (H7) and add per-route limits for /speech/tts and /speech/translate.
+6. NetworkPolicies (H2), HTTPS for the IP ingresses (M5), container hardening and pinned image tags (M6).
+7. Next.js 15/16 upgrade in its own PR (H6); move the mobile token to secure storage (M4).
+8. Decide the anonymous-demo enforcement question (M7).
+
+
+-------------------------------------------------------------------------------------------------------
+RUNBOOK: ROTATE ADMIN_SECRET, DEFAULT_ADMIN_PASSWORD, QA_ACCOUNTS_PASSWORD (no secret is printed)
+-------------------------------------------------------------------------------------------------------
+Do it in a quiet moment; identity restarts. Keep your current admin login open until you have verified the new one.
+
+ a. Generate values locally and keep them in a password manager (never in the repo, a chat or shell history):
+      NEW_ADMIN_SECRET="$(openssl rand -base64 48 | tr -d '/+=\n' | cut -c1-40)"
+      NEW_ADMIN_PASSWORD="$(openssl rand -base64 48 | tr -d '/+=\n' | cut -c1-32)"
+      NEW_QA_PASSWORD="$(openssl rand -base64 48 | tr -d '/+=\n' | cut -c1-32)"
+ b. Patch the Secret without echoing (kubectl reads the value from the environment; nothing is printed):
+      kubectl -n aoep patch secret aoep-secrets --type merge -p "$(python3 - <<'PY'
+      import base64, json, os
+      enc = lambda k: base64.b64encode(os.environ[k].encode()).decode()
+      print(json.dumps({"data": {"ADMIN_SECRET": enc("NEW_ADMIN_SECRET"), "DEFAULT_ADMIN_PASSWORD": enc("NEW_ADMIN_PASSWORD"),
+                                 "QA_ACCOUNTS_PASSWORD": enc("NEW_QA_PASSWORD")}}))
+      PY
+      )"
+    (export the three variables first: export NEW_ADMIN_SECRET NEW_ADMIN_PASSWORD NEW_QA_PASSWORD)
+ c. REMOVE the duplicate from the ConfigMap so there is one source of truth:
+      kubectl -n aoep patch configmap aoep-config --type json -p '[{"op":"remove","path":"/data/ADMIN_SECRET"}]'
+    Then give the web deployment the Secret value (it only mounts the ConfigMap today), for example by adding to the web
+    container env:  - name: ADMIN_SECRET  valueFrom: {secretKeyRef: {name: aoep-secrets, key: ADMIN_SECRET}}
+ d. Stop seeding QA accounts in the cloud: set SEED_QA_ACCOUNTS to "0" in the ConfigMap, and delete the existing QA accounts from
+    the identity store (admin UI or the identity admin API) after the restart.
+ e. Restart: kubectl -n aoep rollout restart deploy/identity deploy/memory deploy/speech deploy/orchestrator deploy/billing deploy/web
+    and wait for rollout status. Identity re-syncs the admin password from DEFAULT_ADMIN_PASSWORD at start.
+ f. Verify: log in as admin with the NEW password (and not the old); a wrong X-Admin-Secret on /identity/telemetry/errors gives
+    401 and the new value gives 200; the web admin bug page loads.
+ g. Only now set AOEP_ENFORCE_STRONG_SECRETS=1 in the ConfigMap so identity refuses to start with a weak or published
+    operator credential again. Remove the literal example from infra/k8s-vke/RUNBOOK.txt (line 299) and scripts that read the
+    ConfigMap value: use the Secret (kubectl get secret ... -o jsonpath | base64 -d) inside the script, never echo it.
+ h. Turn on 2FA (TOTP is implemented) for the admin account.
+
+
+-------------------------------------------------------------------------------------------------------
+PROPOSED (NOT APPLIED): NETWORK POLICY AND CONTAINER HARDENING
+-------------------------------------------------------------------------------------------------------
+Apply to a staging namespace first; a policy that is too tight takes the site down.
+
+ 1. Default deny ingress for the namespace, then allow:
+      - ingress-nginx namespace -> web:80, orchestrator:8000, curriculum:8000, identity:8000, speech:8000, memory:8000,
+        billing:8000, integrations:8000, course-studio:8040, children-lab:8018, audio-lab:8041, perception:8000, music:8000
+      - web, orchestrator, curriculum, memory, billing, speech, course-studio, children-lab -> identity:8000
+      - every service that uses Redis -> redis:6379 (nothing else)
+      - orchestrator, curriculum, memory, speech, course-studio -> llm:8000 and nemotron:8000, cosyvoice:9880
+      - metrics-server -> kubelet (it has its own rules)
+    Egress: allow DNS to kube-dns, and egress to the internet only for pods that need it (identity for OAuth, speech and
+    course-studio for TTS/LLM providers, integrations for payments).
+ 2. For every container: securityContext { allowPrivilegeEscalation: false, capabilities: {drop: ["ALL"]}, runAsNonRoot: true,
+    seccompProfile: {type: RuntimeDefault} } and readOnlyRootFilesystem: true with an emptyDir at /tmp (test per service;
+    Next.js needs /app/.next/cache writable).
+ 3. automountServiceAccountToken: false on all pods that do not call the Kubernetes API.
+ 4. Tag images with the git SHA (deploy20.sh already knows it) and keep :latest only as a convenience alias.

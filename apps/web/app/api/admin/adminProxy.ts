@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { secretHeaderFallbackAllowed } from "../../lib/adminBffPolicy";
 
 const IDENTITY_ORIGIN = process.env.IDENTITY_ORIGIN || "http://identity:8000";
 const MEMORY_ORIGIN = process.env.MEMORY_ORIGIN || "http://memory:8000";
@@ -28,7 +29,7 @@ export async function proxyMemoryAdmin(
   path: string,
 ): Promise<NextResponse> {
   const operatorAdmin = await isOperatorAdmin(request);
-  const clientSecret = request.headers.get("x-admin-secret") || "";
+  const clientSecret = secretHeaderFallbackAllowed() ? request.headers.get("x-admin-secret") || "" : "";
   if (!operatorAdmin && !clientSecret) {
     return NextResponse.json({ detail: "admin access required" }, { status: 403 });
   }
