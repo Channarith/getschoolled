@@ -79,6 +79,8 @@ export default function DemoWebScreen({
   const studioCourse = path.includes("/studio");
   // Full course: the lesson fills the screen. Back/Exit live in the lesson's own movable panel.
   const cleanCourse = studioCourse && path.includes("access=full");
+  // Vision games show only the scene and their own widget: Back, Camera check and Exit live in the widget's menu.
+  const hideBar = (cleanCourse || (isVisionDemo && !checking)) && !error;
   const localeScript = path.includes("/children-lab") ? childrenLabLocaleScript(locale) : undefined;
   const touchScript = path.includes("/children-lab") ? childrenLabTouchScript() : undefined;
   const waveScript = audioOnly ? driverWaveScript() : undefined;
@@ -129,6 +131,7 @@ export default function DemoWebScreen({
         };
       };
       if (message.type === "salareen-exit") { onBack(); return; }
+      if (message.type === "salareen-camera-check") { toggleCheck(); return; }
       if (message.type !== "salareen-telemetry") return;
       setPlays((count) => count + 1);
     } catch {
@@ -138,7 +141,7 @@ export default function DemoWebScreen({
 
   return (
     <AdaptiveContent style={[styles.root, { paddingBottom: overlayBottomPad }]} testID="demo-web">
-      {cleanCourse && !error ? null : <View style={styles.bar} collapsable={false}>
+      {hideBar ? null : <View style={styles.bar} collapsable={false}>
         <Pressable
           onPress={onBack}
           testID="demo-web-back"

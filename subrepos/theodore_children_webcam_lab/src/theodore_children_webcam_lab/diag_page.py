@@ -40,7 +40,8 @@ textarea{width:100%;height:9rem;background:#0a0f1f;color:var(--muted);border:1px
 <h1>Camera check</h1>
 <p class="sub">Tests the camera, face, hand and outline detection on this device. Camera frames stay on this device. Nothing is uploaded.</p>
 <div class="card">
-  <div class="row"><button id="start" class="primary">Start the check</button><button id="stop" disabled>Stop</button></div>
+  <div class="row"><button id="start" class="primary">Start the check</button><button id="stop" disabled>Stop</button><button id="handtest">Hand test</button></div>
+  <p class="small">Hand test: if the check shows hands 0, press this and hold ONE open hand in front of the camera (about 40 seconds). It tries every face and hand setting and reports which one sees you.</p>
   <p id="status" class="small" role="status">Press Start, allow the camera, then keep your face and one open hand in view for a few seconds.</p>
   <video id="preview" autoplay playsinline muted hidden></video>
 </div>

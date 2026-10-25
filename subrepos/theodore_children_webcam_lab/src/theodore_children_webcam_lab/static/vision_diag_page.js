@@ -1,6 +1,7 @@
 // Camera check page (/diag/vision): camera -> MediaPipe load -> a few seconds of live detection -> verdict + report.
 import {diag} from "./vision_diag.js";
 import {loadVisionAssets} from "./vision_assets.js";
+import {FACE_VARIANTS, HAND_VARIANTS, createFace, createFeeder, createFirstWorking, createHands, runVariantTest, variantOf} from "./vision_detectors.js";
 
 const $ = (id) => document.getElementById(id);
 const VISION = {
@@ -14,6 +15,11 @@ let running = false;
 let stream = null;
 let models = { face: null, hands: null, segmenter: null };
 let result = null;
+let detectCtx = null;
+let modelVariants = { face: null, hands: null };
+let variantTests = null;
+const frameFor = createFeeder();
+const nextFrame = (video) => new Promise((resolve) => (video.requestVideoFrameCallback ? video.requestVideoFrameCallback(() => resolve()) : requestAnimationFrame(() => resolve())));
 
 function setRow(key, label, value, level) {
   rows.set(key, { label, value, level: level || "" });
@@ -61,11 +67,10 @@ async function measureFps(video, ms = 1500) {
   return Math.round((frames / ((performance.now() - t0) / 1000)) * 10) / 10;
 }
 
-async function loadModels() {
+async function loadContext() {
   const timings = {};
-  let vision;
   const endLib = diag.begin("library import");
-  vision = await import(VISION.module);
+  const vision = await import(VISION.module);
   timings.library = endLib();
   const lowMemory = Number(navigator.deviceMemory) > 0 && Number(navigator.deviceMemory) <= 2;
   let assets = null;
@@ -77,29 +82,40 @@ async function loadModels() {
   const endWasm = diag.begin("wasm fileset");
   const files = assets ? assets.files : await vision.FilesetResolver.forVisionTasks(VISION.wasm);
   timings.wasm = endWasm();
-  const base = (key, path, delegate) => (assets?.models?.[key] ? { modelAssetBuffer: assets.models[key].slice(), delegate } : { modelAssetPath: path, delegate });
-  const make = async (name, create) => {
-    for (const delegate of ["GPU", "CPU"]) {
-      const end = diag.begin(`${name} model ${delegate}`);
-      try {
-        const model = await create(delegate);
-        const ms = end({ ok: true, delegate });
-        return { model, delegate, ms, fellBack: delegate === "CPU" };
-      } catch (error) {
-        end({ ok: false, delegate, reason: String(error?.message || error).slice(0, 160) });
-      }
-    }
-    return { model: null, delegate: "none", ms: 0 };
+  const modelBase = (key, path, delegate) => (assets?.models?.[key] ? { modelAssetBuffer: assets.models[key].slice(), delegate } : { modelAssetPath: path, delegate });
+  return { ctx: { vision, files, modelBase, source: VISION }, timings, lowMemory, assets: assets?.stats || null };
+}
+
+// Same builders and recipe ladders as the games (vision_detectors.js): this page is the regression harness for the game.
+async function loadModels() {
+  const loaded = await loadContext();
+  detectCtx = loaded.ctx;
+  const { ctx, timings, lowMemory } = loaded;
+  const make = async (name, list, create) => {
+    const end = diag.begin(`${name} model`);
+    const run = await createFirstWorking(list, create, { note: (variant, error) => diag.log("error", `${name} ${variant.id}: ${String(error?.message || error).slice(0, 120)}`) });
+    const ms = end({ ok: Boolean(run.model), variant: run.variant?.id || "", reason: run.errors.slice(-1)[0] || "" });
+    return run.model
+      ? { model: run.model, delegate: run.variant.delegate, variant: run.variant.id, index: run.index, ms, fellBack: run.index > 0 }
+      : { model: null, delegate: "none", variant: "", index: -1, ms: 0 };
   };
-  const face = await make("face", (delegate) => vision.FaceLandmarker.createFromOptions(files, {
-    baseOptions: base("face", VISION.face, delegate), runningMode: "VIDEO", numFaces: 1, outputFaceBlendshapes: false }));
-  const hands = await make("hand", (delegate) => vision.HandLandmarker.createFromOptions(files, {
-    baseOptions: base("hand", VISION.hand, delegate), runningMode: "VIDEO", numHands: 2 }));
+  const face = await make("face", FACE_VARIANTS, (variant) => createFace(ctx, variant));
+  const hands = await make("hand", HAND_VARIANTS, (variant) => createHands(ctx, variant));
+  modelVariants = { face: variantOf(FACE_VARIANTS, face.index), hands: variantOf(HAND_VARIANTS, hands.index) };
   const segment = lowMemory
     ? { model: null, delegate: "skipped (low memory)", ms: 0 }
-    : await make("outline", (delegate) => vision.ImageSegmenter.createFromOptions(files, {
-      baseOptions: base("segment", VISION.segment, delegate), runningMode: "VIDEO", outputCategoryMask: true, outputConfidenceMasks: false }));
-  return { timings, face, hands, segment, assets: assets?.stats || null };
+    : await (async () => {
+      for (const delegate of ["GPU", "CPU"]) {
+        const end = diag.begin(`outline model ${delegate}`);
+        try {
+          const model = await ctx.vision.ImageSegmenter.createFromOptions(ctx.files, {
+            baseOptions: ctx.modelBase("segment", VISION.segment, delegate), runningMode: "VIDEO", outputCategoryMask: true, outputConfidenceMasks: false });
+          return { model, delegate, ms: end({ ok: true, delegate }), fellBack: delegate === "CPU" };
+        } catch (error) { end({ ok: false, delegate, reason: String(error?.message || error).slice(0, 160) }); }
+      }
+      return { model: null, delegate: "none", ms: 0 };
+    })();
+  return { timings, face, hands, segment, assets: loaded.assets };
 }
 
 async function runDetection(video, seconds) {
@@ -107,7 +123,7 @@ async function runDetection(video, seconds) {
   const end = performance.now() + seconds * 1000;
   let lastTs = 0;
   while (performance.now() < end && running) {
-    await new Promise((resolve) => (video.requestVideoFrameCallback ? video.requestVideoFrameCallback(() => resolve()) : requestAnimationFrame(() => resolve())));
+    await nextFrame(video);
     if (video.readyState < 2) continue;
     const ts = Math.max(lastTs + 1, performance.now());
     lastTs = ts;
@@ -116,7 +132,7 @@ async function runDetection(video, seconds) {
     try {
       if (models.face) {
         const t = performance.now();
-        const r = models.face.detectForVideo(video, ts);
+        const r = models.face.detectForVideo(frameFor(video, modelVariants.face), ts);
         sample.faceMs = performance.now() - t;
         sample.face = Boolean(r.faceLandmarks?.[0]);
         stats.faceMs.push(sample.faceMs);
@@ -124,7 +140,7 @@ async function runDetection(video, seconds) {
       }
       if (models.hands) {
         const t = performance.now();
-        const r = models.hands.detectForVideo(video, ts);
+        const r = models.hands.detectForVideo(frameFor(video, modelVariants.hands), ts);
         sample.handsMs = performance.now() - t;
         sample.hands = r.landmarks?.length || 0;
         stats.handsMs.push(sample.handsMs);
@@ -184,12 +200,53 @@ function renderReport() {
     `detected: face ${result.stats.faceFrames}/${result.stats.frames} frames, hands ${result.stats.handFrames}/${result.stats.frames} (max ${result.stats.handsMax}), inference p50/p95 face ${percentile(result.stats.faceMs, 0.5)}/${percentile(result.stats.faceMs, 0.95)} hands ${percentile(result.stats.handsMs, 0.5)}/${percentile(result.stats.handsMs, 0.95)}`,
     "",
   ].join("\n") : "";
-  const full = summary + diag.text({ tail: 200 });
+  const tests = variantTests ? [
+    "== Hand / face setting test",
+    ...[variantTests.face, variantTests.hands].flatMap((t) => t.rows.map((r) => `${t.kind} ${r.id}: ${r.created ? `${r.withHit}/${r.frames} frames, max ${r.max}` : "could not start"} (${r.delegate}, conf ${r.conf}, feed ${r.feed}${r.error ? `, ${r.error}` : ""})`)),
+    `winner: face ${variantTests.face.winner || "none"}, hands ${variantTests.hands.winner || "none"}`,
+    "",
+  ].join("\n") : "";
+  const full = summary + tests + diag.text({ tail: 200 });
   $("report").value = full;
   if (window.ReactNativeWebView?.postMessage) {
     try { window.ReactNativeWebView.postMessage(JSON.stringify({ type: "salareen-diag-report", text: full, level: result?.verdict.level || "unknown" })); } catch (_) { /* app closing */ }
   }
   return full;
+}
+
+// Tries every face and hand recipe (delegate, thresholds, blendshapes, frame feed) on live frames and reports which one sees you,
+// so ONE pasted report identifies the working configuration for this phone.
+async function variantTest() {
+  if (running) return;
+  running = true;
+  $("handtest").disabled = true; $("start").disabled = true; $("stop").disabled = false;
+  try {
+    status("Hand test: hold ONE open hand in front of the camera, palm toward the screen, about an arm's length away, and keep your face in view.");
+    const video = $("preview");
+    if (!stream) {
+      stream = await openCamera();
+      diag.attachVideo(video); diag.attachStream(stream);
+      video.hidden = false; video.srcObject = stream;
+      try { await video.play(); } catch (_) { /* autoplay muted normally works */ }
+    }
+    if (!detectCtx) detectCtx = (await loadContext()).ctx;
+    const show = (label) => (row) => setRow(`vt-${row.kind}-${row.id}`, `${label}: ${row.id}`,
+      row.created ? `${row.withHit}/${row.frames} frames saw one${row.error ? ` (${row.error})` : ""}` : `could not start (${row.error || "unknown"})`, row.withHit ? "ok" : "warn");
+    const face = await runVariantTest({ kind: "face", ctx: detectCtx, video, seconds: 2, nextFrame, onProgress: show("Face setting") });
+    const hands = await runVariantTest({ kind: "hands", ctx: detectCtx, video, seconds: 3, nextFrame, onProgress: show("Hand setting") });
+    variantTests = { face, hands };
+    window.__gsDiagVariantTests = variantTests;
+    for (const t of [face, hands]) for (const row of t.rows) diag.log("variant-test", `${t.kind} ${row.id} delegate=${row.delegate} conf=${row.conf} feed=${row.feed}${row.blendshapes !== undefined ? ` blend=${row.blendshapes}` : ""}: ${row.withHit}/${row.frames} frames, max ${row.max}, create ${row.ms} ms${row.error ? ` error=${row.error}` : ""}`);
+    diag.log("variant-test", `winner face=${face.winner || "none"} hands=${hands.winner || "none"}`);
+    setRow("vt-winner", "Hand setting that worked", hands.saw ? hands.winner : "none saw a hand", hands.saw ? "ok" : "bad");
+    status(hands.saw ? `Done. Hands were seen with the "${hands.winner}" setting.` : "Done. No setting saw a hand: if an open hand was in view, please send this report.");
+  } catch (error) {
+    diag.log("error", `variant test failed: ${error?.name || "Error"} ${String(error?.message || "").slice(0, 120)}`);
+    setRow("vt-error", "Hand test", String(error?.name || error?.message || "failed"), "bad");
+  }
+  stop(false);
+  $("handtest").disabled = false; $("start").disabled = false;
+  renderReport();
 }
 
 async function start() {
@@ -273,6 +330,7 @@ async function copyReport() {
 
 $("start").addEventListener("click", () => { void start(); });
 $("stop").addEventListener("click", () => stop(true));
+$("handtest").addEventListener("click", () => { void variantTest(); });
 $("copy").addEventListener("click", () => { void copyReport(); });
 if (window.ReactNativeWebView?.postMessage) {
   $("share").hidden = false;

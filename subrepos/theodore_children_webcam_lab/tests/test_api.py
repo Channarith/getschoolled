@@ -151,8 +151,11 @@ def test_analytics_is_aggregate_only_and_rejects_private_fields():
 def test_static_javascript_has_expected_privacy_and_game_guards():
     script = (ROOT / "src/theodore_children_webcam_lab/static/app.js").read_text()
     assert "getUserMedia" in script
-    assert "numHands:2" in script
-    assert "outputFaceBlendshapes:true" in script
+    # Two-hand tracking now lives in the shared builder that the games and /diag/vision both use.
+    detectors = (Path(__file__).resolve().parents[1] / "src" / "theodore_children_webcam_lab" / "static" / "vision_detectors.js").read_text(encoding="utf-8")
+    assert "numHands: 2" in detectors and "createHands" in script
+    # The first face recipe keeps expression blendshapes on (the games need them); the fallback recipes turn them off.
+    assert "blendshapes: true" in detectors and "outputFaceBlendshapes: Boolean(variant.blendshapes)" in detectors
     assert "SpeechRecognition" in script
     assert "video.currentTime===state.lastVideoTime" in script
     assert "successHoldMs" in script
