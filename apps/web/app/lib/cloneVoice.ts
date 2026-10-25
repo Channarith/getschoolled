@@ -5,7 +5,7 @@ export const DEFAULT_VOICE_ID = "default";
 export const VOICE_CHOICE_KEY = "aoep_demo_voice";
 export const VOICE_CHOICE_EVENT = "aoep-demo-voice";
 
-export type CloneVoice = { id: string; label: string; ai_label: string; active: boolean; gender?: "male" | "female" };
+export type CloneVoice = { id: string; label: string; ai_label: string; active: boolean; gender?: "male" | "female"; stylized?: boolean };
 
 const ASSETS = (process.env.NEXT_PUBLIC_VOICE_ASSETS_URL || "/voice-assets").replace(/\/$/, "");
 /** Where the published clips live; the course-studio frame gets it as a URL parameter so its narration finds the same clips. */

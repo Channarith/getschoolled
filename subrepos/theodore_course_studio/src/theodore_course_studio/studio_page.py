@@ -6472,13 +6472,6 @@ STUDIO_JS = """
           if (url) playManifest(url, 0, 0);
           else withCustomGender();
         }).catch(() => { if (gen === speechGen && !settled) withCustomGender(); });
-      } else if (choiceEdge && window.SalaVoiceChoice.edgeClipUrl) {
-        // A stored clip in the picked edge voice and tone (then the plain voice); a miss renders live with the same voice and tone.
-        window.SalaVoiceChoice.edgeClipUrl(choiceLang, spoken).then((url) => {
-          if (gen !== speechGen || settled) return;
-          if (url) playManifest(url, 0, 0);
-          else playOnDemand();
-        }).catch(() => { if (gen === speechGen && !settled) playOnDemand(); });
       } else if (clip) playManifest(clip.url, clip.durationMs, 0);
       else playOnDemand();
       if (upcoming && (!clip || upcoming !== clip.url)) preloadNextSlideAudio(upcoming);

@@ -183,6 +183,7 @@ let _statusProbe: Promise<boolean> | null = null;
 let _currentAudio: HTMLAudioElement | null = null;
 let _serverVoiceId = "";       // chosen voice_catalog id (accent/language)
 let _serverInstructor = "";    // chosen instructor personality id
+let _serverTone = "";          // chosen tone id (professional, cute, anime, blend-...); "" = plain voice
 // Playback epoch: bumped by every cancelSpeech(). A speak() call captures the
 // epoch at start; if it changes (Stop/pause/skip/replay/language switch) while
 // its neural-audio fetch is still in flight, the resolved audio must NOT start.
@@ -242,6 +243,15 @@ export function setServerInstructor(instructorId: string): void {
 
 export function getServerInstructor(): string {
   return _serverInstructor;
+}
+
+// Select a delivery tone for the neural voice (aoep_shared.tone_presets ids); "" keeps the plain voice.
+export function setServerTone(tone: string): void {
+  _serverTone = tone || "";
+}
+
+export function getServerTone(): string {
+  return _serverTone;
 }
 
 async function serverTtsAvailable(): Promise<boolean> {
@@ -314,6 +324,7 @@ async function playServerAudio(
         voice_style: opts.voiceStyle ?? "standard",
         voice: _serverVoiceId,
         instructor: _serverInstructor,
+        ...(_serverTone ? { tone: _serverTone } : {}),
       }),
       signal: ac.signal,
     });
@@ -371,6 +382,7 @@ async function _fetchServerAudio(text: string, opts: SpeakOptions): Promise<HTML
         voice_style: opts.voiceStyle ?? "standard",
         voice: _serverVoiceId,
         instructor: _serverInstructor,
+        ...(_serverTone ? { tone: _serverTone } : {}),
       }),
     });
     if (!resp.ok) {

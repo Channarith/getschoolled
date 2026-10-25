@@ -82,45 +82,6 @@
     return indexes[voice];
   }
 
-  var edgeCatalogPromise = null;
-  function edgeCatalog() {
-    if (!edgeCatalogPromise) {
-      edgeCatalogPromise = fetch(assetsBase() + "/edge.json", { cache: "no-store" })
-        .then(function (r) { return r.ok ? r.json() : null; })
-        .catch(function () { return null; });
-    }
-    return edgeCatalogPromise;
-  }
-
-  // URL of a pre-rendered clip in the chosen EDGE voice: the chosen tone first, then the plain voice, else null (the caller renders live
-  // with the same voice and tone). Nothing is published until the owner uploads edge.json, so today this always resolves null.
-  function edgeClipUrl(lang, text) {
-    var voice = edgeVoiceFor(lang);
-    if (!voice || !String(text || "").trim()) return Promise.resolve(null);
-    var l = String(lang || "en").split(/[-_]/)[0].toLowerCase();
-    if (String(lang || "").toLowerCase().replace(/_/g, "-").indexOf("zh-hk") === 0) l = "yue";
-    var h = clipHash(l, text);
-    var wanted = tone();
-    return edgeCatalog().then(function (cat) {
-      var entry = cat && cat.voices && cat.voices[voice];
-      if (!entry) return null;
-      var tries = wanted ? [wanted, "neutral"] : ["neutral"];
-      function next(i) {
-        if (i >= tries.length) return null;
-        var t = tries[i];
-        if (!(entry.tones && entry.tones[t] && entry.tones[t].indexOf(l) >= 0)) return next(i + 1);
-        var dir = "edge." + voice + (t === "neutral" ? "" : "~" + t);
-        return loadIndex(dir).then(function (index) {
-          if (index && index.clips && index.clips[l] && index.clips[l].indexOf(h) >= 0) {
-            return assetsBase() + "/" + encodeURIComponent(dir) + "/" + l + "/" + h + "." + (index.ext || "mp3");
-          }
-          return next(i + 1);
-        });
-      }
-      return next(0);
-    });
-  }
-
   // URL of the pre-rendered clip for the chosen company voice, or null.
   function cloneClipUrl(lang, text) {
     var voice = chosen().custom;
@@ -152,5 +113,5 @@
     });
   }
 
-  window.SalaVoiceChoice = { chosen: chosen, edgeVoiceFor: edgeVoiceFor, cloneClipUrl: cloneClipUrl, clipHash: clipHash, customGender: customGender, tone: tone, edgeClipUrl: edgeClipUrl };
+  window.SalaVoiceChoice = { chosen: chosen, edgeVoiceFor: edgeVoiceFor, cloneClipUrl: cloneClipUrl, clipHash: clipHash, customGender: customGender, tone: tone };
 })();
