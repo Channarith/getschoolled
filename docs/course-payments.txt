@@ -112,3 +112,46 @@ POLICY PAGES, CHECKOUT AND ACCOUNT (part 3)
   "Request a refund" (wording from the server's verdict).
   The regulatory question (is a DMV licence needed to sell this as driver education) is the TOP owner decision: see
   docs/regulatory-driver-ed.txt, with sources and a copy audit.
+
+
+PART 4: APP STORE AND GOOGLE PLAY PURCHASES (server side)
+=========================================================
+Apps use the stores' in-app purchase only (no web checkout, no external payment links inside the apps). The server verifies
+every purchase itself and records it in the SAME ledger as web purchases (provider "apple" or "google"), so a course bought
+on a phone opens on the web and the other way round. Code: aoep_shared/store_iap.py, studio iap_routes.py.
+
+Routes (studio):
+  GET  /api/studio/iap/products?course_id=   login required; product ids + the account tokens the app attaches to the purchase
+  POST /api/studio/iap/apple/verify          {signed_transaction}  StoreKit 2 JWS
+  POST /api/studio/iap/google/verify         {product_id, purchase_token}
+  POST /api/studio/iap/apple/notifications   App Store Server Notifications V2 (signature chain is the authentication)
+  POST /api/studio/iap/google/notifications?token=<GOOGLE_RTDN_SECRET>   Pub/Sub push (RTDN)
+
+Guarantees: the phone's receipt is never trusted (Apple JWS chain checked to Apple Root CA G3 + Apple OIDs + dates + ES256;
+Google purchase fetched with purchases.products.get); bundle id / product / sandbox policy checked; appAccountToken (Apple) and
+obfuscatedExternalAccountId (Google) must equal the token derived from OUR account id; one transaction/token belongs to one
+account (another account gets 409); replays return the existing order; Google purchases are acknowledged (3-day deadline) and a
+failed acknowledge is retried on restore; REFUND/REVOKE (Apple) and voided/canceled (Google) revoke access and stay revoked;
+store orders show "refund through the store" in the refund UI; the stores handle sales tax (marketplace facilitators).
+Tests use generated certificate chains and mocked Google responses: no store is contacted and no money moves.
+
+Config (names only):
+  IAP_PRODUCTS_JSON            {"drivers-ed": {"apple": "<apple product id>", "google": "<play product id>"}}
+  APPLE_BUNDLE_ID, APPLE_ROOT_CA_PEM or APPLE_ROOT_CA_PEM_FILE (Apple Root CA - G3, from apple.com/certificateauthority)
+  APPLE_IAP_KEY_ID, APPLE_IAP_ISSUER_ID, APPLE_IAP_PRIVATE_KEY   (reserved for the App Store Server API; not required to verify
+                                                                  signed transactions and notifications)
+  GOOGLE_PLAY_PACKAGE_NAME, GOOGLE_PLAY_SERVICE_ACCOUNT_JSON (JSON or file path), GOOGLE_RTDN_SECRET
+  IAP_ALLOW_SANDBOX (default 1: App Review pays with sandbox purchases against production; they are marked sandbox in the ledger)
+  IAP_ACCOUNT_SALT (optional; defaults to AUTH_SIGNING_KEY. Changing it breaks token binding for new purchases, so set it once)
+
+OWNER CHECKLIST (store side, nothing here is done for you)
+  Apple: Paid Apps agreement, tax and banking in App Store Connect; create ONE non-consumable "Full course (drivers-ed)";
+         add Sandbox testers; set the Server Notifications V2 URL (production and sandbox) to .../api/studio/iap/apple/notifications;
+         put Apple Root CA G3 in APPLE_ROOT_CA_PEM.
+  Google: Play Console merchant account (tax/banking); create ONE managed product; License testers for sandbox; a service account
+         with "View financial data" and "Manage orders and subscriptions" permissions invited in Play Console; Pub/Sub topic for RTDN with a
+         push subscription to .../api/studio/iap/google/notifications?token=<GOOGLE_RTDN_SECRET>.
+  Review notes (both stores): sign-in comes first, then purchase; give reviewers a test account; mention that admin/VIP/premium
+         accounts are entitled without buying. Gotchas: a Restore Purchases button is required; no links to web payment inside the
+         apps; account deletion must be offered in-app.
+  Store fee: Apple and Google keep a commission on in-app sales (decision for the owner; web price is unchanged).
