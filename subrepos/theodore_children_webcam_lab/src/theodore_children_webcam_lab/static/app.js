@@ -22,10 +22,12 @@ import {cloneClipUrl, mountVoiceSelect} from "./clone_voice.js";
 import {diag as trace} from "./vision_diag.js";
 import {loadVisionAssets} from "./vision_assets.js";
 import {createDetectHealth} from "./detect_health.js";
+import {FACE_VARIANTS, HAND_VARIANTS, createFace, createHands, createFeeder, createFirstWorking, variantOf} from "./vision_detectors.js";
 
 const $ = (id) => document.getElementById(id);
 // Does the phone's detector really work? Decides when to rebuild on the CPU, when to play by touch, and when "you left the camera" may be said.
-const health = createDetectHealth();
+const health = createDetectHealth({variants: {face: FACE_VARIANTS.length, hands: HAND_VARIANTS.length}});
+const frameFor = createFeeder();
 const labEmit = (type, detail) => { try { window.dispatchEvent(new CustomEvent(`lab:${type}`, {detail})); } catch (_) {} };
 
 // Static files reload from disk but the HTML shell is rendered by the running
@@ -148,7 +150,7 @@ const state = {
   touchMode:"air", touchLatch:{key:"",until:0}, lastTouchTips:[],
   crayon:null, ink:[], inkDown:false, screenDown:false, screenPointerId:null,
   voiceAway:false, heldPrompt:"", missingFaceAt:0, chaseLeft:false, bopDir:0, flapDir:0,
-  presenceNoteUntil:0, presenceCueUntil:0, pace:"patient", lastDetectAt:0,
+  presenceNoteUntil:0, presenceCueUntil:0, pace:"patient", lastDetectAt:0, faceVariantIdx:0, handVariantIdx:0,
   glanceNote:false, poseOpen:false, standBase:null, sitLow:null,
   
   playStartedAt:0, playEndsAt:0, playTick:0, playEnded:false,
@@ -354,6 +356,13 @@ function armPlayClock() {
   state.playTick = setInterval(tickPlayClock, 1000);
 }
 
+function armFrameGate() {
+  if (!video?.requestVideoFrameCallback || state.frameGateOn) return;
+  state.frameGateOn = true; state.frameReady = false; state.lastFrameCbAt = performance.now();
+  const tick = () => { state.frameReady = true; state.lastFrameCbAt = performance.now(); video.requestVideoFrameCallback(tick); };
+  video.requestVideoFrameCallback(tick);
+}
+
 async function start(camera=true) {
   seedPlayAge();
   state.theme = $("theme")?.value || "mix";
@@ -394,6 +403,7 @@ async function start(camera=true) {
         // autoplay + muted + playsinline normally start it; a rejected play() must not
         // throw the whole camera away.
         try { await video.play(); } catch (_) {}
+        armFrameGate();
       }
       setStatus("Camera live · loading face & hands…");
       await initVision();
@@ -466,35 +476,27 @@ async function initVision() {
       state.face = null; state.hands = null;
       state.visionCtx = {vision, files, modelBase, source};
       diag.face = "pending"; diag.hands = "pending";
-      for (const delegate of ["GPU", "CPU"]) {
-        const endFace = trace.begin(`face model ${delegate}`);
-        try {
-          state.face = await vision.FaceLandmarker.createFromOptions(files, {
-            baseOptions: modelBase("face", source.face, delegate),
-            runningMode:"VIDEO",numFaces:1,outputFaceBlendshapes:true
-          });
-          diag.face = `ready (${delegate})`;
-          health.register("face", delegate);
-          endFace({ok: true, delegate});
-          break;
-        } catch (error) { note(`face ${delegate}`, error); endFace({ok: false, delegate, reason: String(error?.message || error).slice(0, 160)}); }
+      // The same builder /diag/vision uses (vision_detectors.js): one recipe ladder per model, so the diagnostic page is a faithful harness.
+      const detectors = state.visionCtx;
+      const endFace = trace.begin("face model");
+      const faceRun = await createFirstWorking(FACE_VARIANTS, (variant) => createFace(detectors, variant), {note: (variant, error) => note(`face ${variant.id}`, error)});
+      endFace({ok: Boolean(faceRun.model), variant: faceRun.variant?.id || "", reason: faceRun.errors.slice(-1)[0] || ""});
+      if (faceRun.model) {
+        state.face = faceRun.model; state.faceVariantIdx = faceRun.index;
+        diag.face = `ready (${faceRun.variant.id})`;
+        health.register("face", faceRun.variant.delegate, faceRun.index, faceRun.variant.id);
       }
       if (!state.face) { diag.face = "failed"; health.fail("face", diag.errors.slice(-1)[0] || "model unavailable"); trace.stage("detector load failed", {model: "face", reason: diag.errors.slice(-1)[0] || ""}); }
-      for (const delegate of ["GPU", "CPU"]) {
-        const endHands = trace.begin(`hand model ${delegate}`);
-        try {
-          state.hands = await vision.HandLandmarker.createFromOptions(files, {
-            baseOptions: modelBase("hand", source.hand, delegate),
-            runningMode:"VIDEO",numHands:2
-          });
-          state.handConnections = (vision.HandLandmarker.HAND_CONNECTIONS || []).map((c) => (
-            Array.isArray(c) ? [c[0], c[1]] : [c.start, c.end]
-          )).filter((pair) => Number.isFinite(pair[0]) && Number.isFinite(pair[1]));
-          diag.hands = `ready (${delegate})`;
-          health.register("hands", delegate);
-          endHands({ok: true, delegate});
-          break;
-        } catch (error) { note(`hands ${delegate}`, error); endHands({ok: false, delegate, reason: String(error?.message || error).slice(0, 160)}); }
+      const endHands = trace.begin("hand model");
+      const handRun = await createFirstWorking(HAND_VARIANTS, (variant) => createHands(detectors, variant), {note: (variant, error) => note(`hands ${variant.id}`, error)});
+      endHands({ok: Boolean(handRun.model), variant: handRun.variant?.id || "", reason: handRun.errors.slice(-1)[0] || ""});
+      if (handRun.model) {
+        state.hands = handRun.model; state.handVariantIdx = handRun.index;
+        state.handConnections = (vision.HandLandmarker.HAND_CONNECTIONS || []).map((c) => (
+          Array.isArray(c) ? [c[0], c[1]] : [c.start, c.end]
+        )).filter((pair) => Number.isFinite(pair[0]) && Number.isFinite(pair[1]));
+        diag.hands = `ready (${handRun.variant.id})`;
+        health.register("hands", handRun.variant.delegate, handRun.index, handRun.variant.id);
       }
       if (!state.hands) { diag.hands = "failed"; health.fail("hands", diag.errors.slice(-1)[0] || "model unavailable"); trace.stage("detector load failed", {model: "hands", reason: diag.errors.slice(-1)[0] || ""}); }
       if (lowMemory && !state.segmenter) { diag.segment = "off (low memory)"; trace.stage("outline skipped", {deviceMemory: navigator.deviceMemory}); }
@@ -693,6 +695,11 @@ function handToFaceFaces(hand, face) {
 
 function detectFrame() {
   if ((!state.face && !state.hands) || !video || video.readyState<2 || !video.videoWidth) return;
+  // One detection per NEW camera frame, like /diag/vision. (A web view that never calls back falls back to the timer loop.)
+  if (state.frameGateOn) {
+    if (!state.frameReady && performance.now() - state.lastFrameCbAt <= 600) return;
+    state.frameReady = false;
+  }
   // A phone WebView often freezes video.currentTime at 0 for a camera stream.
   // Keep sampling on a clock so the finger, the trail, and a fist still move.
   const nowMs = performance.now();
@@ -706,17 +713,18 @@ function detectFrame() {
   try {
     if (state.face) {
       const t0 = performance.now();
-      const result=state.face.detectForVideo(video,now);
+      const result=state.face.detectForVideo(frameFor(video, variantOf(FACE_VARIANTS, state.faceVariantIdx)),now);
       const points=result.faceLandmarks?.[0];
       state.faceData=faceMetrics(points,blendshapeMap(result));
       sample.faceMs = performance.now() - t0; sample.face = Boolean(points);
       health.run("face", {ok: true, found: Boolean(points)});
+      if (points) noteFound("face");
     }
   } catch (error) { console.warn("[children-lab] face frame skipped",error); health.run("face", {ok: false, error: error?.message || error}); noteDetectError("face", error); }
   try {
     if (state.hands && (!screenTouch() || state.autoScreen || state.game === "ninja-weave")) {
       const t1 = performance.now();
-      const result=state.hands.detectForVideo(video,now);
+      const result=state.hands.detectForVideo(frameFor(video, variantOf(HAND_VARIANTS, state.handVariantIdx)),now);
       sample.handsMs = performance.now() - t1;
       const labels=(result.handedness||[]).map(row=>row?.[0]?.categoryName||"");
       const previous=state.handData.map(hand=>hand.tip);
@@ -724,6 +732,7 @@ function detectFrame() {
       state.handMotion=state.handData.reduce((max,hand,i)=>Math.max(max,previous[i]?distance(hand.tip,previous[i]):0),0);
       sample.hands = state.handData.length;
       health.run("hands", {ok: true, found: state.handData.length > 0});
+      if (state.handData.length) noteFound("hands");
     }
   } catch (error) { console.warn("[children-lab] hand frame skipped",error); health.run("hands", {ok: false, error: error?.message || error}); noteDetectError("hands", error); }
   try {
@@ -740,27 +749,35 @@ let detectErrorsLogged = 0;
 function noteDetectError(name, error) {
   if (detectErrorsLogged++ < 6) trace.stage("detector error", {model: name, message: String(error?.message || error).slice(0, 140)});
 }
-// A GPU model that throws or stays blind is rebuilt once on the CPU. Phones differ; the GPU path is the common silent failure.
+const loggedFound = {};
+function noteFound(name) {
+  if (loggedFound[name]) return;
+  loggedFound[name] = true;
+  const info = health.summary()[name] || {};
+  trace.stage("detector found", {model: name, variant: info.variant, delegate: info.delegate, tried: info.tried});
+}
+// A model that throws or stays blind walks down its variant ladder (delegate, thresholds, blendshapes, frame feed). Phones differ;
+// the GPU hand model returning nothing is a known failure class. Which variant first sees something is logged for the triage report.
 const rebuilding = {};
-async function rebuildOnCpu(name) {
+async function rebuildVariant(name, index) {
   const ctx = state.visionCtx;
   if (!ctx || rebuilding[name]) return;
   rebuilding[name] = true;
-  const key = name === "face" ? "face" : "hands";
-  trace.stage("detector cpu rebuild", {model: name, health: health.summary()[name]});
+  const list = name === "face" ? FACE_VARIANTS : HAND_VARIANTS;
+  const variant = variantOf(list, index);
+  trace.stage("detector variant", {model: name, to: variant.id, from: health.summary()[name]});
   try {
-    const old = state[key];
-    const next = name === "face"
-      ? await ctx.vision.FaceLandmarker.createFromOptions(ctx.files, {baseOptions: ctx.modelBase("face", ctx.source.face, "CPU"), runningMode: "VIDEO", numFaces: 1, outputFaceBlendshapes: true})
-      : await ctx.vision.HandLandmarker.createFromOptions(ctx.files, {baseOptions: ctx.modelBase("hand", ctx.source.hand, "CPU"), runningMode: "VIDEO", numHands: 2});
-    state[key] = next;
+    const old = state[name];
+    const next = name === "face" ? await createFace(ctx, variant) : await createHands(ctx, variant);
+    state[name] = next;
+    state[name === "face" ? "faceVariantIdx" : "handVariantIdx"] = index;
     try { old?.close?.(); } catch (_) { /* already closed */ }
-    health.markFallback(name, "CPU");
-    if (state.visionDiag) state.visionDiag[key] = "ready (CPU, rebuilt)";
-    trace.stage("detector cpu ready", {model: name});
+    health.markVariant(name, index, variant.id, variant.delegate);
+    if (state.visionDiag) state.visionDiag[name === "face" ? "face" : "hands"] = `ready (${variant.id}, rebuilt)`;
+    trace.stage("detector variant ready", {model: name, variant: variant.id});
   } catch (error) {
-    health.markFallback(name, "GPU");
-    trace.stage("detector cpu failed", {model: name, message: String(error?.message || error).slice(0, 140)});
+    health.markVariant(name, index, variant.id, variant.delegate);   // skip it: the next tick tries the following variant
+    trace.stage("detector variant failed", {model: name, variant: variant.id, message: String(error?.message || error).slice(0, 140)});
   } finally { rebuilding[name] = false; }
 }
 // Called every frame. While the models load, fail, or stay blind, the game is playable by touching the screen
@@ -772,7 +789,8 @@ function healthTick() {
   if (nowMs - lastHealthAt < 400) return;
   lastHealthAt = nowMs;
   for (const name of ["face", "hands"]) {
-    if (health.fallbackWanted(name) === "cpu") rebuildOnCpu(name);
+    const nextVariant = health.fallbackWanted(name);
+    if (nextVariant >= 0) rebuildVariant(name, nextVariant);
   }
   if (state.loadOutlineWhenSeen && health.sawPerson()) { state.loadOutlineWhenSeen = false; state.loadOutline?.(); }
   const reason = health.touchFallback();
