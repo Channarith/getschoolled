@@ -115,8 +115,20 @@ def load_translation(
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return None
-    if not isinstance(data, dict) or not data.get("segments"):
+    if not isinstance(data, dict):
         return None
+    # A file filed under the wrong language, or with malformed segments, is "no translation", never served or a crash.
+    stored = str(data.get("language") or "")
+    if stored and normalize_translation_language(stored) != (normalize_translation_language(language) or "en"):
+        return None
+    rows = data.get("segments")
+    if not isinstance(rows, list):
+        return None
+    good = [r for r in rows if isinstance(r, dict) and str(r.get("text") or "").strip() and str(r.get("heading") or "").strip()]
+    if not good:
+        return None
+    if len(good) != len(rows):
+        data = {**data, "segments": good}
     return data
 
 
