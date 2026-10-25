@@ -130,7 +130,7 @@ const PICTURE_EMOJI = {
   umbrella:"☂️",violin:"🎻",whale:"🐋",xylophone:"🎹","yo-yo":"🪀",zebra:"🦓",
 };
 const state = {
-  stream:null, face:null, hands:null, running:false, demo:false, lastVideoTime:-1,
+  stream:null, face:null, hands:null, segmenter:null, running:false, demo:false, lastVideoTime:-1,
   lastMpTs:0, faceData:null, handData:[], trail:[], game:null, startedAt:0,
   attempts:1, combo:0, fun:0, muted:false, age:"7-10", theme:"mix", seated:false,
   share:false, timerMs:8000, deadline:0, pausedAt:0, targetRegion:"center",
@@ -396,16 +396,18 @@ function visionSources(selfHosted) {
     name: "cdn", module: `${VISION_CDN}/+esm`, wasm: `${VISION_CDN}/wasm`,
     face: `${MODEL_ROOT}/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
     hand: `${MODEL_ROOT}/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task`,
+    segment: `${MODEL_ROOT}/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite`,
   };
   const local = {
     name: "this site", module: "/vendor/vision/tasks-vision.mjs", wasm: "/vendor/vision/wasm",
     face: "/vendor/vision/face_landmarker.task", hand: "/vendor/vision/hand_landmarker.task",
+    segment: "/vendor/vision/selfie_segmenter.tflite",
   };
   return selfHosted ? [local, cdn] : [cdn];
 }
 
 async function initVision() {
-  const diag = state.visionDiag = {source: "", library: "pending", face: "pending", hands: "pending", errors: []};
+  const diag = state.visionDiag = {source: "", library: "pending", face: "pending", hands: "pending", segment: "pending", errors: []};
   let selfHosted = false;
   try {
     // On salareen.com, /health is the orchestrator. The lab health is proxied
@@ -448,6 +450,20 @@ async function initVision() {
         } catch (error) { note(`hands ${delegate}`, error); }
       }
       if (!state.hands) diag.hands = "failed";
+      if (!state.segmenter && source.segment) {
+        diag.segment = "pending";
+        for (const delegate of ["GPU", "CPU"]) {
+          try {
+            state.segmenter = await vision.ImageSegmenter.createFromOptions(files, {
+              baseOptions: {modelAssetPath: source.segment, delegate},
+              runningMode: "VIDEO", outputCategoryMask: true, outputConfidenceMasks: false,
+            });
+            diag.segment = `ready (${delegate})`;
+            break;
+          } catch (error) { note(`outline ${delegate}`, error); }
+        }
+        if (!state.segmenter) diag.segment = "off";
+      }
       if (state.face && state.hands) break;
     } catch (error) {
       diag.library = diag.library === "ok" ? diag.library : "failed";
@@ -639,6 +655,88 @@ function detectFrame() {
       state.handMotion=state.handData.reduce((max,hand,i)=>Math.max(max,previous[i]?distance(hand.tip,previous[i]):0),0);
     }
   } catch (error) { console.warn("[children-lab] hand frame skipped",error); }
+  try { if (state.segmenter && switchedOn("show-outline")) segmentFrame(now); }
+  catch (error) { console.warn("[children-lab] outline frame skipped",error); }
+}
+
+// ---- Quiet redesign (quiet-v4): a soft gold outline traced around the person, plus a small gold star on the shoulder.
+const OUTLINE = {n: 0, every: 3, avgMs: 0, edge: null, w: 0, h: 0, at: 0};
+// Which class is "person"? The class that does NOT own most of the frame border is the person (the border is background).
+function outlineEdges(mask, w, h) {
+  let border0 = 0, borderN = 0;
+  const step = Math.max(1, (w / 64) | 0);
+  for (let x = 0; x < w; x += step) { borderN += 2; border0 += (mask[x] === 0) + (mask[(h - 1) * w + x] === 0); }
+  for (let y = 0; y < h; y += step) { borderN += 2; border0 += (mask[y * w] === 0) + (mask[y * w + w - 1] === 0); }
+  const personValue = border0 * 2 >= borderN ? 1 : 0;
+  const out = new Uint8ClampedArray(w * h * 4);
+  let edgePixels = 0;
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const i = y * w + x;
+      if (mask[i] !== personValue) continue;
+      if (mask[i - 1] !== personValue || mask[i + 1] !== personValue || mask[i - w] !== personValue || mask[i + w] !== personValue) {
+        const o = i * 4;
+        out[o] = 246; out[o + 1] = 220; out[o + 2] = 138; out[o + 3] = 255; edgePixels++;
+      }
+    }
+  }
+  return {pixels: out, edgePixels, personShare: 0};
+}
+function segmentFrame(now) {
+  OUTLINE.n++;
+  if (OUTLINE.n % OUTLINE.every) return;
+  const t0 = performance.now();
+  const result = state.segmenter.segmentForVideo(video, now);
+  const mask = result?.categoryMask;
+  if (!mask) return;
+  const w = mask.width, h = mask.height;
+  const found = outlineEdges(mask.getAsUint8Array(), w, h);
+  mask.close();
+  if (!OUTLINE.edge || OUTLINE.w !== w || OUTLINE.h !== h) {
+    OUTLINE.edge = document.createElement("canvas"); OUTLINE.edge.width = w; OUTLINE.edge.height = h;
+  }
+  const edgeCtx = OUTLINE.edge.getContext("2d");
+  const image = edgeCtx.createImageData(w, h);
+  image.data.set(found.pixels);
+  edgeCtx.putImageData(image, 0, 0);
+  OUTLINE.w = w; OUTLINE.h = h; OUTLINE.at = performance.now();
+  // Stay light on a phone: if a frame takes long, sample less often, and give up if it is very slow.
+  OUTLINE.avgMs = OUTLINE.avgMs ? OUTLINE.avgMs * 0.8 + (performance.now() - t0) * 0.2 : performance.now() - t0;
+  if (OUTLINE.avgMs > 90) { state.segmenter.close?.(); state.segmenter = null; OUTLINE.edge = null; }
+  else if (OUTLINE.avgMs > 45) OUTLINE.every = 6;
+}
+function drawStar(cx, cy, r, spin) {
+  ctx.save();
+  ctx.translate(cx, cy); ctx.rotate(spin);
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const rad = i % 2 ? r * 0.45 : r;
+    const a = -Math.PI / 2 + (i * Math.PI) / 5;
+    ctx.lineTo(Math.cos(a) * rad, Math.sin(a) * rad);
+  }
+  ctx.closePath();
+  const grad = ctx.createLinearGradient(0, -r, 0, r);
+  grad.addColorStop(0, "#fff3c4"); grad.addColorStop(1, "#d4af37");
+  ctx.fillStyle = grad; ctx.shadowColor = "rgba(246,200,80,.95)"; ctx.shadowBlur = r * 1.1;
+  ctx.fill();
+  ctx.restore();
+}
+function drawBodyOutline(w, h) {
+  if (!state.segmenter || !OUTLINE.edge || !switchedOn("show-outline")) return;
+  if (performance.now() - OUTLINE.at > 900) return;   // stale: the person left the frame
+  const frame = videoFrame();
+  if (!frame.w || !frame.h) return;
+  ctx.save();
+  ctx.shadowColor = "rgba(246,200,80,.9)"; ctx.shadowBlur = 14; ctx.globalAlpha = 0.92;
+  ctx.imageSmoothingEnabled = true;
+  if (videoIsMirrored()) { ctx.translate(frame.x + frame.w, frame.y); ctx.scale(-1, 1); ctx.drawImage(OUTLINE.edge, 0, 0, frame.w, frame.h); }
+  else ctx.drawImage(OUTLINE.edge, frame.x, frame.y, frame.w, frame.h);
+  ctx.restore();
+  const face = state.faceData;
+  if (face && face.width) {
+    const shoulder = mirrored({x: face.cx - face.width * 1.1, y: face.cy + face.height * 1.25});
+    drawStar(shoulder.x, shoulder.y, Math.max(10, face.width * w * 0.2), Math.sin(performance.now() / 700) * 0.12);
+  }
 }
 
 function drawFistMark(hand) {
@@ -671,6 +769,7 @@ function drawVision() {
   ctx.clearRect(0,0,w,h);
   drawPicture(w,h);
   drawGuide(w,h);
+  drawBodyOutline(w,h);
   ctx.save();ctx.lineWidth=4;ctx.lineCap="round";ctx.lineJoin="round";ctx.strokeStyle="#f6dc8a";ctx.fillStyle="#fde68a";ctx.shadowColor="rgba(246,200,80,.85)";ctx.shadowBlur=14;
   if (switchedOn("show-hands")) {
     for (const hand of state.handData) {

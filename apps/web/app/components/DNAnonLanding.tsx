@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useT } from "../lib/i18n";
 import { useSecretLogoTaps } from "../lib/useSecretLogoTaps";
 import MascotImage from "./MascotImage";
 
@@ -19,6 +20,7 @@ import MascotImage from "./MascotImage";
  */
 export default function DNAnonLanding() {
   const onLogoClick = useSecretLogoTaps();
+  const { t } = useT();
   return (
     <main className="dn-anon-landing">
       <div className="dn-anon-content">
@@ -36,12 +38,12 @@ export default function DNAnonLanding() {
         <p className="dn-anon-subtitle">
           A patient tutor for every learner, in every language.
         </p>
-        <div className="dn-anon-cta-row">
+        <div className="dn-anon-cta-row" data-testid="landing-guest-cta">
           <Link href="/demo" className="btn-primary">
-            Try the demo
+            {t("landing.tryDemo")}
           </Link>
           <Link href="/login" className="btn-outline">
-            Log in
+            {t("landing.logIn")}
           </Link>
         </div>
       </div>
