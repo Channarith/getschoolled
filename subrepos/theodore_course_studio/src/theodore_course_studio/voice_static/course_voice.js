@@ -1007,8 +1007,12 @@ export function initCourseVoiceOverlay(opts = {}) {
     else if (muted) text = "Mic muted.";
     else if (listening) text = "Sala is listening.";
     else text = "Starting Sala…";
-    cw.status.textContent = text;
+    // A small dot; the words go in the tooltip and a screen-reader-only span, not on screen.
     cw.status.dataset.kind = kind;
+    cw.status.dataset.state = kind === "paused" ? "paused" : muted ? "muted" : listening ? "on" : "wait";
+    cw.status.title = text;
+    cw.status.textContent = "";
+    cw.status.append(el("span", { class: "cw-sr" }, [text]));
   }
 
   function placeCourseWidget(left, top, persist) {

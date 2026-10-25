@@ -77,6 +77,8 @@
       :host([data-embedded]) .box,:host([data-embedded].voice-hidden) .box,:host([data-embedded]:not(.voice-open)) .box{
         display:flex !important;position:static !important;left:auto !important;right:auto !important;top:auto !important;bottom:auto !important;
         width:100% !important;min-height:0;margin:0;padding:6px;border:0;border-radius:12px;background:transparent;box-shadow:none;cursor:default;touch-action:auto}
+      /* In the lesson panel only the dot and the microphone show; the name, status and captions are tooltips, not text. */
+      :host([data-embedded]) .copy,:host([data-embedded]) .caption{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;flex:none}
       :host([data-embedded]) .close,:host([data-embedded]) .show-again,:host([data-embedded].voice-hidden) .show-again,:host([data-embedded]:not(.voice-open)) .show-again{display:none !important}
     </style>
     <button class="show-again" type="button" aria-label="Show Sala voice" title="Show Sala voice">Show Sala</button>

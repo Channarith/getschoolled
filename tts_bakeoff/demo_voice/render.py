@@ -108,6 +108,8 @@ def publish(root: Path, manifest: dict | None = None, check_consent=consent_ok, 
         entry = {"id": v["id"], "label": shown, "ai_label": v.get("ai_label", f"AI-generated voice of {label}"), "active": active}
         if v.get("primary_lang"):
             entry["primary_lang"] = v["primary_lang"]
+        if v.get("gender") in ("male", "female"):
+            entry["gender"] = v["gender"]   # the pages fall back to an edge voice of this gender when a clip is missing
         out.append(entry)
     doc = {"voices": out, "updated": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
     (root / "voices.json").write_text(json.dumps(doc, indent=1), encoding="utf-8")
