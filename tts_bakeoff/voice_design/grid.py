@@ -14,11 +14,18 @@ from pathlib import Path
 
 from tts_bakeoff.build_sentences import load
 
-from . import design, registry
+from . import design, registry, yue_sentences
 from .prompt import TONES
 
 DEMO_LANGS = ["en", "es", "zh", "yue", "vi", "th", "km", "sw", "hi"]
 SMALL = {"voices": ["stock-f-young-warm", "stock-m-adult-deep"], "langs": ["en", "es", "km"], "tones": [registry.NEUTRAL]}
+YUE_TONES = [registry.NEUTRAL, "professional", "cute", "anime"]
+# Cantonese presets. Every voice is made two ways so the owner's native speaker can compare them by ear: 'en-ref' (designed in English, cloned
+# into Cantonese) and 'yue-ref' (designed on a Cantonese sentence, then cloned from that Cantonese reference). Sentences: Wei's reviewed lines.
+CANTONESE_SMALL = {"voices": ["stock-f-young-warm", "stock-f-adult-crisp", "stock-m-adult-deep", "stock-m-young-bright"], "langs": ["yue"],
+                   "tones": YUE_TONES, "methods": ["en-ref", "yue-ref"], "limit": 2, "sentences": "yue"}
+CANTONESE_FULL = {"voices": None, "langs": ["yue"], "tones": YUE_TONES, "methods": ["en-ref", "yue-ref"], "limit": 4, "sentences": "yue"}
+PRESETS = {"small": SMALL, "cantonese-small": CANTONESE_SMALL, "cantonese-full": CANTONESE_FULL}
 
 
 def model_id(voice_id: str) -> str:
@@ -37,8 +44,8 @@ def plan(voices: list[str], tones: list[str], langs: list[str], path: Path = reg
     return out
 
 
-def write_meta(out: Path, base: str, tone: str, entry: dict, frozen: dict) -> Path:
-    vid = registry.variant_id(base, tone)
+def write_meta(out: Path, base: str, tone: str, entry: dict, frozen: dict, design_lang: str | None = None) -> Path:
+    vid = registry.variant_id(base, tone, design_lang)
     mid = model_id(vid)
     root = out / mid
     root.mkdir(parents=True, exist_ok=True)
@@ -48,19 +55,31 @@ def write_meta(out: Path, base: str, tone: str, entry: dict, frozen: dict) -> Pa
         "seed": frozen["seed"], "frozen_sha256": frozen["sha256"], "ai_label": registry.AI_LABEL, "license": registry.LICENSE_NOTE,
         "started": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
     }
+    tag = " (Cantonese ref)" if design_lang == "yue" else ""
+    meta.update(design_lang=design_lang or "en", method="yue-ref" if design_lang == "yue" else "en-ref")
     if tone == registry.NEUTRAL:
-        meta.update(kind="plain", label=f"{entry['label']} · designed")
+        meta.update(kind="plain", label=f"{entry['label']} · designed{tag}")
     else:
-        meta.update(kind="style", style=tone, voice=model_id(base), label=f"{entry['label']} · {tone}")
+        meta.update(kind="style", style=tone, voice=model_id(registry.variant_id(base, registry.NEUTRAL, design_lang)),
+                    label=f"{entry['label']} · {tone}{tag}")
     (root / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
     (root / "scores.jsonl").touch()
     (root / "manifest.jsonl").touch()
     return root
 
 
+def sentences_for(kind: str | None, lang: str, limit: int | None) -> list[dict]:
+    """The listening sentences: Wei's reviewed Cantonese lines for kind 'yue' in Cantonese, else the standard 3 per language."""
+    if kind == "yue" and lang == "yue":
+        return yue_sentences.load(limit)
+    return load(lang, limit)
+
+
 def run(out: Path, voices: list[str], tones: list[str], langs: list[str], limit: int | None = 3, freeze_missing: bool = True, takes: int = 3,
-        assets: Path | None = None, adapter_factory=None, freezer=None, log=print, path: Path = registry.STOCK) -> dict:
-    """Render the grid. adapter_factory(voice_id) -> adapter and freezer(voice_id, assets) are injectable so tests need no model."""
+        assets: Path | None = None, adapter_factory=None, freezer=None, log=print, path: Path = registry.STOCK,
+        methods: tuple[str, ...] = ("en-ref",), sentences: str | None = None) -> dict:
+    """Render the grid. adapter_factory(voice_id) -> adapter and freezer(voice_id, assets) are injectable so tests need no model.
+    ``methods``: 'en-ref' designs the voice in English (the default), 'yue-ref' designs it on a Cantonese sentence; both clone from that frozen reference."""
     from tts_bakeoff.voice_clone import runner
 
     out = Path(out)
@@ -68,11 +87,15 @@ def run(out: Path, voices: list[str], tones: list[str], langs: list[str], limit:
     units = plan(voices, tones, langs, path)
     freeze = freezer or (lambda vid, root: design.freeze(vid, root, takes=takes, log=log, path=path))
     build = adapter_factory or (lambda vid: design.build_adapter(vid, assets))
+    unknown = [m for m in methods if m not in registry.METHODS]
+    if unknown:
+        raise registry.StockError(f"unknown method(s) {', '.join(unknown)} (one of {', '.join(registry.METHODS)})")
     by_voice: dict[str, list[str]] = {}
     for base, tone, lang in units:
-        by_voice.setdefault(registry.variant_id(base, tone), []).append(lang)
+        for method in methods:
+            by_voice.setdefault(registry.variant_id(base, tone, registry.METHODS[method]), []).append(lang)
     for vid, vlangs in by_voice.items():
-        base, tone = registry.split_id(vid)
+        base, tone, dlang = registry.split_full(vid)
         entry = registry.get(base, path)
         if registry.frozen_meta(vid, assets) is None:
             if not freeze_missing:
@@ -84,7 +107,7 @@ def run(out: Path, voices: list[str], tones: list[str], langs: list[str], limit:
         if frozen is None:
             stats["failed"] += len(vlangs)
             continue
-        root = write_meta(out, base, tone, entry, frozen)
+        root = write_meta(out, base, tone, entry, frozen, dlang)
         adapter = build(vid)
         stats["voices"] += 1
         existing = runner.manifest_rows(root)
@@ -92,7 +115,7 @@ def run(out: Path, voices: list[str], tones: list[str], langs: list[str], limit:
             if getattr(adapter, "languages", None) and lang not in adapter.languages:
                 stats["skipped_unsupported"] += 1
                 continue
-            for item in load(lang, limit):
+            for item in sentences_for(sentences, lang, limit):
                 wav = root / lang / f"{item['id']}.wav"
                 rel = wav.relative_to(out).as_posix()
                 if runner.clip_done(out, existing.get(rel)):

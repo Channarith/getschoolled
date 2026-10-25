@@ -36,8 +36,10 @@ Rules
     free text. A free-text description (voice_design check "...") must pass validate_description: it rejects 'sounds like', 'like <name>', 'in the
     style of', 'famous', 'celebrity', names (capitalised words that are not accents/languages), parentheses, anything over 240 characters.
     This is a best-effort guard; lowercase names are caught only after 'like'. Review any hand-written description.
-  * Labels are plain words (Sage, Lark, Wren, Willow, Reed, Cedar, Slate, Ridge), not people's names.
+  * Labels are plain words (16 voices: Sage, Lark, Wren, Willow, Maple, Finch, Linden, Dove / Reed, Cedar, Slate, Ridge, Birch, Flint, Heron, Pine), not people's names.
   * 'child' exists in the vocabulary but validate_registry rejects it: a child-like synthetic voice for a children's platform is the owner's call.
+    Free-text descriptions that mention child, kid, little girl/boy, girl, boy, teen(ager), toddler, baby... are rejected too, and the 'cute' and
+    'anime' tones say 'clearly an adult voice' (no 'high-pitched'): a cute or anime tone must never turn into a child.
   * Every clip carries the label "AI-generated voice (designed with VoxCPM2)" in its sidecar and in voices.json; keep it visible in the product.
 
 Commands (Spark; every GPU job under gs_run.sh so the lock and the memory gate apply; the GPU may be busy with another job: it waits)
@@ -65,3 +67,59 @@ What to listen for, per language (the owner or a native speaker; write the verdi
   * Tones (professional, cute, anime...): do they sound like the tone without turning into a caricature or a different person?
   Languages that fail are the ones to fill from elsewhere (Azure AI Speech, a hired and consented voice actor, or a consented company voice).
   Nobody has listened yet. The registry clears only 'en' as a starting point, and even that is unverified until someone listens.
+
+
+Cantonese stock voices (yue: written Cantonese, Hong Kong spoken register)
+==========================================================================
+Goal: more voices for Cantonese in three tones: professional, cute and anime. 16 voices (8 women, 8 men, young/adult/older, different timbres),
+each as neutral + the tones. A native speaker (Wei) listens and clears each voice for Cantonese; only cleared languages are published.
+
+Why tones are DESCRIPTIONS and not pitch shifting
+  Cantonese has six tones: the pitch contour of a syllable is part of the word (詩 史 試 時 市 事 differ only in tone). The edge-tts presets (voice_types.PRESETS)
+  are rate/pitch/volume changes after synthesis. On a tone language that bends the contours and a shifted pitch can turn one word into another. For
+  stock voices the tone is part of the description the model designs the voice from (tts_bakeoff/voice_design/prompt.py TONES), so the model plans
+  its own pitch inside the tone constraints. Risk that remains: the model may still blur tones, hence the listening step below.
+    professional = clear, measured, authoritative      cute = sweet, bright, playful, clearly an adult voice
+    anime        = animated, expressive, high-energy, youthful but clearly an adult voice
+
+Two ways to get a Cantonese voice (the bake-off makes BOTH so she can compare by ear)
+  en-ref : the voice is designed on an English sentence, frozen, and cloned into Cantonese (cross-lingual). Risk: an English-flavoured accent.
+  yue-ref: the voice is designed on a Cantonese sentence (design.DESIGN_SENTENCES['yue']), frozen as <id>.yue, and cloned from that reference.
+           Risk: if the model designs poorly in Cantonese the reference itself is flawed.
+  Ids: base[.yue][~tone], e.g. stock-f-young-warm.yue~cute. Folders in the lab: voxcpm2-design~stock-f-young-warm.yue~cute, labelled 'Sage · cute (Cantonese ref)'.
+
+Sentences (tts_bakeoff/voice_design/yue_sentences.py): three lines Wei reviewed (short, medium, long; pure Chinese, no Latin letters) from
+  tts_manifest/translations/yue.json, plus the tone-contrast line 請跟我讀：詩、史、試、時、市、事。 Order: Y01 short, T01 tone line, Y02, Y03, so --limit 2 = short + tone line.
+
+Presets (voice_design grid --preset ...), written into the run folder the Listening Lab serves
+  cantonese-small: 4 voices (Sage, Wren, Cedar, Reed) x 4 tones (neutral, professional, cute, anime) x both methods, 2 sentences:
+                   32 voices to freeze (3 design takes each) and 64 clips.
+  cantonese-full : all 16 voices x 4 tones x both methods, 4 sentences: 128 voices to freeze and 512 clips.
+  Both queue behind whatever holds the GPU lock (the demo render, translation).
+
+Commands (Spark)
+  cd ~/code/gs-main && git fetch -q origin && git checkout -q --detach origin/main     # after the demo render has finished
+  P="env TORCHDYNAMO_DISABLE=1 PYTHONPATH=$PWD:$PWD/packages/shared/src $HOME/venvs/voxcpm/bin/python"
+  scripts/gs_run.sh --name stock-yue-small --gpu -- $P -m tts_bakeoff.voice_design grid --out runs/2026-10-25-clones --preset cantonese-small --freeze-missing
+  # then reload http://localhost:8790/ (Cantonese, Voice type filter) or make the review sheet:
+  $P -m tts_bakeoff.voice_design review-page --run runs/2026-10-25-clones --lang yue      # writes runs/2026-10-25-clones/review-voices-yue.html
+  (copy the run folder to the Mac with rsync, open the HTML from inside the folder: the audio links are relative; Wei marks OK / Not OK per voice,
+   tone and method and presses 'Download my decisions')
+  $P -m tts_bakeoff.voice_design apply-review ~/Downloads/review-voices-yue-decisions.json --reviewer Wei
+      A voice is cleared for Cantonese only if its NEUTRAL variant is OK. Method: yue-ref when that one is OK, else en-ref. Tones recorded: the ones
+      OK under that method. Not-OK voices stay uncleared and the notes go into 'quality'.
+  $P -m tts_bakeoff.voice_design clear --id stock-f-young-warm --lang yue --by Wei --tones professional,cute --method yue-ref [--activate]
+  $P -m tts_bakeoff.voice_design unclear --id stock-f-young-warm --lang yue
+  $P -m tts_bakeoff.voice_design list           # who cleared what, in which method and tones
+
+What clearing changes
+  stock_voices.json: langs += yue, cleared.yue = {by, on, method, tones, note}.   voices.json: untouched unless --activate (refused for an uncleared voice).
+  The demo render (render run --voice stock-...) uses the Cantonese-designed reference for Cantonese when the voice was cleared with method yue-ref,
+  and render publish lists a designed voice only in its cleared languages: an uncleared language is never published.
+  Tone variants (stock-...~cute) render with `render run --voice stock-f-young-warm~cute`; they are not in the picker's voices.json yet.
+
+What Wei should listen for (per voice, per tone, both methods)
+  1. Tones: in 詩史試時市事 six clearly different words. Wrong tones = Not OK, whatever else is good.
+  2. Natural spoken Cantonese (not Mandarin-flavoured, no English accent, final particles like 㗎 呀 喎 sound right).
+  3. Cute and anime: lively and sweet, still an adult. Not OK if it sounds like a child or a cartoon caricature.
+  4. Same speaker (gender, age, timbre) in every sentence; no hiss, clicks, cut-off words or repeated syllables.

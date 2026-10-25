@@ -104,6 +104,16 @@ def _unreviewed(mp3: Path) -> bool:
         return False
 
 
+def _cleared_langs(cfg: dict) -> set[str]:
+    """The languages a designed voice may be published in (tts_manifest/stock_voices.json 'langs'). An unknown voice publishes nothing."""
+    from tts_bakeoff.voice_design import registry as stock
+
+    try:
+        return set(stock.get(stock.split_id(cfg["id"])[0]).get("langs") or [])
+    except stock.StockError:
+        return set()
+
+
 def publish(root: Path, manifest: dict | None = None, check_consent=consent_ok, reviewed_only: bool = False) -> dict:
     """Write voices.json (only voices whose consent is valid right now) and each voice's index.json."""
     manifest = manifest or load_manifest()
@@ -113,9 +123,12 @@ def publish(root: Path, manifest: dict | None = None, check_consent=consent_ok, 
         stock = is_stock(v)
         active = bool(v.get("active", True)) and (stock_ready(v, root) if stock else check_consent(v["speaker"]))
         index: dict[str, list[str]] = {}
+        cleared_langs = _cleared_langs(v) if stock else None
         for p in sorted((root / v["id"]).glob("*/*.mp3")) if active else []:
             if reviewed_only and _unreviewed(p):
                 continue
+            if cleared_langs is not None and p.parent.name not in cleared_langs:
+                continue   # a designed voice is only published in the languages a native speaker has listened to
             index.setdefault(p.parent.name, []).append(p.stem)
         if (root / v["id"]).is_dir() or active:
             (root / v["id"]).mkdir(parents=True, exist_ok=True)
@@ -155,6 +168,7 @@ def run(voice: str, root: Path, shard: str | None, langs: set[str] | None, limit
             raise SystemExit(f"{voice}: no frozen reference yet (python3 -m tts_bakeoff.voice_design freeze --voices {voice})")
     else:
         registry.require_consent(cfg["speaker"], "course_narration")
+    built_here = adapter is None
     if adapter is None:
         if stock:
             from tts_bakeoff.voice_design.design import build_adapter as build_stock
@@ -164,6 +178,7 @@ def run(voice: str, root: Path, shard: str | None, langs: set[str] | None, limit
             from tts_bakeoff.voice_clone.synth import build_adapter
             adapter = build_adapter(cfg["model"], cfg["speaker"])
     supported = set(getattr(adapter, "languages", set()) or set())
+    by_lang: dict[str, object] = {}   # stock voices: the adapter for a language whose cleared method uses the Cantonese-designed reference
     stats = {"ok": 0, "skipped_existing": 0, "skipped_unsupported": 0, "failed": 0}
     todo = [c for c in manifest["clips"] if in_shard(c["hash"], shard) and (not langs or c["lang"] in langs)]
     primary = cfg.get("primary_lang")
@@ -180,10 +195,17 @@ def run(voice: str, root: Path, shard: str | None, langs: set[str] | None, limit
             stats["skipped_unsupported"] += 1
             continue
         mp3.parent.mkdir(parents=True, exist_ok=True)
+        ad = adapter
+        if stock and built_here:
+            from tts_bakeoff.voice_design import registry as stock_registry
+            from tts_bakeoff.voice_design.design import build_adapter as build_stock
+
+            if stock_registry.reference_id(cfg["id"], c["lang"], root=root) != cfg["id"]:
+                ad = by_lang.get(c["lang"]) or by_lang.setdefault(c["lang"], build_stock(cfg["id"], root, lang=c["lang"]))
         try:
             with tempfile.TemporaryDirectory() as td:
                 wav = Path(td) / "c.wav"
-                adapter.synthesize(c["text"], c["lang"], wav)
+                ad.synthesize(c["text"], c["lang"], wav)
                 convert(wav, mp3)
             mp3.with_suffix(".json").write_text(json.dumps({
                 "text": c["text"], "lang": c["lang"], "demo": c["demo"], "model": cfg["model"], "speaker": cfg.get("speaker") or cfg["id"],
