@@ -75,7 +75,7 @@ def test_sync_plan_order_headers_and_acl(tmp_path):
     assert [c[1] for c in cmds] == ["sync", "cp", "cp"]
     clips, index, voices = cmds
     assert clips[clips.index("--cache-control") + 1] == "public, max-age=31536000, immutable"
-    assert clips[clips.index("--content-type") + 1] == "audio/mpeg" and "--include" in clips and "*.mp3" in clips
+    assert clips[clips.index("--content-type") + 1] == "audio/mpeg" and "--include" in clips and "channarith/*.mp3" in clips
     assert "--delete" not in clips and clips[clips.index("--acl") + 1] == "public-read"
     assert index[3].endswith("/channarith/index.json") and voices[3].endswith("/voice-assets/voices.json")   # voices.json is last
     for c in (index, voices):
