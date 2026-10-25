@@ -261,6 +261,7 @@ const SHARED: Record<string, string> = {
   "drive.askType": "Ask",
   "drive.voice": "Voice",
   "drive.voiceDefault": "Default (auto)",
+  "drive.voiceCustomGroup": "Custom voices (AI-generated)",
   "drive.voiceGender": "Voice",
   "drive.voiceGenderAny": "Any",
   "drive.voiceGenderFemale": "Female",

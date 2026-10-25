@@ -3,6 +3,10 @@
 import { useEffect, useState } from "react";
 
 import { getTtsVoices, type VoiceGroup } from "../lib/api";
+import {
+  DEFAULT_VOICE_ID, VOICE_CHOICE_EVENT, cloneVoiceLanguages, getSelectedVoice, loadCloneVoices, setSelectedVoice,
+} from "../lib/cloneVoice";
+import { CUSTOM_PREFIX, clipLangForLocale, customVoiceLabel, distinctVoiceGroups } from "../lib/voicePicker";
 import { useT } from "../lib/i18n";
 import { applyVoicePrefsToTts } from "../lib/narrationTts";
 import {
@@ -15,16 +19,16 @@ import { setServerVoice } from "../lib/tts";
 
 /** Voice gender + accent picker for the profile menu (single source of truth). */
 export default function VoicePrefsControls() {
-  const { t } = useT();
+  const { t, locale } = useT();
   const [voiceGroups, setVoiceGroups] = useState<VoiceGroup[]>([]);
   const [voiceId, setVoiceId] = useState("");
-  const [gender, setGender] = useState<VoiceGenderPref>("any");
+  const [customVoices, setCustomVoices] = useState<{ id: string; label: string }[]>([]);
+  const [customChoice, setCustomChoice] = useState(DEFAULT_VOICE_ID);
   const [liveEngine, setLiveEngine] = useState<LiveVoiceEngine>("salane");
 
   useEffect(() => {
     const prefs = getVoicePrefs();
     setVoiceId(prefs.voiceId);
-    setGender(prefs.voiceGender);
     setLiveEngine(getLiveVoiceEngine());
     applyVoicePrefsToTts(prefs);
     getTtsVoices()
@@ -32,29 +36,35 @@ export default function VoicePrefsControls() {
       .catch(() => setVoiceGroups([]));
   }, []);
 
-  function chooseGender(pref: VoiceGenderPref) {
-    setGender(pref);
-    let nextVoice = voiceId;
-    if (pref !== "any") {
-      const all = voiceGroups.flatMap((g) => g.voices);
-      const current = all.find((x) => x.id === voiceId);
-      if (!current || current.gender !== pref) {
-        const match = all.find((v) => v.gender === pref);
-        if (match) {
-          nextVoice = match.id;
-          setVoiceId(match.id);
-          setServerVoice(match.id);
-        }
+  // Consented company voices: listed only when the voice is switched on AND has clips in the language the site is in.
+  useEffect(() => {
+    let alive = true;
+    const lang = clipLangForLocale(locale);
+    loadCloneVoices().then(async (voices) => {
+      const rows: { id: string; label: string }[] = [];
+      for (const v of voices) {
+        if ((await cloneVoiceLanguages(v.id)).includes(lang)) rows.push({ id: v.id, label: customVoiceLabel(v.label, lang, locale) });
       }
-    }
-    const next = setVoicePrefs({ voiceGender: pref, voiceId: nextVoice });
-    applyVoicePrefsToTts(next);
-  }
+      if (alive) setCustomVoices(rows);
+    });
+    const sync = () => setCustomChoice(getSelectedVoice());
+    sync();
+    window.addEventListener(VOICE_CHOICE_EVENT, sync);
+    return () => { alive = false; window.removeEventListener(VOICE_CHOICE_EVENT, sync); };
+  }, [locale]);
 
   function chooseVoice(id: string) {
+    if (id.startsWith(CUSTOM_PREFIX)) {
+      setSelectedVoice(id.slice(CUSTOM_PREFIX.length));   // same stored choice as the demo narrator selector
+      return;
+    }
+    setSelectedVoice(DEFAULT_VOICE_ID);
     setVoiceId(id);
     setServerVoice(id);
-    const next = setVoicePrefs({ voiceId: id });
+    // The (F)/(M) in each option is the gender now, so keep the stored gender in step with the voice picked.
+    const picked = voiceGroups.flatMap((g) => g.voices).find((v) => v.id === id);
+    const gender: VoiceGenderPref | undefined = picked?.gender === "male" || picked?.gender === "female" ? picked.gender : undefined;
+    const next = setVoicePrefs(gender ? { voiceId: id, voiceGender: gender } : { voiceId: id });
     applyVoicePrefsToTts(next);
   }
 
@@ -96,37 +106,9 @@ export default function VoicePrefsControls() {
           xAI is optional and only used when selected. Switch back to Salane Voice if Grok is unavailable.
         </p>
       </div>
-      <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
-        {(["any", "female", "male"] as const).map((g) => {
-          const on = gender === g;
-          return (
-            <button
-              key={g}
-              type="button"
-              onClick={() => chooseGender(g)}
-              style={{
-                padding: "5px 10px",
-                borderRadius: 999,
-                fontSize: 12,
-                fontWeight: 700,
-                border: on ? "1px solid var(--accent)" : "1px solid var(--border)",
-                background: on ? "var(--accent)" : "transparent",
-                color: on ? "#fff" : "var(--text)",
-                cursor: "pointer",
-              }}
-            >
-              {g === "any"
-                ? t("drive.voiceGenderAny")
-                : g === "female"
-                  ? t("drive.voiceGenderFemale")
-                  : t("drive.voiceGenderMale")}
-            </button>
-          );
-        })}
-      </div>
-      {voiceGroups.length > 0 && (
+      {(voiceGroups.length > 0 || customVoices.length > 0) && (
         <select
-          value={voiceId}
+          value={customVoices.some((v) => v.id === customChoice) ? `${CUSTOM_PREFIX}${customChoice}` : voiceId}
           onChange={(e) => chooseVoice(e.target.value)}
           aria-label={t("drive.voice")}
           style={{
@@ -140,7 +122,14 @@ export default function VoicePrefsControls() {
           }}
         >
           <option value="">{t("drive.voiceDefault")}</option>
-          {voiceGroups.map((g) => (
+          {customVoices.length > 0 && (
+            <optgroup label={t("drive.voiceCustomGroup")}>
+              {customVoices.map((v) => (
+                <option key={v.id} value={`${CUSTOM_PREFIX}${v.id}`}>{v.label}</option>
+              ))}
+            </optgroup>
+          )}
+          {distinctVoiceGroups(voiceGroups, voiceId).map((g) => (
             <optgroup key={g.language} label={g.language.toUpperCase()}>
               {g.voices.map((v) => (
                 <option key={v.id} value={v.id}>

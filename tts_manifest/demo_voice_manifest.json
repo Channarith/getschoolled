@@ -43,6 +43,27 @@
  ],
  "clips": [
   {
+   "id": "landing:en:05c3d88b4ba589",
+   "demo": "landing",
+   "lang": "en",
+   "text": "You get one tutor, just for you. I notice how you think, then I change the lesson so it fits.",
+   "hash": "05c3d88b4ba589"
+  },
+  {
+   "id": "landing:en:0facb010ee7eff",
+   "demo": "landing",
+   "lang": "en",
+   "text": "Live class moves with you. A real teacher talks with you, and I stay right beside you.",
+   "hash": "0facb010ee7eff"
+  },
+  {
+   "id": "landing:en:189e23fd6b3bd9",
+   "demo": "landing",
+   "lang": "en",
+   "text": "Learning feels like play here. Adaptive games and webcam labs meet you at any age.",
+   "hash": "189e23fd6b3bd9"
+  },
+  {
    "id": "on_the_go:en:02de60126ab974",
    "demo": "on_the_go",
    "lang": "en",

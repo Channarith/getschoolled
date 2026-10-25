@@ -107,3 +107,21 @@ Render (on the Spark; finished clips are skipped, so it can be repeated or resum
   "publish --reviewed-only" (and "run --reviewed-only") leave clips whose sidecar says translation_status unreviewed out of index.json;
   the demos then use the default voice for those lines.
 
+
+Home-page mascot narration (landing)
+  The mascot on / explains each feature card with pre-rendered clips, not the browser's built-in voice. The lines live in
+  apps/web/app/lib/landingVoiceLines.json (DNLandingHero.tsx imports it, tts_bakeoff.demo_voice.manifest lists it as demo "landing").
+  Default voice = Salane (edge-tts en-US-AriaNeural): python3 scripts/render_landing_voice.py writes
+  apps/web/public/landing-voice/salane/<lang>/<hash>.mp3 and index.json (small, committed; --check verifies). Needs edge-tts >= 7.3.1 and network.
+  A visitor who picked a consented voice in the voice picker (profile menu) gets that voice's clip for the line when the voice has one
+  (render it with scripts/render_demo_voice.sh, the manifest includes the landing lines); otherwise the Salane clip plays; the browser voice
+  is only the last resort when a clip is missing. Nothing plays before the first press/tap/key on the page; reduced motion waits for a click.
+  Compliance: edge-tts is an unofficial client of Microsoft's Edge Read Aloud service; the licensed route to the same voices is Azure AI Speech.
+  The landing text is English only today, so only "en" clips exist; add rows to the JSON per language and re-run the render script.
+
+Voice picker (profile menu)
+  One dropdown: Default (auto), then a "Custom voices (AI-generated)" group (consented voices from voices.json that are active AND have
+  clips for the site's current language, labelled "<name> (<language>) . AI-generated voice"), then the edge-tts voices with each real audio
+  voice listed once (regional duplicates of the same neural voice are hidden unless the visitor already saved one). The choice is stored in the
+  same key as the demo narrator selector (aoep_demo_voice). The Any/Female/Male filter is gone: the (F)/(M) in each option is the gender,
+  and picking a voice keeps the stored gender in step, so existing visitors keep the voice they had.

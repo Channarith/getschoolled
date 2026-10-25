@@ -61,9 +61,16 @@ function loadIndex(voice: string) {
   return indexes.get(voice)!;
 }
 
+/** Language codes this voice has published clips for (empty when the voice has no index yet). */
+export async function cloneVoiceLanguages(voice: string): Promise<string[]> {
+  const index = await loadIndex(voice);
+  return index ? Object.keys(index.clips || {}).filter((l) => (index.clips?.[l] || []).length > 0) : [];
+}
+
 const misses = new Set<string>();
 
 export function resetCloneVoiceCacheForTests(): void {
+  salaneIndexPromise = null;
   voicesPromise = null;
   indexes.clear();
   misses.clear();
@@ -86,4 +93,33 @@ export async function cloneClipUrl(lang: string, text: string, voice = getSelect
     if (typeof window !== "undefined") ((window as unknown as { __cloneVoiceMisses?: object[] }).__cloneVoiceMisses ||= []).push({ demo: "miss", lang: l, text });
   }
   return null;
+}
+
+// ---- Home-page mascot narration --------------------------------------------------------------------------------
+// Pre-rendered clips, never the browser's built-in voice unless a clip is missing. The default voice is Salane
+// (edge-tts) clips shipped under /landing-voice; a visitor who picked a consented company voice in the voice picker
+// gets that voice's clip for the same line when it has one.
+export const LANDING_VOICE_BASE = "/landing-voice/salane";
+
+type SalaneIndex = { ext?: string; clips?: Record<string, string[]> };
+let salaneIndexPromise: Promise<SalaneIndex | null> | null = null;
+
+function loadSalaneIndex(): Promise<SalaneIndex | null> {
+  if (!salaneIndexPromise) {
+    salaneIndexPromise = fetch(`${LANDING_VOICE_BASE}/index.json`)
+      .then((r) => (r.ok ? (r.json() as Promise<SalaneIndex>) : null))
+      .catch(() => null);
+  }
+  return salaneIndexPromise;
+}
+
+/** URL of the clip to play for this line: the chosen consented voice, else the Salane clip, else null (caller falls back). */
+export async function landingClipUrl(lang: string, text: string, voice = getSelectedVoice()): Promise<string | null> {
+  const custom = await cloneClipUrl(lang, text, voice).catch(() => null);
+  if (custom) return custom;
+  const index = await loadSalaneIndex();
+  if (!index) return null;
+  const l = (lang || "en").split(/[-_]/)[0].toLowerCase();
+  const h = clipHash(l, text);
+  return index.clips?.[l]?.includes(h) ? `${LANDING_VOICE_BASE}/${l}/${h}.${index.ext || "mp3"}` : null;
 }
