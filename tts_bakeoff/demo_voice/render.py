@@ -1,7 +1,7 @@
 """Render the demo manifest in a consented company voice (run on the Spark under scripts/gs_run.sh --gpu).
 
   python3 -m tts_bakeoff.demo_voice.render run --voice channarith|wei-miao|wei|all [--shard 0/2] [--langs en,es|all] [--limit N]
-  python3 -m tts_bakeoff.demo_voice.render publish [--reviewed-only]   # rewrite <assets>/voices.json + per-voice index.json
+  python3 -m tts_bakeoff.demo_voice.render publish [--reviewed-only] [--trust-previous published]   # rewrite <assets>/voices.json + per-voice index.json (run it on the Spark: it needs the consent records)
   python3 -m tts_bakeoff.demo_voice.render status           # clips present per voice and language, against the manifest
   python3 -m tts_bakeoff.demo_voice.render prune-revoked    # delete clips of any voice whose consent is gone
 
@@ -21,6 +21,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 from pathlib import Path
@@ -156,14 +157,88 @@ def _cleared_langs(cfg: dict) -> set[str]:
         return set()
 
 
-def publish(root: Path, manifest: dict | None = None, check_consent=consent_ok, reviewed_only: bool = False) -> dict:
-    """Write voices.json (only voices whose consent is valid right now) and each voice's index.json."""
+class PublishError(RuntimeError):
+    """Publishing cannot be done safely on this machine; the message says what to do instead."""
+
+
+def consent_registry_present() -> bool:
+    """True when this machine holds consent records (the Spark: ~/voices). The Mac has none, so it cannot tell a valid consent from a missing one."""
+    try:
+        return bool(registry.list_speakers())
+    except OSError:
+        return False
+
+
+def _read_index(path: Path) -> dict:
+    try:
+        clips = json.loads(path.read_text(encoding="utf-8")).get("clips") or {}
+    except (OSError, ValueError, AttributeError):
+        return {}
+    return clips if isinstance(clips, dict) else {}
+
+
+def _previous_doc(trust_previous) -> dict | None:
+    if trust_previous is None:
+        return None
+    if isinstance(trust_previous, dict):
+        return trust_previous
+    if str(trust_previous) == "published":   # the list people are being served right now
+        from . import assets
+
+        s = assets.load_settings()
+        doc = assets.fetch_public_json(f"{s.public_base}/{s.prefix}/voices.json")
+        if doc is None:
+            raise PublishError("--trust-previous published: nothing is published yet, so there is nothing to keep")
+        return doc
+    try:
+        return json.loads(Path(trust_previous).read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise PublishError(f"--trust-previous {trust_previous}: cannot read the previous voices.json ({exc})") from exc
+
+
+def publish(root: Path, manifest: dict | None = None, check_consent=None, reviewed_only: bool = False,
+            trust_previous=None, registry_present: bool | None = None, allow_empty_index=(), report: list | None = None) -> dict:
+    """Write voices.json (only voices whose consent is valid right now) and each voice's index.json.
+
+    A company voice is switched on only when this machine can VERIFY its consent. With no consent registry here (the Mac) nothing can
+    be verified: publishing then refuses, unless ``trust_previous`` (a previously published voices.json, or "published") says which
+    voices were already on: those stay on, nothing new is ever switched on, and a voice with a REVOKED marker is never listed.
+    An empty index.json is never written over a non-empty one unless the voice was switched off on purpose (manifest off, REVOKED,
+    consent denied by a registry that is present) or named in ``allow_empty_index``. Notes go to ``report`` when given.
+    """
     manifest = manifest or load_manifest()
+    report = report if report is not None else []
+    check = check_consent or consent_ok
+    if registry_present is None:
+        registry_present = True if check_consent is not None else consent_registry_present()
+    previous = _previous_doc(trust_previous)
+    was_active = {e.get("id") for e in (previous or {}).get("voices", []) if e.get("active")}
+    needs_check = [v["id"] for v in manifest["voices"] if not is_stock(v) and v.get("active", True)]
+    if needs_check and not registry_present and previous is None:
+        raise PublishError(
+            "this machine has no consent records (GS_VOICES_DIR / ~/voices is empty), so it cannot verify consent for "
+            f"{', '.join(needs_check)} and would switch them all OFF and empty their indexes. Run publish on the Spark, where the "
+            "consent records live. To publish from here anyway, keep the voices that are already on with "
+            "--trust-previous published (or a saved copy of the live voices.json): nothing new is switched on that way.")
     root.mkdir(parents=True, exist_ok=True)
+    allow_empty = set(allow_empty_index or ())
     out = []
     for v in manifest["voices"]:
         stock = is_stock(v)
-        active = bool(v.get("active", True)) and (stock_ready(v, root) if stock else check_consent(v["speaker"]))
+        manifest_on = bool(v.get("active", True))
+        revoked = any((root / name / "REVOKED").exists() for name in {v["id"], v.get("speaker") or v["id"]})
+        off_on_purpose = False
+        if stock:
+            active = manifest_on and stock_ready(v, root)
+            off_on_purpose = not manifest_on
+        elif not manifest_on or revoked:
+            active, off_on_purpose = False, True
+        elif registry_present:
+            active = bool(check(v["speaker"]))
+            off_on_purpose = not active   # the registry is here and says no (revoked, scope missing, sample changed): fail closed, on purpose
+        else:
+            active = v["id"] in was_active
+            report.append(f"{v['id']}: consent not verifiable here; {'kept ON as published' if active else 'left OFF (it was not on before)'}")
         index: dict[str, list[str]] = {}
         cleared_langs = _cleared_langs(v) if stock else None
         for p in sorted((root / v["id"]).glob("*/*.mp3")) if active else []:
@@ -174,9 +249,15 @@ def publish(root: Path, manifest: dict | None = None, check_consent=consent_ok, 
             index.setdefault(p.parent.name, []).append(p.stem)
         if (root / v["id"]).is_dir() or active:
             (root / v["id"]).mkdir(parents=True, exist_ok=True)
-            (root / v["id"] / "index.json").write_text(json.dumps({"voice": v["id"], "ext": "mp3", "clips": index}, indent=1), encoding="utf-8")
+            idx_path = root / v["id"] / "index.json"
+            before = sum(len(x) for x in _read_index(idx_path).values())
+            if not index and before and not off_on_purpose and v["id"] not in allow_empty:
+                report.append(f"{v['id']}: refused to overwrite an index of {before} clips with an EMPTY one; kept the existing index.json "
+                              "(name the voice in --allow-empty-index if emptying it is intended)")
+            else:
+                idx_path.write_text(json.dumps({"voice": v["id"], "ext": "mp3", "clips": index}, indent=1), encoding="utf-8")
         label = display_name(v["speaker"], v["label"]) if (active and not stock) else v["label"]
-        shown = (f"{label} (designed)" if stock else f"{label} ({language_name(v['primary_lang'])})" if v.get("primary_lang") else label)   # 'Wei (Cantonese)', 'Wei Miao (English)', 'Sage (designed)'
+        shown = (f"{label} (designed)" if stock else f"{label} ({language_name(v['primary_lang'])})" if v.get("primary_lang") else label)   # 'Wei (Cantonese)', 'Wei Miao (English)'
         entry = {"id": v["id"], "label": shown, "ai_label": v.get("ai_label", f"AI-generated voice of {label}"), "active": active}
         if v.get("primary_lang"):
             entry["primary_lang"] = v["primary_lang"]
@@ -196,6 +277,36 @@ def publish(root: Path, manifest: dict | None = None, check_consent=consent_ok, 
     doc = {"voices": out, "updated": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
     (root / "voices.json").write_text(json.dumps(doc, indent=1), encoding="utf-8")
     return doc
+
+
+COVERAGE_WARN_PERCENT = 90
+
+
+def summarize(doc: dict, root: Path, manifest: dict | None = None) -> list[dict]:
+    """One row per voice: active, languages, clips listed, and the share of the manifest lines (in the languages it has clips for) that it covers."""
+    manifest = manifest or load_manifest()
+    rows = []
+    for e in doc.get("voices", []):
+        idx = _read_index(root / e["id"] / "index.json")
+        listed = {lang: set(h) for lang, h in idx.items()}
+        need = [(c["lang"], c["hash"]) for c in manifest.get("clips", []) if c["lang"] in listed]
+        have = sum(1 for lang, h in need if h in listed[lang])
+        rows.append({"id": e["id"], "active": bool(e.get("active")), "languages": sorted(listed), "clips": sum(len(x) for x in idx.values()),
+                     "lines": len(need), "coverage": (100 * have // len(need)) if need else None})
+    return rows
+
+
+def format_summary(rows: list[dict]) -> tuple[str, list[str]]:
+    """A printable table and one warning per ACTIVE voice below COVERAGE_WARN_PERCENT of its manifest lines."""
+    lines = [f"{'voice':24s} {'active':6s} {'clips':>6s} {'coverage':>9s}  languages"]
+    warns = []
+    for r in rows:
+        cov = "-" if r["coverage"] is None else f"{r['coverage']}%"
+        lines.append(f"{r['id']:24s} {'yes' if r['active'] else 'no':6s} {r['clips']:6d} {cov:>9s}  {','.join(r['languages']) or '-'}")
+        if r["active"] and r["coverage"] is not None and r["coverage"] < COVERAGE_WARN_PERCENT:
+            warns.append(f"{r['id']} is ON but covers only {r['coverage']}% of its manifest lines ({r['clips']} clips for {r['lines']} lines): the rest "
+                         "fall back to a same-gender edge voice, so a lesson can switch voices mid-way. Render the missing lines to fix that")
+    return "\n".join(lines), warns
 
 
 def prune_revoked(root: Path, check_consent=consent_ok) -> list[str]:
@@ -273,7 +384,10 @@ def run(voice: str, root: Path, shard: str | None, langs: set[str] | None, limit
             if mp3.exists() and not audio_ok(mp3):
                 _discard(mp3)
             print(f"[{n}/{len(todo)}] FAILED {c['lang']} {c['hash']}: {str(exc)[:120]}", flush=True)
-    publish(root, manifest, reviewed_only=reviewed_only)
+    try:
+        publish(root, manifest, reviewed_only=reviewed_only)
+    except PublishError as exc:   # a render on a machine without the consent records must not lose its clips, nor switch any voice off
+        print(f"voices.json was NOT rewritten: {exc}", flush=True)
     return stats
 
 
@@ -316,6 +430,9 @@ def main(argv=None) -> int:
     r.add_argument("--limit", type=int)
     pub = sub.add_parser("publish")
     pub.add_argument("--reviewed-only", action="store_true")
+    pub.add_argument("--trust-previous", metavar="VOICES_JSON|published",
+                     help="on a machine WITHOUT the consent records: keep the voices that are already on in this voices.json (or the live one) and never switch a new one on")
+    pub.add_argument("--allow-empty-index", action="append", default=[], metavar="VOICE", help="let this voice's index.json be emptied (intended removals only)")
     for sp in (r, pub, sub.add_parser("prune-revoked"), sub.add_parser("status")):
         sp.add_argument("--assets")
     args = ap.parse_args(argv)
@@ -338,7 +455,17 @@ def main(argv=None) -> int:
             bad += stats["failed"] > 0
         return 0 if bad == 0 else 1
     if args.cmd == "publish":
-        print(json.dumps(publish(root, reviewed_only=args.reviewed_only), indent=1))
+        notes: list[str] = []
+        try:
+            doc = publish(root, reviewed_only=args.reviewed_only, trust_previous=args.trust_previous,
+                          allow_empty_index=args.allow_empty_index, report=notes)
+        except PublishError as exc:
+            print(f"publish refused: {exc}", file=sys.stderr)
+            return 2
+        table, warns = format_summary(summarize(doc, root))
+        print(table)
+        for note in notes + warns:
+            print("note:", note, file=sys.stderr)
         return 0
     if args.cmd == "status":
         for voice, langs in status(root).items():

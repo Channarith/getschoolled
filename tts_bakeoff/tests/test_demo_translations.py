@@ -11,6 +11,15 @@ from tts_bakeoff.voice_clone import registry
 
 
 @pytest.fixture
+def registry_here(monkeypatch, tmp_path_factory):
+    """publish refuses on a machine without consent records; these tests stub the consent check, so stand a registry in."""
+    reg = tmp_path_factory.mktemp("consent-registry")
+    (reg / "wei-miao").mkdir()
+    (reg / "wei-miao" / "consent.json").write_text("{}", encoding="utf-8")
+    monkeypatch.setenv("GS_VOICES_DIR", str(reg))
+
+
+@pytest.fixture
 def tdir(tmp_path, monkeypatch):
     monkeypatch.setattr(tr, "TRANS_DIR", tmp_path / "translations")
     return tmp_path / "translations"
@@ -135,7 +144,7 @@ def _m():
     return {"voices": [{"id": "wei-miao", "label": "Wei Miao", "speaker": "wei-miao", "model": "voxcpm2", "active": True, "primary_lang": "yue"}], "clips": clips}
 
 
-def test_render_does_the_voices_own_language_first_and_tags_translation_status(tmp_path, monkeypatch):
+def test_render_does_the_voices_own_language_first_and_tags_translation_status(tmp_path, monkeypatch, registry_here):
     monkeypatch.setattr(registry, "require_consent", lambda *a, **k: {})
     monkeypatch.setattr(rd, "voice_cfg", lambda v: _m()["voices"][0])
     ad = _Fake()
@@ -166,7 +175,7 @@ def test_status_reports_clips_per_voice_and_language(tmp_path):
     assert st == {"wei-miao": {"en": [0, 2], "yue": [1, 2]}}
 
 
-def test_demo_render_defaults_to_the_voices_own_languages_and_flags_cross_lingual(tmp_path, monkeypatch):
+def test_demo_render_defaults_to_the_voices_own_languages_and_flags_cross_lingual(tmp_path, monkeypatch, registry_here):
     monkeypatch.setattr(registry, "require_consent", lambda *a, **k: {})
     monkeypatch.setattr(rd, "voice_cfg", lambda v: _m()["voices"][0])
     monkeypatch.setattr(rd, "speaker_languages", lambda s: ["yue"])

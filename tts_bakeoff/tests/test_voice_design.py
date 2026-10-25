@@ -225,6 +225,10 @@ def test_grid_rejects_unknown_voice_or_tone_before_any_work(tmp_path):
 
 # ---------------------------------------------------------------- the demo render, like Channarith
 def test_stock_voice_renders_for_the_demo_without_consent_and_is_gated_on_its_reference(tmp_path, monkeypatch):
+    reg = tmp_path / "consent-registry"   # a machine that holds consent records, none of them for 'someone'
+    (reg / "another").mkdir(parents=True)
+    (reg / "another" / "consent.json").write_text("{}", encoding="utf-8")
+    monkeypatch.setenv("GS_VOICES_DIR", str(reg))
     stock = {"id": "stock-f-young-warm", "label": "Sage", "kind": "stock", "stock": "stock-f-young-warm", "model": "voxcpm2", "active": True,
              "primary_lang": "en", "ai_label": registry.AI_LABEL, "gender": "female"}
     clone = {"id": "someone", "label": "Someone", "speaker": "someone", "model": "voxcpm2", "active": True, "primary_lang": "en", "gender": "male"}
