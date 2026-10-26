@@ -849,7 +849,7 @@ def teach_start(
 ) -> dict[str, Any]:
     authorization = authorization_from(authorization, request.cookies)
     # Access comes from the verified caller (identity /auth/me) for the paid public courses, flag or no flag: free for
-    # admin/VIP/premium, paid when this account has a purchase on record, otherwise the 10-minute sample.
+    # admin/VIP/premium, paid when this account has a purchase on record, otherwise the 4-minute sample.
     trusted = effective_access(
         authorization=authorization, access=req.access, registered=req.registered,
         is_admin=req.is_admin, enrollment_status=req.enrollment_status,

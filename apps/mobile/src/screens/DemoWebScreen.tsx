@@ -4,6 +4,9 @@ import {
 } from "react-native";
 import FriendlyErrorView, { friendlyKindFor } from "../components/FriendlyErrorView";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import CornerChip from "../components/CornerChip";
 
 import { ensureCameraPermission } from "../components/cameraPermission";
 import { WEB_APP_URL } from "../config";
@@ -55,6 +58,7 @@ export default function DemoWebScreen({
   onReportBug?: () => void;
 }) {
   const { t, locale } = useT();
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [errorStatus, setErrorStatus] = useState<number | null>(null);
@@ -79,8 +83,9 @@ export default function DemoWebScreen({
   const studioCourse = path.includes("/studio");
   // Full course: the lesson fills the screen. Back/Exit live in the lesson's own movable panel.
   const cleanCourse = studioCourse && path.includes("access=full");
-  // Vision games show only the scene and their own widget: Back, Camera check and Exit live in the widget's menu.
-  const hideBar = (cleanCourse || (isVisionDemo && !checking)) && !error;
+  // Vision, audio, and studio fill the screen. One small corner chip holds Back and Camera check.
+  const immersiveWeb = (cleanCourse || isVisionDemo || audioOnly || studioCourse) && !error;
+  const hideBar = immersiveWeb;
   const localeScript = path.includes("/children-lab") ? childrenLabLocaleScript(locale) : undefined;
   const touchScript = path.includes("/children-lab") ? childrenLabTouchScript() : undefined;
   const waveScript = audioOnly ? driverWaveScript() : undefined;
@@ -140,7 +145,11 @@ export default function DemoWebScreen({
   }
 
   return (
-    <AdaptiveContent style={[styles.root, { paddingBottom: overlayBottomPad }]} testID="demo-web">
+    <AdaptiveContent
+      bleed={immersiveWeb}
+      style={[styles.root, { paddingBottom: immersiveWeb ? 0 : overlayBottomPad }]}
+      testID="demo-web"
+    >
       {hideBar ? null : <View style={styles.bar} collapsable={false}>
         <Pressable
           onPress={onBack}
@@ -170,7 +179,7 @@ export default function DemoWebScreen({
           </Pressable>
         ) : null}
       </View>}
-      {checking ? (
+      {checking && !immersiveWeb ? (
         <View style={styles.checkRow}>
           <Pressable onPress={() => void shareDiagReport()} testID="camera-check-share" style={styles.checkButton}>
             <Text style={styles.checkButtonText}>Share report</Text>
@@ -256,6 +265,35 @@ export default function DemoWebScreen({
           onMessage={onMessage}
         />
       )}
+      {immersiveWeb ? (
+        <View style={[styles.corner, { top: insets.top + 8 }]} pointerEvents="box-none">
+          <CornerChip>
+            <Pressable onPress={onBack} testID="demo-web-back" hitSlop={10} accessibilityLabel={t("guest.back")}>
+              <Text style={styles.cornerIcon}>‹</Text>
+            </Pressable>
+            {canToggleCheck ? (
+              <Pressable
+                onPress={toggleCheck}
+                testID="demo-camera-check-toggle"
+                hitSlop={10}
+                accessibilityLabel={checking ? "Back to game" : "Camera check"}
+              >
+                <Text style={styles.cornerIcon}>{checking ? "▣" : "◎"}</Text>
+              </Pressable>
+            ) : null}
+            {checking ? (
+              <Pressable onPress={() => void shareDiagReport()} testID="camera-check-share" hitSlop={8} accessibilityLabel="Share report">
+                <Text style={styles.cornerIcon}>↗</Text>
+              </Pressable>
+            ) : null}
+            {checking && onReportBug ? (
+              <Pressable onPress={() => { armDiagForBugReport(); onReportBug(); }} testID="camera-check-send" hitSlop={8} accessibilityLabel="Send to Salareen">
+                <Text style={styles.cornerIcon}>↑</Text>
+              </Pressable>
+            ) : null}
+          </CornerChip>
+        </View>
+      ) : null}
       {loading && !error ? (
         <View style={[styles.loading, cleanCourse ? { top: 0 } : null]} pointerEvents="none">
           <ActivityIndicator color={theme.colors.accent} />
@@ -298,7 +336,9 @@ const styles = StyleSheet.create({
   checkRow: { flexDirection: "row", gap: 10, paddingHorizontal: 12, paddingBottom: 6, backgroundColor: theme.colors.bg },
   checkButton: { minHeight: 40, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: "#d4af37", justifyContent: "center" },
   checkButtonText: { color: "#f4e9d8", fontSize: 14, fontWeight: "600" },
-  web: { flex: 1, backgroundColor: theme.colors.bg },
+  web: { flex: 1, backgroundColor: "#05070e" },
+  corner: { position: "absolute", left: 8, zIndex: 30, elevation: 30 },
+  cornerIcon: { color: theme.colors.goldTrim, fontSize: 16, fontWeight: "800", paddingHorizontal: 2 },
   loading: {
     ...StyleSheet.absoluteFillObject,
     top: 48,

@@ -7,6 +7,7 @@ import { LinearGradient } from "expo-linear-gradient";
 
 import { getAudioCourse, getTtsVoices, listStudents, SPEECH_URL, syncMyListToggle, type AudioCourse, type VoiceGroup } from "../api";
 import AnimatedPressable from "../components/AnimatedPressable";
+import CornerChip from "../components/CornerChip";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
 import { useVoicePauseSubmitMs } from "../featureFlags";
@@ -31,6 +32,8 @@ import {
 import {
   resolveEffectiveVoiceStyle, prosodyForStyle, type NarrationVoiceStyle,
 } from "../voiceProfiles";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
 import { categoryGradient, theme } from "../theme";
 import { useXaiClassVoice } from "../useXaiClassVoice";
 
@@ -38,6 +41,7 @@ export default function DriveModeScreen({
   courseId, isDriving = false, onBack,
 }: { courseId: string; isDriving?: boolean; onBack: () => void }) {
   const { t, locale } = useT();
+  const insets = useSafeAreaInsets();
   const pauseSubmitMs = useVoicePauseSubmitMs();
   useAndroidBackTo(() => { stopAllTts(); onBack(); });
   useEffect(() => { return () => { stopAllTts(); }; }, []);
@@ -526,22 +530,6 @@ export default function DriveModeScreen({
 
   return (
     <View style={styles.c}>
-      <View style={styles.topRow}>
-        <AnimatedPressable onPress={() => { stopSpeech(); onBack(); }}>
-          <View style={styles.backRow}>
-            <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
-            <Text style={styles.back}>{t("drive.back")}</Text>
-          </View>
-        </AnimatedPressable>
-        <AnimatedPressable onPress={() => void onToggleSave()} hitSlop={12}>
-          <Ionicons
-            name={saved ? "bookmark" : "bookmark-outline"}
-            size={26}
-            color={saved ? theme.colors.gold : theme.colors.muted}
-          />
-        </AnimatedPressable>
-      </View>
-
       <LinearGradient colors={[c1, c2]} style={styles.heroPoster}>
         <LinearGradient
           colors={["transparent", "rgba(0,0,0,0.75)"]}
@@ -559,12 +547,25 @@ export default function DriveModeScreen({
         <Text style={styles.heroTitle} numberOfLines={2}>{course.title}</Text>
       </LinearGradient>
 
-      <GlassPanel style={styles.playerCard}>
-        <Text style={styles.cat}>
-          {course.category} · {course.duration_min} {t("meta.min")} · {t("meta.audio")}
+      <View style={[styles.corner, { top: insets.top + 8 }]} pointerEvents="box-none">
+        <CornerChip>
+          <AnimatedPressable onPress={() => { stopSpeech(); onBack(); }} hitSlop={8} accessibilityLabel={t("drive.back")}>
+            <Ionicons name="chevron-back" size={16} color={theme.colors.goldTrim} />
+          </AnimatedPressable>
+          <AnimatedPressable onPress={() => void onToggleSave()} hitSlop={8} accessibilityLabel={saved ? "Saved" : "Save"}>
+            <Ionicons
+              name={saved ? "bookmark" : "bookmark-outline"}
+              size={15}
+              color={saved ? theme.colors.goldTrim : theme.colors.muted}
+            />
+          </AnimatedPressable>
+        </CornerChip>
+      </View>
+
+      <GlassPanel style={[styles.playerCard, { marginBottom: Math.max(insets.bottom, 10) }]}>
+        <Text testID="drive-segment-heading" style={styles.cat} numberOfLines={1}>
+          {course.segments[seg]?.heading} · {seg + 1}/{course.segments.length}
         </Text>
-        <Text testID="drive-segment-heading" style={styles.seg}>{course.segments[seg]?.heading}</Text>
-        <Text style={styles.prog}>{seg + 1} / {course.segments.length}</Text>
         <View style={styles.speedRow}>
           {[0.5, 1, 2, 3].map((r) => (
             <AnimatedPressable
@@ -603,80 +604,30 @@ export default function DriveModeScreen({
             </AnimatedPressable>
           )}
           <AnimatedPressable testID="drive-next" style={styles.btn} onPress={() => playFrom(course, seg + 1)}>
-            <Ionicons name="play-skip-forward" size={28} color="#fff" />
-          </AnimatedPressable>
-        </View>
-      </GlassPanel>
-
-      <GlassPanel style={styles.assistantBar}>
-        <Text style={styles.assistantWake}>
-          {xai.live ? t("drive.assistantWake") : (xai.hint || t("drive.assistantEngineHint"))}
-        </Text>
-        <Text style={styles.assistantEngine}>
-          {t("drive.autoSubmitHint", { seconds: (pauseSubmitMs / 1000).toFixed(1) })}
-        </Text>
-        {micLive ? (
-          <View style={styles.micLiveRow} testID="drive-listening-indicator">
-            <Animated.View
-              style={[
-                styles.micDot,
-                {
-                  opacity: micPulse.interpolate({ inputRange: [0, 1], outputRange: [0.35, 1] }),
-                  transform: [
-                    { scale: micPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.6] }) },
-                  ],
-                },
-              ]}
-            />
-            <Text style={styles.micLiveText} numberOfLines={2}>
-              {partialTranscript
-                ? partialTranscript
-                : capturing
-                  ? t("drive.listeningQuestion")
-                  : t("drive.handsFreeListening")}
-            </Text>
-          </View>
-        ) : null}
-        <View style={styles.assistantActions}>
-          <AnimatedPressable
-            style={[styles.assistantBtn, autoListen ? undefined : styles.assistantBtnGhost]}
-            onPress={toggleAutoListen}
-          >
-            <Ionicons name={autoListen ? "radio" : "mic-off"} size={16} color={autoListen ? "#001022" : "#9aa6c2"} />
-            <Text style={autoListen ? styles.assistantBtnText : styles.assistantBtnGhostText}>
-              {autoListen
-                ? listening
-                  ? t("drive.handsFreeListening")
-                  : t("drive.handsFreeOn")
-                : t("drive.handsFreeOff")}
-            </Text>
+            <Ionicons name="play-skip-forward" size={22} color="#fff" />
           </AnimatedPressable>
           <AnimatedPressable
             testID="drive-ask"
-            style={styles.assistantBtn}
+            style={styles.btn}
+            accessibilityLabel={capturing ? t("drive.stopListening") : t("drive.ask")}
             onPress={() => (capturing ? stopCapture() : void startVoiceRecognition(false))}
           >
-            <Ionicons name={capturing ? "stop" : "mic"} size={16} color="#001022" />
-            <Text style={styles.assistantBtnText}>
-              {capturing ? t("drive.stopListening") : t("drive.ask")}
-            </Text>
+            <Ionicons name={capturing ? "stop" : "mic"} size={20} color={theme.colors.goldTrim} />
           </AnimatedPressable>
           <AnimatedPressable
-            style={[styles.assistantBtn, styles.assistantBtnGhost]}
-            onPress={() => pauseForAssistant(t("drive.pauseAskStatus"))}
-          >
-            <Text style={styles.assistantBtnGhostText}>{t("drive.pauseAsk")}</Text>
-          </AnimatedPressable>
-          <AnimatedPressable
-            style={[styles.assistantBtn, styles.assistantBtnGhost]}
+            style={styles.btn}
+            accessibilityLabel={t("drive.setupButton")}
             onPress={() => setVoiceSetupOpen(true)}
           >
-            <Ionicons name="settings-outline" size={16} color={theme.colors.text} />
-            <Text style={styles.assistantBtnGhostText}>{t("drive.setupButton")}</Text>
+            <Ionicons name="options-outline" size={18} color={theme.colors.goldTrim} />
           </AnimatedPressable>
         </View>
+        {micLive ? (
+          <Text style={styles.micLiveText} numberOfLines={1} testID="drive-listening-indicator">
+            {partialTranscript || (capturing ? t("drive.listeningQuestion") : t("drive.handsFreeListening"))}
+          </Text>
+        ) : null}
       </GlassPanel>
-      <Text style={styles.hint}>{t("drive.hint")}</Text>
 
       <Modal
         animationType="slide"
@@ -824,14 +775,14 @@ function scoreSegment(text: string, words: string[]): number {
 }
 
 const styles = StyleSheet.create({
-  c: { flex: 1, backgroundColor: "transparent", padding: theme.spacing.screenX, paddingTop: 56 },
+  c: { flex: 1, backgroundColor: "transparent" },
+  corner: { position: "absolute", left: 10, zIndex: 4 },
   topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
   backRow: { flexDirection: "row", alignItems: "center", gap: 2 },
   back: { color: theme.colors.text, fontSize: 16, fontWeight: "600" },
   heroPoster: {
-    height: 160, borderRadius: theme.radius.lg, overflow: "hidden",
-    alignItems: "center", justifyContent: "center", marginBottom: 16,
-    ...theme.shadow.hero,
+    flex: 1, overflow: "hidden",
+    alignItems: "center", justifyContent: "center",
   },
   drivingBadge: {
     position: "absolute", top: 12, right: 12, zIndex: 2,
@@ -850,7 +801,7 @@ const styles = StyleSheet.create({
     position: "absolute", bottom: 14, left: 14, right: 14,
     color: "#fff", fontSize: 20, fontWeight: "800", lineHeight: 26,
   },
-  playerCard: { marginBottom: 14 },
+  playerCard: { marginHorizontal: 10, marginTop: -18 },
   cat: { color: theme.colors.muted, ...theme.typography.caption },
   seg: { color: theme.colors.text, fontSize: 18, fontWeight: "700", marginTop: 10 },
   prog: { color: theme.colors.muted, marginTop: 6, marginBottom: 8, ...theme.typography.caption },
@@ -909,12 +860,12 @@ const styles = StyleSheet.create({
   langChipText: { color: theme.colors.muted, fontWeight: "700", fontSize: 13 },
   langChipTextOn: { color: "#fff" },
   progressBar: { height: 6, backgroundColor: theme.colors.netflix },
-  row: { flexDirection: "row", justifyContent: "center", gap: 18 },
+  row: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8 },
   btn: {
     backgroundColor: "rgba(255,255,255,0.08)",
-    width: 72, height: 72, borderRadius: 36,
+    width: 44, height: 44, borderRadius: 22,
     alignItems: "center", justifyContent: "center",
-    borderWidth: 1, borderColor: theme.colors.border,
+    borderWidth: 1, borderColor: "rgba(232, 200, 114, 0.55)",
   },
   play: { backgroundColor: theme.colors.success, borderColor: theme.colors.success },
   pause: { backgroundColor: theme.colors.gold, borderColor: theme.colors.gold },

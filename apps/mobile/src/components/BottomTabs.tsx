@@ -45,7 +45,7 @@ export default function BottomTabs({
       <View style={styles.bar} accessibilityRole="tablist">
         {TABS.map((tab) => {
           const isActive = tab.id === active;
-          const color = isActive ? "#fff" : theme.colors.muted;
+          const color = isActive ? theme.colors.goldTrim : theme.colors.muted;
           return (
             // Outer View owns flex:1 so the Pressable/AnimatedPressable always
             // fills its equal share of the bar regardless of content size.
@@ -93,9 +93,10 @@ export default function BottomTabs({
 
 const styles = StyleSheet.create({
   wrap: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: theme.colors.border,
-    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(232, 200, 114, 0.45)",
+    backgroundColor: "rgba(12, 16, 28, 0.55)",
+    paddingTop: 8,
   },
   bar: { flexDirection: "row", paddingHorizontal: 4 },
   // tabSlot owns flex:1 so it always fills an equal share of the bar width.
@@ -124,12 +125,12 @@ const styles = StyleSheet.create({
     textAlign: "center",
     width: "100%",
   },
-  labelActive: { color: "#fff", fontWeight: "800" },
+  labelActive: { color: theme.colors.goldTrim, fontWeight: "800" },
   activeDot: {
-    width: 4,
-    height: 4,
+    width: 18,
+    height: 2,
     borderRadius: 2,
-    backgroundColor: theme.colors.netflix,
+    backgroundColor: theme.colors.goldTrace,
     marginTop: 4,
   },
   badge: {

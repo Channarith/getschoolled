@@ -6,7 +6,7 @@ export const STUDIO_COURSES = [
   {
     id: "drivers-ed",
     title: "Driver's Education",
-    blurb: "The full California permit course, taught by Serenity with Salane Voice. The 10-minute demo is free. The rest is a one-time purchase unless your account includes it.",
+    blurb: "The full California permit course, taught by Serenity with Salane Voice. The 4-minute demo is free. The rest is a one-time purchase unless your account includes it.",
     emoji: "🚗",
     hasDemo: true,
   },
@@ -72,7 +72,7 @@ export function studioCourseDemo(
     title: opts.title ? title : (heard ? `${title} · audio` : title),
     subtitle:
       opts.subtitle ||
-      (access === "full" ? "Full course · Serenity · Sala" : "10-minute demo · Serenity · Sala"),
+      (access === "full" ? "Full course · Serenity · Sala" : "4-minute demo · Serenity · Sala"),
     description: opts.description || course?.blurb || "",
   };
 }

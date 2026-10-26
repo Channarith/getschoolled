@@ -10,14 +10,16 @@ const path = require("path");
 const screen = fs.readFileSync(path.resolve(__dirname, "..", "screens", "DemoWebScreen.tsx"), "utf8");
 
 describe("Vision Play on the phone is just the game", () => {
-  it("hides the native header bar for vision demos (Back, title, Camera check live in the game's widget menu)", () => {
-    expect(screen).toContain("const hideBar = (cleanCourse || (isVisionDemo && !checking)) && !error;");
+  it("hides the native header bar so the webcam fills the screen", () => {
+    expect(screen).toContain("const immersiveWeb = (cleanCourse || isVisionDemo || audioOnly || studioCourse) && !error;");
+    expect(screen).toContain("const hideBar = immersiveWeb;");
     expect(screen).toContain("{hideBar ? null : <View style={styles.bar}");
   });
 
-  it("keeps a way back from the camera check page and from errors", () => {
-    // The bar returns while the diagnostics page is open and when an error screen is showing.
-    expect(screen).toContain("!checking)) && !error");
+  it("keeps a small corner control for back and camera check, including while the check is open", () => {
+    expect(screen).toContain('testID="demo-web-back"');
+    expect(screen).toContain('testID="demo-camera-check-toggle"');
+    expect(screen).toContain("CornerChip");
     expect(screen).toContain('message.type === "salareen-camera-check"');
     expect(screen).toContain('message.type === "salareen-exit"');
   });

@@ -3,9 +3,9 @@
 `teach/start` and `teach/trial-run` take `is_admin`, `registered`, `enrollment_status` and `access` from the request body, and an
 empty `access` means "authoring studio" (= full). Behind the public `/api/studio/*` proxy nothing checks them, so an anonymous
 caller can send `{"is_admin": true}` (or leave `access` out) and get the full paid course, and a fresh `learner_id` is a fresh
-10-minute trial. Setting STUDIO_VERIFY_CLAIMS=1 makes the server ignore those fields and ask the identity service (/auth/me) who the
+4-minute trial. Setting STUDIO_VERIFY_CLAIMS=1 makes the server ignore those fields and ask the identity service (/auth/me) who the
 bearer token belongs to. Off by default so nothing changes until the owner has checked IDENTITY_URL and AUTH_SIGNING_KEY on the
-studio service; with it on, an identity outage fails closed (the caller gets the 10-minute sample).
+studio service; with it on, an identity outage fails closed (the caller gets the 4-minute sample).
 """
 from __future__ import annotations
 

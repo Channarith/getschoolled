@@ -180,18 +180,58 @@ def _voice_family(voice: Voice) -> str:
     return voice.language
 
 
+def voice_id_family(voice_id: str) -> str:
+    """Language family of a catalog id or a Microsoft neural name."""
+    raw = (voice_id or "").strip()
+    if not raw:
+        return ""
+    catalog = get_voice(raw) or get_voice(raw.lower().replace("-", "_"))
+    if catalog:
+        return _voice_family(catalog)
+    folded = raw.lower().replace("_", "-")
+    if (
+        folded.startswith("zh-hk") or folded.startswith("zh-mo")
+        or folded.startswith("zh-yue") or folded.startswith("yue")
+    ):
+        return "yue"
+    if folded.startswith("km"):
+        return "km"
+    return folded.split("-")[0]
+
+
+def voice_matches_language(voice_id: str, language: str) -> bool:
+    """True when this voice speaks the requested language. English accents match each other."""
+    family = voice_id_family(voice_id)
+    return bool(family) and family == _spoken_family(language)
+
+
+def _gendered_default(language: str, gender: str) -> Optional[Voice]:
+    """Default voice for a language, keeping male/female when that language has both."""
+    fallback = default_voice_for_language(language)
+    want = (gender or "").strip().lower()
+    if not fallback or want not in {"male", "female"}:
+        return fallback
+    family = _spoken_family(language)
+    for voice in VOICE_CATALOG:
+        if _voice_family(voice) != family or voice.gender != want:
+            continue
+        if family == "en" and voice.locale != fallback.locale:
+            continue
+        return voice
+    return fallback
+
+
 def resolve_voice(voice_id: str = "", *, language: str = "en") -> Optional[Voice]:
     """Resolve a chosen voice id, falling back to the language default.
 
-    A saved Mandarin or Thai accent must not replace Cantonese or Khmer.
-    Those two were the languages xAI was speaking as something else.
+    The voice has to speak the requested language. A saved English voice must
+    not read Spanish, Khmer, Cantonese, or any other language. A voice already
+    in that language is kept, including an American voice for a British lesson.
     """
     chosen = get_voice(voice_id)
-    fallback = default_voice_for_language(language)
-    family = _spoken_family(language)
-    if family in {"km", "yue"} and (chosen is None or _voice_family(chosen) != family):
-        return fallback
-    return chosen or fallback
+    if chosen is not None and voice_matches_language(voice_id, language):
+        return chosen
+    return _gendered_default(language, chosen.gender if chosen else "")
 
 
 def catalog_grouped() -> List[dict]:

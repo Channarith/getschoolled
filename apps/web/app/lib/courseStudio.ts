@@ -1,6 +1,6 @@
 /** Public Course Studio gate: a free driver's ed demo, or a paid full course. */
 
-export const COURSE_STUDIO_SAMPLE_MINUTES = 10;
+export const COURSE_STUDIO_SAMPLE_MINUTES = 4;
 export const PAID_ENROLLMENT_STATUS = "paid";
 /** One-time unlock for the full class after the free sample (matches course studio backend). */
 export const COURSE_UNLOCK_PRICE_LABEL = "$19.99";
@@ -11,7 +11,7 @@ export const PUBLIC_COURSES = [
     title: "Driver's Education",
     href: "/learn/drivers-ed",
     demoHref: "/demo/drivers-ed",
-    blurb: "The 10-minute demo is free for anyone. The full course is paid unless you are an admin.",
+    blurb: "The 4-minute demo is free for anyone. The full course is paid unless you are an admin.",
   },
   {
     id: "food-safety",

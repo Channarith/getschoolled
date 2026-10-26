@@ -22,8 +22,8 @@ export const PUBLIC_DEMOS: PublicDemo[] = [
     path: "/studio?access=sample&course=drivers-ed&embed=mobile",
     emoji: "🤖",
     title: "Serenity · Solo AI",
-    subtitle: "Driver's Ed · 10-min demo",
-    description: "Serenity, your holographic AI teacher, walks you through the free 10-minute driver's ed demo with Salane Voice.",
+    subtitle: "Driver's Ed · 4-min demo",
+    description: "Serenity, your holographic AI teacher, walks you through the free 4-minute driver's ed demo with Salane Voice.",
   },
   {
     id: "arcade",
@@ -41,8 +41,8 @@ export const HIDDEN_ON_THE_GO_DEMO: PublicDemo = {
   path: "/demo/on-the-go",
   emoji: "🎧",
   title: "Serenity · On-the-Go",
-  subtitle: "Audio only · 10-min demo",
-  description: "Serenity teaches the same driver's ed demo by ear with Salane Voice. The free trial stops at 10 minutes.",
+  subtitle: "Audio only · 4-min demo",
+  description: "Serenity teaches the same driver's ed demo by ear with Salane Voice. The free trial stops at 4 minutes.",
 };
 
 export function publicDemoUrl(webAppUrl: string, path: string): string {

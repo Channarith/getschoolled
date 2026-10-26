@@ -146,7 +146,7 @@ test.describe("voice picker", () => {
     await expect(select).toBeVisible();
     await expect(page.getByRole("button", { name: /^(any|female|male)$/i })).toHaveCount(0);
     const options = await select.locator("option").allTextContents();
-    expect(options.some((o) => /Channarith \(English\) · AI-generated voice/.test(o))).toBe(true);
+    expect(options.some((o) => /Channarith · /.test(o))).toBe(true);
     expect(options.some((o) => /^Wei/.test(o))).toBe(false);          // no Cantonese clips for the English site
     expect(options.filter((o) => /Aria/.test(o))).toHaveLength(1);    // New York — Aria is the same audio voice
     expect(options.some((o) => /Ryan \(M\)/.test(o))).toBe(true);     // (F)/(M) markers stay

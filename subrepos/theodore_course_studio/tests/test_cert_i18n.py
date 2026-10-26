@@ -66,6 +66,16 @@ def test_machine_overlay_is_spoken_and_does_not_replace_khmer(tmp_path, monkeypa
     assert course.profile_adaptations["translation_source"] == "machine"
 
 
+def test_full_drivers_ed_program_speaks_spanish_on_sign_lessons():
+    from theodore_course_studio.certification_prep import build_cert_program
+
+    course = build_cert_program(language="es")
+    signs = [slide for slide in course.slides if (slide.slide_key or "").startswith("ca-dmv-sign.")]
+    assert len(signs) == 140
+    assert all(slide.spoken_language == "es" for slide in signs)
+    assert all(slide.title and slide.narration for slide in signs)
+
+
 def test_build_cert_course_km_has_spoken_language_and_khmer_titles():
     course = build_cert_course(lesson_id="ca-dmv-basics", language="km")
     assert course.language == "km"

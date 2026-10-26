@@ -28,6 +28,62 @@ export function sameFamily(a: string, b: string): boolean {
   return Boolean(a) && Boolean(b) && languageFamily(a) === languageFamily(b);
 }
 
+/** First catalog voice for a language. Male falls back to female when that language has one voice. */
+const CATALOG_VOICE: Record<string, { f: string; m?: string }> = {
+  en: { f: "en_us_f", m: "en_us_m" },
+  es: { f: "es_es_f", m: "es_es_m" },
+  fr: { f: "fr_fr_f" },
+  de: { f: "de_de_f", m: "de_de_m" },
+  it: { f: "it_it_f" },
+  pt: { f: "pt_br_f" },
+  nl: { f: "nl_nl_f" },
+  pl: { f: "pl_pl_f" },
+  ru: { f: "ru_ru_f" },
+  uk: { f: "uk_ua_f" },
+  tr: { f: "tr_tr_f" },
+  ar: { f: "ar_sa_f" },
+  he: { f: "he_il_f" },
+  hi: { f: "hi_in_f" },
+  bn: { f: "bn_bd_f" },
+  ur: { f: "ur_pk_f" },
+  fa: { f: "fa_ir_f" },
+  zh: { f: "zh_cn_f", m: "zh_cn_m" },
+  yue: { f: "zh_hk_f", m: "zh_yue_gz_m" },
+  ja: { f: "ja_jp_f" },
+  ko: { f: "ko_kr_f" },
+  vi: { f: "vi_vn_f" },
+  th: { f: "th_th_f" },
+  id: { f: "id_id_f" },
+  sw: { f: "sw_ke_f" },
+  el: { f: "el_gr_f" },
+  cs: { f: "cs_cz_f" },
+  km: { f: "km_kh_f", m: "km_kh_m" },
+  tl: { f: "tl_ph_f" },
+};
+
+function accentDefault(locale: string, male: boolean): string {
+  const raw = (locale || "").toLowerCase().replace(/_/g, "-");
+  if (raw === "en-gb" || raw.startsWith("en-gb")) return male ? "en_gb_m" : "en_gb_f";
+  if (raw === "en-au" || raw.startsWith("en-au")) return male ? "en_au_m" : "en_au_f";
+  if (raw === "en-sg" || raw.startsWith("en-sg")) return male ? "en_sg_m" : "en_sg_f";
+  const row = CATALOG_VOICE[languageFamily(raw)];
+  if (!row) return "";
+  return male && row.m ? row.m : row.f;
+}
+
+/**
+ * Voice id to send for this lesson language.
+ * A saved voice is kept only when it speaks that language. An empty saved voice
+ * stays empty so the server can pick the language default. A mismatch is replaced.
+ */
+export function catalogVoiceForLanguage(locale: string, savedVoiceId: string, male = false): string {
+  const saved = (savedVoiceId || "").trim();
+  if (!saved) return "";
+  const savedLocale = localeFromVoiceId(saved) || saved;
+  if (sameFamily(savedLocale, locale)) return saved;
+  return accentDefault(locale, male);
+}
+
 /**
  * Locale of an edge voice id or catalog voice: "en-GB-SoniaNeural", "zh-HK-HiuMaanNeural" (Microsoft names) and "en_gb_f" (the catalog's
  * short ids) both give their region. "" when the id carries no locale.

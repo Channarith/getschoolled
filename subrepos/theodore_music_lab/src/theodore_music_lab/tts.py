@@ -105,9 +105,19 @@ def engine_available() -> bool:
     return True
 
 
+def _voice_speaks(language: str, voice: str) -> bool:
+    if not voice:
+        return False
+    try:
+        from aoep_shared.voice_catalog import voice_matches_language
+    except Exception:  # noqa: BLE001
+        return True
+    return voice_matches_language(voice, language)
+
+
 def voice_for(language: str, *, gender: str = "female", voice: str = "") -> str:
     """Neural voice id for a language code, e.g. km -> km-KH-SreymomNeural."""
-    if voice:
+    if voice and _voice_speaks(language, voice):
         return voice
     lang = (language or "en").split("-")[0].lower()
     pair = VOICES.get(lang) or VOICES["en"]
@@ -118,7 +128,7 @@ def voice_candidates(
     language: str, *, gender: str = "female", voice: str = ""
 ) -> list[str]:
     """Primary voice first, then same-language alternates for flaky renders."""
-    if voice:
+    if voice and _voice_speaks(language, voice):
         return [voice]
     lang = (language or "en").split("-")[0].lower()
     pair = VOICES.get(lang) or VOICES["en"]

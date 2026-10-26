@@ -7,7 +7,7 @@
 
 import { cancelSpeech, speakNaturally } from "./tts";
 import { getLiveVoiceEngine } from "./liveVoiceEngine";
-import { getXaiVoiceStatus, mintXaiVoiceToken, connectXaiVoiceSession, appendInputAudio, closeXaiVoiceSession, sendTextTurn } from "./xaiVoice";
+import { getXaiVoiceStatus, mintXaiVoiceToken, connectXaiVoiceSession, appendInputAudio, closeXaiVoiceSession, sendTextTurn, xaiSpeaksLocale } from "./xaiVoice";
 
 const BLUETOOTH_INPUT = /bluetooth|airpod|headset|hands-free|handset|beats|bose/i;
 
@@ -105,7 +105,9 @@ export async function startDriveVoice(
 ): Promise<DriveVoiceSession | null> {
   const status = await getXaiVoiceStatus().catch(() => null);
   if (!status?.available) return null;
-  if (getLiveVoiceEngine() !== "xai") {
+  // Khmer and Cantonese have no Grok voice. The socket would read them as
+  // English, Mandarin, or Thai. Use the speech gateway for those two.
+  if (getLiveVoiceEngine() !== "xai" || !xaiSpeaksLocale(topic.language)) {
     const locale = topic.language || "en";
     let stopped = false;
     callbacks.onStatus?.("Sala is speaking with Salane Voice.");

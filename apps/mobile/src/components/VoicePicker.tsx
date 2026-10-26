@@ -27,7 +27,7 @@ const NATIVE_NAMES: Record<string, string> = {
 /**
  * The ONE voice-and-language control of the app (home footer and Settings), matching the site's profile menu: the Salane or xAI live voice,
  * then a searchable list of voices grouped by language. Picking a voice sets the app language to the voice's language, so there is no
- * separate language setting. "Salane Voice (Sage)" opens the English group while the designed default is published.
+ * separate language setting. Sage opens the English group. Every other row is a named voice labeled with its language.
  */
 export default function VoicePicker() {
   const { t, locale, setLocale } = useT();

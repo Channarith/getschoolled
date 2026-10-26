@@ -7,7 +7,7 @@ export default function CourseStudioDirectoryPage() {
     <main className="container">
       <h1>Courses</h1>
       <div className="card">
-        <p>Driver&apos;s Education has a free 10-minute demo. Both full courses are paid unless you are an admin.</p>
+        <p>Driver&apos;s Education has a free 4-minute demo. Both full courses are paid unless you are an admin.</p>
         <ul>
           {PUBLIC_COURSES.map((course) => (
             <li key={course.id}>
@@ -15,7 +15,7 @@ export default function CourseStudioDirectoryPage() {
               {course.demoHref ? (
                 <>
                   {" — "}
-                  <Link href={course.demoHref}>10-minute demo</Link>
+                  <Link href={course.demoHref}>4-minute demo</Link>
                 </>
               ) : null}
               <div className="muted">{course.blurb}</div>

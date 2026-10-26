@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Image, Pressable, ScrollView, StyleSheet, Text, View,
 } from "react-native";
@@ -28,11 +28,12 @@ const DEMO_COPY: Record<string, { title: StringKey; subtitle: StringKey; body: S
   },
 };
 
-export default function GuestHomeScreen() {
+export default function GuestHomeScreen({ onPlaying }: { onPlaying?: (playing: boolean) => void } = {}) {
   const { t, locale } = useT();
   const learnPhrase = useLearningPhrase();
   const [step, setStep] = useState<Step>("landing");
   const [demo, setDemo] = useState<PublicDemo | null>(null);
+  useEffect(() => { onPlaying?.(demo != null); }, [demo, onPlaying]);
   const mascot = MASCOT_IMAGES[locale] ?? MASCOT_IMAGES.en;
   const taps = useRef(createTapCounter()).current;
   // Four quick taps on the Salareen logo or mascot open the hidden audio demo. No hint, no label.

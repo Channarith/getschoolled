@@ -87,7 +87,7 @@ export default function SalesDemoPage() {
           are paid unless the account is an admin.
         </p>
         <Link href="/demo/drivers-ed">
-          <button type="button">Open the 10-minute driver&apos;s ed demo</button>
+          <button type="button">Open the 4-minute driver&apos;s ed demo</button>
         </Link>
       </section>
 

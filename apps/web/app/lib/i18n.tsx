@@ -29,6 +29,8 @@ import {
 } from "./i18n-strings";
 import { getMe, getToken, setAccountLanguage } from "./api";
 import { englishVariety, englishVoiceForLocale, varyEnglish } from "./englishVariety";
+import { catalogVoiceForLanguage } from "./voiceLanguage";
+import { setServerVoice } from "./tts";
 import { setTrainingLocale, trainingLocaleFromUi } from "./trainingLocale";
 import { getVoicePrefs, setVoicePrefs } from "./voicePrefs";
 import { explicitEdgeVoice } from "./cloneVoice";
@@ -117,8 +119,14 @@ const LocaleContext = createContext<LocaleContextValue>({
 
 function followEnglishVoice(locale: string) {
   if (typeof window === "undefined") return;
-  const voiceId = englishVoiceForLocale(locale, getVoicePrefs().voiceId);
-  if (voiceId) setVoicePrefs({ voiceId });
+  const prefs = getVoicePrefs();
+  const english = englishVoiceForLocale(locale, prefs.voiceId);
+  const male = prefs.voiceGender === "male" || prefs.voiceId.endsWith("_m");
+  const voiceId = english || catalogVoiceForLanguage(locale, prefs.voiceId, male);
+  if (voiceId && voiceId !== prefs.voiceId) {
+    setVoicePrefs({ voiceId });
+    setServerVoice(voiceId);
+  }
 }
 
 export function LocaleProvider({ children }: { children: React.ReactNode }) {

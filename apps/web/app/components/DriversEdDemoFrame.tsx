@@ -9,7 +9,7 @@ import { useSignedIn } from "../lib/flags";
 import { CourseStudioFrame } from "./CourseStudioFrame";
 
 /**
- * The free 10-minute demo, with its countdown, is for visitors who are not signed in or who have not unlocked the course.
+ * The free 4-minute demo, with its countdown, is for visitors who are not signed in or who have not unlocked the course.
  * An admin or a learner who paid for Driver's Ed goes straight to the full course, which has no timer.
  */
 export function DriversEdDemoFrame() {
@@ -36,7 +36,7 @@ export function DriversEdDemoFrame() {
   return (
     <CourseStudioFrame
       fill
-      title="Driver's Education 10-minute demo"
+      title="Driver's Education 4-minute demo"
       src={courseStudioFrameSrc({ access: "sample", course: "drivers-ed", demo: true, intro: true })}
     />
   );

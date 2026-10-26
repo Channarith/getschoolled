@@ -9,9 +9,11 @@
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { getKidsLesson, type KidsLesson } from "../api";
 import AnimatedPressable from "../components/AnimatedPressable";
+import CornerChip from "../components/CornerChip";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
 import { speakNatural, stopSpeech } from "../tts";
@@ -26,6 +28,7 @@ export default function KidsLessonScreen({
   onBack: () => void;
 }) {
   const { t, locale } = useT();
+  const insets = useSafeAreaInsets();
   const [lesson, setLesson] = useState<KidsLesson | null>(null);
   const [error, setError] = useState("");
   const [sceneIdx, setSceneIdx] = useState(0);
@@ -79,18 +82,25 @@ export default function KidsLessonScreen({
   }
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.content}>
-      <View style={styles.topRow}>
-        <AnimatedPressable style={styles.backBtn} onPress={() => { stopSpeech(); onBack(); }}>
-          <Ionicons name="chevron-back" size={18} color={theme.colors.text} />
-          <Text style={styles.backText}>{t("kids.back")}</Text>
+    <ScrollView style={styles.root} contentContainerStyle={[styles.content, { paddingTop: insets.top + 8 }]}>
+      <CornerChip style={styles.topRow}>
+        <AnimatedPressable style={styles.backBtn} onPress={() => { stopSpeech(); onBack(); }} accessibilityLabel={t("kids.back")}>
+          <Ionicons name="chevron-back" size={16} color={theme.colors.goldTrim} />
         </AnimatedPressable>
         {lesson ? (
           <Text style={styles.progress} testID="kids-lesson-progress">
             {Math.min(sceneIdx + 1, total)} / {total}
           </Text>
         ) : null}
-      </View>
+        {scene ? (
+          <AnimatedPressable
+            onPress={() => speakNatural(`${scene.title}. ${scene.instruction}`, { locale })}
+            accessibilityLabel={t("kids.readAgain")}
+          >
+            <Ionicons name="volume-high" size={15} color={theme.colors.goldTrim} />
+          </AnimatedPressable>
+        ) : null}
+      </CornerChip>
 
       {error ? (
         <GlassPanel style={styles.panel}>
@@ -155,14 +165,6 @@ export default function KidsLessonScreen({
             );
           })}
 
-          <AnimatedPressable
-            style={styles.replay}
-            onPress={() => speakNatural(`${scene.title}. ${scene.instruction}`, { locale })}
-          >
-            <Ionicons name="volume-high" size={16} color={theme.colors.text} />
-            <Text style={styles.replayText}>{t("kids.readAgain")}</Text>
-          </AnimatedPressable>
-
           {picked ? (
             <PrimaryButton
               testID="kids-lesson-next"
@@ -177,19 +179,19 @@ export default function KidsLessonScreen({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: theme.colors.bg },
-  content: { padding: 16, paddingBottom: 40, gap: 12 },
-  topRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  root: { flex: 1, backgroundColor: "transparent" },
+  content: { flexGrow: 1, padding: 10, paddingBottom: 24, gap: 12 },
+  topRow: { alignSelf: "flex-start" },
   backBtn: { flexDirection: "row", alignItems: "center", gap: 4 },
   backText: { color: theme.colors.text, fontSize: 14, fontWeight: "600" },
   progress: { color: theme.colors.muted, fontSize: 13, fontWeight: "700" },
   loading: { paddingVertical: 48, alignItems: "center" },
-  panel: { padding: 16, gap: 10, borderWidth: 2 },
+  panel: { flexGrow: 1, padding: 16, gap: 10, borderWidth: 1, borderColor: "rgba(232, 200, 114, 0.55)" },
   lessonTitle: { color: theme.colors.muted, fontSize: 13, fontWeight: "700", lineHeight: 18 },
   title: { color: theme.colors.text, fontSize: 22, fontWeight: "800", lineHeight: 28 },
   body: { color: theme.colors.muted, fontSize: 15, lineHeight: 21 },
   pictures: { flexDirection: "row", justifyContent: "center", flexWrap: "wrap", gap: 14, marginVertical: 8 },
-  picture: { fontSize: 64 },
+  picture: { fontSize: 88 },
   labels: { flexDirection: "row", justifyContent: "center", gap: 12, flexWrap: "wrap" },
   label: { color: theme.colors.text, fontSize: 18, fontWeight: "800", letterSpacing: 2 },
   question: { color: theme.colors.text, fontSize: 17, fontWeight: "700", marginTop: 10 },

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator, Linking, ScrollView, StyleSheet, Text, TextInput, View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
 import {
   advanceLessonSession, askLessonSession, directorLxTick, enrollCourse,
@@ -26,6 +27,7 @@ import AnimatedPressable from "../components/AnimatedPressable";
 import AssessmentCheckpointCard from "../components/AssessmentCheckpointCard";
 import BiometricSetupModal from "../components/BiometricSetupModal";
 import CameraLightingScreener from "../components/CameraLightingScreener";
+import CornerChip from "../components/CornerChip";
 import CourseStoryboardView from "../components/CourseStoryboardView";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
@@ -682,7 +684,7 @@ export default function LessonScreen({
 
   const total = view?.lesson.slides.length ?? 0;
   const idx = slide?.index ?? 0;
-  const { overlayTopPad, overlayBottomPad, horizontalPadding } = useLayoutMetrics();
+  const { overlayTopPad, overlayBottomPad } = useLayoutMetrics();
 
   // Voice-first dispatcher. The overlay owns consent / mic lifecycle / parsing
   // and hands us only the matched intent. Keep this list in sync with the web
@@ -741,16 +743,22 @@ export default function LessonScreen({
   };
 
   return (
-    <View style={[styles.wrap, { paddingTop: overlayTopPad, paddingHorizontal: horizontalPadding }]}>
-      <View style={styles.header}>
-        <PrimaryButton label={t("lesson.back")} onPress={() => { stopNarration(); onBack(); }} variant="ghost" />
-        <View style={styles.headerText}>
-          <Text style={styles.title} numberOfLines={2}>{view?.lesson.title || title}</Text>
-          <Text style={styles.classBadge}>
-            {classType === "solo" ? t("liveClass.soloBadge") : t("liveClass.groupBadge")}
-          </Text>
-        </View>
-      </View>
+    <View style={[styles.wrap, { paddingTop: overlayTopPad }]}>
+      <CornerChip style={styles.headerChip}>
+        <AnimatedPressable
+          onPress={() => { stopNarration(); onBack(); }}
+          hitSlop={8}
+          accessibilityLabel={t("lesson.back")}
+        >
+          <Ionicons name="chevron-back" size={16} color={theme.colors.goldTrim} />
+        </AnimatedPressable>
+        <Text style={styles.chipTitle} numberOfLines={1}>{view?.lesson.title || title}</Text>
+        {total > 0 ? (
+          <Text style={styles.chipMeta}>{Math.min(idx + 1, total)}/{total}</Text>
+        ) : (
+          <Text style={styles.chipMeta}>{classType === "solo" ? t("liveClass.soloBadge") : t("liveClass.groupBadge")}</Text>
+        )}
+      </CornerChip>
 
       {!lightingReady ? (
         <ScrollView contentContainerStyle={[styles.body, { paddingBottom: overlayBottomPad }]}>
@@ -788,12 +796,6 @@ export default function LessonScreen({
                 <Text style={styles.finishText}>{t("lesson.complete")}</Text>
               )}
             </GlassPanel>
-          ) : null}
-
-          {total > 0 ? (
-            <Text style={styles.progress}>
-              {t("lesson.slide")} {Math.min(idx + 1, total)}/{total}
-            </Text>
           ) : null}
 
           {segmentBreak ? (
@@ -835,6 +837,7 @@ export default function LessonScreen({
                 activity={localizedSlide?.storyboard_activity || slide.storyboard_activity}
                 profileMode={slide.storyboard_profile_mode}
                 sourceLanguage={slide.storyboard_source_language}
+                fullscreen
               />
               <Text style={styles.slideBody}>{localizedSlide?.body || slide.body}</Text>
               {voiceFirst ? null : (
@@ -1052,6 +1055,9 @@ export default function LessonScreen({
 
 const styles = StyleSheet.create({
   wrap: { flex: 1, gap: 8 },
+  headerChip: { alignSelf: "flex-start", marginHorizontal: 10, maxWidth: "92%" },
+  chipTitle: { color: theme.colors.goldTrim, fontSize: 13, fontWeight: "700", maxWidth: 220 },
+  chipMeta: { color: theme.colors.goldSoft, fontSize: 11, fontWeight: "800" },
   header: { flexDirection: "row", alignItems: "center", gap: 8 },
   headerText: { flex: 1, gap: 2, minWidth: 0 },
   title: { color: theme.colors.text, fontSize: 18, fontWeight: "700", lineHeight: 23 },
