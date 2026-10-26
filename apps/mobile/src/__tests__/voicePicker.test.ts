@@ -30,24 +30,26 @@ const CLONES = [
 ];
 const cantonese: VoiceGroup = { language: "zh", voices: [v("zh-HK-HiuMaanNeural", "zh-HK", "Cantonese", "Cantonese — HiuMaan (F)", "female")] };
 
-test("voices are grouped by language, English first, each group opens with its Salane Voice, and there is no gender filter", () => {
+test("voices are grouped by the language they speak, English opens with Sage, and there is no language-only row", () => {
   const out = buildVoiceGroups({ groups: [...groups, cantonese], clones: CLONES, salaneLabel: "Salane Voice (Sage)", hasDefault: true, nativeNames: { km: "ខ្មែរ", yue: "粵語", en: "English" } });
   expect(out[0].key).toBe("en");
   expect(out.map((g) => g.label)).toEqual(expect.arrayContaining(["English", "ខ្មែរ", "粵語"]));
   expect(out[0].options.map((o) => o.key)).toEqual([`${AUTO_PREFIX}en`, `${CUSTOM_PREFIX}channarith`, "en-US-AvaNeural", "en-US-GuyNeural"]);
-  expect(out[0].options[0].label).toBe("Salane Voice (Sage)");
-  expect(out.find((g) => g.key === "yue")!.options.map((o) => o.key)).toEqual([`${AUTO_PREFIX}yue`, `${CUSTOM_PREFIX}wei`, "zh-HK-HiuMaanNeural"]);
-  expect(out.find((g) => g.key === "km")!.options[0].label).toBe("Salane Voice (default)");
+  expect(out[0].options[0].label).toBe("Sage · English");
+  expect(out.find((g) => g.key === "yue")!.options.map((o) => o.key)).toEqual([`${CUSTOM_PREFIX}wei`, "zh-HK-HiuMaanNeural"]);
+  expect(out.find((g) => g.key === "km")!.options[0].label).toBe("Sreymom (F) · ខ្មែរ");
+  expect(out.some((g) => g.options.some((o) => o.key.startsWith(AUTO_PREFIX) && g.key !== "en"))).toBe(false);
   const rows = flattenVoiceGroups(out);
   expect(rows.filter((r) => r.header).length).toBe(out.length);
-  expect(rows.find((r) => r.key === "en-US-AvaNeural")!.label).toBe("American · American — Ava (F)");
+  expect(rows.find((r) => r.key === "en-US-AvaNeural")!.label).toBe("Ava (F) · English");
   expect(rows.some((r) => !r.header && /^(any|female|male)$/i.test(r.label))).toBe(false);
 });
 
 test("offline: English still carries the Salane Voice", () => {
   const out = buildVoiceGroups({ groups: [], clones: [], hasDefault: false });
   expect(out.map((g) => g.key)).toEqual(["en"]);
-  expect(out[0].options).toEqual([{ key: `${AUTO_PREFIX}en`, label: "Salane Voice (default)", locale: "en" }]);
+  expect(out[0].options[0].key).toBe(`${AUTO_PREFIX}en`);
+  expect(out[0].options[0].label).toMatch(/Salane Voice · /);
 });
 
 test("search matches the option, the language's names and the locale code, and the selected option stays", () => {
@@ -62,11 +64,11 @@ test("search matches the option, the language's names and the locale code, and t
   expect(filterVoiceGroups(out, "  ")).toBe(out);
 });
 
-test("the selected option: the picked company voice, else a deliberate catalog voice, else the Salane Voice of the app's language", () => {
+test("the selected option is a voice: the picked one, else the first voice of that language, else Sage", () => {
   const out = buildVoiceGroups({ groups: [...groups, cantonese], clones: CLONES, hasDefault: true });
   const k = (o: object) => selectedVoiceKey({ cloneId: "", cloneListed: false, savedVoiceId: "", locale: "en", groups: out, ...o });
   expect(k({})).toBe(`${AUTO_PREFIX}en`);
-  expect(k({ locale: "yue" })).toBe(`${AUTO_PREFIX}yue`);
+  expect(k({ locale: "yue" })).toBe(`${CUSTOM_PREFIX}wei`);
   expect(k({ locale: "th" })).toBe(`${AUTO_PREFIX}en`);
   expect(k({ savedVoiceId: "km-KH-SreymomNeural" })).toBe("km-KH-SreymomNeural");
   expect(k({ cloneId: "wei", cloneListed: true })).toBe(`${CUSTOM_PREFIX}wei`);

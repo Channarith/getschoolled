@@ -1,20 +1,20 @@
 """Who may take a full Course Studio class from the public site.
 
-The sales demo is a fixed 10-minute sample for a presentation. A learner takes
+The sales demo is a fixed 4-minute sample for a presentation. A learner takes
 the rest of the class only when they have an account and that class is paid.
 The authoring studio, which does not send an access mode, is unchanged.
 """
 
 from __future__ import annotations
 
-SAMPLE_MINUTES = 10
+SAMPLE_MINUTES = 4
 LIBRARY_COURSE_ID = "course-studio"
 PAID_ENROLLMENT_STATUS = "paid"
 # One-time price for the rest of a class after the free trial.
 COURSE_PRICE_CENTS = 1999
 COURSE_PRICE_LABEL = "$19.99"
 
-# Public site courses. Driver's ed has a free 10-minute demo. Both full
+# Public site courses. Driver's ed has a free 4-minute demo. Both full
 # courses are paid unless the account is an admin.
 PUBLIC_STUDIO_COURSES = (
     {
@@ -24,7 +24,7 @@ PUBLIC_STUDIO_COURSES = (
         "category": "Driver education",
         "duration_min": SAMPLE_MINUTES,
         "preview": (
-            "Anyone can take the 10-minute demo. "
+            "Anyone can take the 4-minute demo. "
             f"The full course is {COURSE_PRICE_LABEL} unless you are an admin."
         ),
         "price_label": COURSE_PRICE_LABEL,
@@ -49,11 +49,11 @@ PUBLIC_STUDIO_COURSES = (
 )
 
 SAMPLE_PREVIEW = (
-    "This free demo is 10 minutes. "
+    "This free demo is 4 minutes. "
     "Create an account or log in to keep learning."
 )
 SAMPLE_ENDED = (
-    "Your free 10-minute demo has ended. "
+    "Your free 4-minute demo has ended. "
     "Create an account or log in to your account to keep learning."
 )
 # After the demo ends, the same browser (learner) gets a new demo only after this long.
@@ -81,7 +81,7 @@ def resolve_teach_access(
 ) -> str:
     """Return ``sample`` or ``full``.
 
-    ``sample`` is always the 10-minute demo, including for an admin or a paid
+    ``sample`` is always the 4-minute demo, including for an admin or a paid
     account. ``full`` is honored for an admin, or for a registered learner who
     paid for that course. An empty request is the authoring studio.
     """

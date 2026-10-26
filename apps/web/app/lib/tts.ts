@@ -13,6 +13,7 @@ import {
   prosodyForStyle, type NarrationVoiceStyle, voiceNameStyleBonus,
 } from "./voiceProfiles";
 import { englishBcp47, englishSpokenCode } from "./englishVariety";
+import { catalogVoiceForLanguage, languageFamily } from "./voiceLanguage";
 
 // BCP-47 tag for every platform-supported language, so TTS uses a
 // right-accent voice for the spoken (training) locale.
@@ -37,6 +38,21 @@ export function localeToBcp47(locale: string): string {
   const english = englishBcp47(raw);
   if (english) return english;
   return LOCALE_TO_BCP47[raw] || LOCALE_TO_BCP47[raw.split("-")[0]] || locale || "en-US";
+}
+
+/** Catalog voice for the lesson language. A saved voice is kept only when it speaks that language. */
+export function narrationVoiceId(
+  locale: string | undefined, gender: string | undefined, saved: string,
+): string {
+  return catalogVoiceForLanguage(locale || "en", saved, (gender || "").toLowerCase() === "male");
+}
+
+/** On-device voice tag. A saved accent is used only when it is the lesson language. */
+export function narrationDeviceLang(locale: string | undefined, voiceLocale: string | undefined): string {
+  const spoken = localeToBcp47(locale || "en");
+  if (!voiceLocale) return spoken;
+  if (languageFamily(voiceLocale) !== languageFamily(spokenLanguageCode(locale))) return spoken;
+  return voiceLocale;
 }
 
 /** Code the speech gateway should render. Cantonese stays yue, not Mandarin zh. */
@@ -322,7 +338,7 @@ async function playServerAudio(
         text,
         language: spokenLanguageCode(opts.locale),
         voice_style: opts.voiceStyle ?? "standard",
-        voice: _serverVoiceId,
+        voice: narrationVoiceId(opts.locale, opts.voiceGender, _serverVoiceId),
         instructor: _serverInstructor,
         ...(_serverTone ? { tone: _serverTone } : {}),
       }),
@@ -380,7 +396,7 @@ async function _fetchServerAudio(text: string, opts: SpeakOptions): Promise<HTML
         text,
         language: spokenLanguageCode(opts.locale),
         voice_style: opts.voiceStyle ?? "standard",
-        voice: _serverVoiceId,
+        voice: narrationVoiceId(opts.locale, opts.voiceGender, _serverVoiceId),
         instructor: _serverInstructor,
         ...(_serverTone ? { tone: _serverTone } : {}),
       }),
@@ -426,7 +442,7 @@ export async function synthChunk(text: string, opts: SpeakOptions): Promise<Play
   return {
     play: () => new Promise<void>((resolve) => {
       if (typeof window === "undefined" || !("speechSynthesis" in window)) return resolve();
-      const lang = opts.voiceLocale || localeToBcp47(opts.locale);
+      const lang = narrationDeviceLang(opts.locale, opts.voiceLocale);
       const style = opts.voiceStyle ?? "standard";
       const persona = personaProsody(opts.persona);
       const u = new SpeechSynthesisUtterance(t);
@@ -533,7 +549,7 @@ function speakBrowser(text: string, opts: SpeakOptions, done: () => void, myEpoc
   const synth = window.speechSynthesis;
   // Prefer the picked accent (voiceLocale) so the accent selector changes the
   // on-device voice too; fall back to the content locale.
-  const lang = opts.voiceLocale || localeToBcp47(opts.locale);
+  const lang = narrationDeviceLang(opts.locale, opts.voiceLocale);
   const style = opts.voiceStyle ?? "standard";
   const prosody = prosodyForStyle(style);
   const persona = personaProsody(opts.persona);

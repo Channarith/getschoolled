@@ -331,7 +331,7 @@ def _program_progress(course: Any, session: TeachSession) -> dict[str, Any]:
 
 
 class SampleTrialExpired(Exception):
-    """The anonymous 10-minute demo of this learner is over; it is not offered again until the cooldown has passed."""
+    """The anonymous 4-minute demo of this learner is over; it is not offered again until the cooldown has passed."""
 
     def __init__(self, message: str = SAMPLE_ENDED) -> None:
         super().__init__(message)
@@ -429,12 +429,12 @@ class TeachEngine:
             resumed = True
             started_at = existing.started_at_ms or started_at
         if sample_only and existing and existing.sample_only and existing.started_at_ms:
-            # Start over and a new tab keep the same trial. The 10 minutes
+            # Start over and a new tab keep the same trial. The 4 minutes
             # began the first time this learner opened the sample.
             started_at = existing.started_at_ms
         if sample_only and learner_id and learner_id != "learner-demo":
             # The trial belongs to the learner, not to one course. Picking another language rebuilds the
-            # Driver's Ed program under a new course id, which used to hand out a fresh 10 minutes.
+            # Driver's Ed program under a new course id, which used to hand out a fresh 4 minutes.
             earlier = [
                 cp.started_at_ms
                 for cp in self._checkpoints.list_for_learner(learner_id)

@@ -38,3 +38,4 @@ def test_speech_provider_picks_engine_without_models():
     speech = build_factory(load_config(env={})).speech()
     assert speech.tts_engine("en") == "xtts"
     assert speech.tts_engine("sw") == "cloud-tts-fallback"
+    assert speech.tts_engine("yue") == "cloud-tts-fallback"

@@ -2,9 +2,11 @@
 
 The request is never made to wait: the learner hears English right away, a
 background job translates the whole course, and the next request gets the saved
-copy. NLLB (the speech service /translate, when TRANSLATION_BASE_URL or
-SPEECH_BASE_URL points at one that really translates) is tried first and Grok is
-the failover. Results are shared through Redis so every replica sees them.
+copy. Cantonese is the exception: it is not in the fleet files, so the audio
+course is translated on that request and then cached. NLLB (the speech service
+/translate, when TRANSLATION_BASE_URL or SPEECH_BASE_URL points at one that
+really translates) is tried first and Grok is the failover. Results are shared
+through Redis so every replica sees them.
 
 Off unless AOEP_ON_DEMAND_TRANSLATION=1, and capped per day, so it cannot spend
 money by surprise.
@@ -121,6 +123,14 @@ def set_store_for_tests(kv: Any) -> None:
 
 def _key(course_id: str, lang: str) -> str:
     return f"{_PREFIX}:{course_id}:{lang}"
+
+
+def remember_course(course_id: str, lang: str, record: dict) -> None:
+    """Keep one finished translation for the next request of the same course."""
+    try:
+        _store().set(_key(course_id, lang), json.dumps(record, ensure_ascii=False))
+    except Exception:  # noqa: BLE001 - a cache miss just translates again
+        return
 
 
 def get_cached(course_id: str, lang: str, expected_segments: int) -> Optional[dict]:

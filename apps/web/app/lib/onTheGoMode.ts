@@ -1,6 +1,6 @@
 /** Shared On the Go modes. Demo and the signed-in tab use one component. */
 
-export const ON_THE_GO_DEMO_SECONDS = 10 * 60;
+export const ON_THE_GO_DEMO_SECONDS = 4 * 60;
 
 export type OnTheGoMode = "demo" | "full";
 
@@ -40,7 +40,7 @@ export function onTheGoExperience(mode: OnTheGoMode, opts: { curatedPicker?: boo
  * The single curated audio course the public demo plays. Every topic-based
  * audio lesson in packages/shared/src/aoep_shared/audio_courses.py runs at
  * least MIN_DRIVE_MINUTES (30), so this is comfortably over the demo's
- * 10-minute cap - visitors hear 10 minutes of real material and are stopped
+ * 4-minute cap - visitors hear 4 minutes of real material and are stopped
  * at the timer, not mid-sentence.
  *
  * We pick "Introduction to Machine Learning" (slug audio-introduction-to-

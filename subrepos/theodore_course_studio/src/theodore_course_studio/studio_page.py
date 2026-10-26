@@ -515,7 +515,7 @@ STUDIO_CSS = """
       background:rgba(255,255,255,.08); color:#f6efe4; font:700 14px/1.2 system-ui,sans-serif; text-align:left; padding:0 12px; display:flex; align-items:center; }
     #course-widget .cw-menu .cw-info { background:transparent; color:#cbd5e1; font-weight:600; }
     #course-widget .cw-menu select { width:100%; }
-    /* Demo: the same widget, top-right, with the 10-minute timer inside it. The demo hides the live-audio pill and puts the camera
+    /* Demo: the same widget, top-right, with the 4-minute timer inside it. The demo hides the live-audio pill and puts the camera
        and the clock in the top-left corner on their own; inside the widget they sit in its normal flow instead. */
     html body.demo-widget #course-widget #student-cam { position:relative !important; width:100% !important; max-width:none !important;
       left:auto !important; top:auto !important; right:auto !important; bottom:auto !important; margin:0; box-shadow:none; border-radius:12px; z-index:auto; }
@@ -1218,7 +1218,7 @@ STUDIO_CSS = """
   body.presenting.drive-chrome-hidden .student-cam-status,
   body.presenting.drive-chrome-hidden .student-cam-note,
   body.presenting.drive-chrome-hidden .avatar-label { display:none !important; }
-  /* The 10-minute free-trial clock stays visible even when chrome is parked. */
+  /* The 4-minute free-trial clock stays visible even when chrome is parked. */
   body.audio-only.drive-chrome-hidden #sample-clock:not([hidden]),
   body.presenting.drive-chrome-hidden #sample-clock:not([hidden]) {
     display:inline-flex !important; position:fixed !important; z-index:10055;
@@ -1403,7 +1403,7 @@ STUDIO_JS = """
         is_admin: adminFlag,
       };
     }
-    const TRIAL_ENDED = 'Your free 10-minute demo has ended. Create an account or log in to your account to keep learning.';
+    const TRIAL_ENDED = 'Your free 4-minute demo has ended. Create an account or log in to your account to keep learning.';
     let sampleTimer = 0;
     let sampleTick = 0;
     function sampleIsComplete() {
@@ -1422,7 +1422,7 @@ STUDIO_JS = """
     }
     function sampleRemainMs(payload) {
       const started = payload && payload.session && payload.session.started_at_ms;
-      const minutes = (payload && payload.sample && payload.sample.minutes) || 10;
+      const minutes = (payload && payload.sample && payload.sample.minutes) || 4;
       if (!started) return null;
       return started + minutes * 60000 - Date.now();
     }
@@ -1441,7 +1441,7 @@ STUDIO_JS = """
       base.sample = Object.assign({}, base.sample || {}, {
         complete: true,
         continue_allowed: false,
-        minutes: (base.sample && base.sample.minutes) || 10,
+        minutes: (base.sample && base.sample.minutes) || 4,
         message: trialEndedMessage(base),
       });
       // The demo is over: nothing keeps running. Narration, the mic and the webcam stream are released.
@@ -1614,7 +1614,7 @@ STUDIO_JS = """
         clock.hidden = !ticking;
         if (ticking) {
           const ms = remain == null
-            ? ((sample.minutes || 10) * 60000)
+            ? ((sample.minutes || 4) * 60000)
             : Math.max(0, remain);
           timeEl.textContent = formatSampleClock(ms);
         }
@@ -2105,7 +2105,7 @@ STUDIO_JS = """
     const FS_CHROME_HIDE_MS = 2000;
     function parkSampleClock() {
       // Keep the trial clock out of lesson-window-controls so drive-chrome-hidden
-      // cannot hide the 10-minute timer with the options strip.
+      // cannot hide the 4-minute timer with the options strip.
       const clock = $('sample-clock');
       if (clock && clock.parentElement !== document.body) document.body.appendChild(clock);
     }
@@ -8014,7 +8014,7 @@ def render_studio_page() -> str:
             <div class="examples-box" id="teach-examples"></div>
             <div class="lang-warning" id="lang-warning" role="status" aria-live="polite" style="display:none"></div>
             <div class="sample-clock" id="sample-clock" hidden title="Free demo: time left">
-              <span id="sample-clock-time">10:00</span>
+              <span id="sample-clock-time">4:00</span>
               <small data-i18n="freeTrial">free trial</small>
             </div>
             <div class="sample-banner" id="sample-banner" style="display:none" role="status"></div>
@@ -8082,7 +8082,7 @@ def render_studio_page() -> str:
   <div id="trial-end" hidden role="dialog" aria-modal="true" aria-labelledby="trial-end-title" data-testid="trial-end">
     <div class="trial-card">
       <h2 id="trial-end-title">Create or log in to your account</h2>
-      <p id="trial-end-copy">Your free 10-minute demo has ended. Create an account or log in to your account to keep learning.</p>
+      <p id="trial-end-copy">Your free 4-minute demo has ended. Create an account or log in to your account to keep learning.</p>
       <div class="row">
         <button id="trial-create" type="button" class="primary">Create account</button>
         <button id="trial-login" type="button">Log in</button>

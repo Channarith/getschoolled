@@ -12,7 +12,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   LayoutChangeEvent, Pressable, StyleSheet, Text, View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import CornerChip from "../components/CornerChip";
 import PrimaryButton from "../components/PrimaryButton";
 import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { getPotionBest, setPotionBest } from "../storage";
@@ -124,6 +127,7 @@ type Props = {
 export default function PotionLab({ age, onBack }: Props) {
   const prof = useMemo(() => PROFILES[age] ?? PROFILES.kids, [age]);
   useAndroidBackTo(onBack);
+  const insets = useSafeAreaInsets();
 
   const [phase, setPhase] = useState<Phase>("intro");
   const [cells, setCells] = useState<Cell[]>([]);
@@ -345,41 +349,6 @@ export default function PotionLab({ age, onBack }: Props) {
 
   return (
     <View style={styles.wrap}>
-      <View style={styles.header}>
-        <PrimaryButton label="← Back" onPress={onBack} variant="ghost" />
-        <Text style={styles.title}>⚗️ Potion Lab</Text>
-        <Text style={styles.mode}>{prof.label}</Text>
-      </View>
-
-      {/* HUD */}
-      <View style={styles.hud}>
-        <Text style={styles.hudScore}>⭐ {score}</Text>
-        <Text style={styles.hudLevel}>🧪 Level {level}</Text>
-        <Text style={styles.hudMuted}>Best: {best}</Text>
-        <Text style={[styles.hudStreak, streak >= 3 && styles.hudStreakHot]}>🔥 {streak}</Text>
-      </View>
-      <View style={styles.timeTrack}>
-        <View style={[styles.timeFill, {
-          width: `${timePct}%`,
-          backgroundColor: timeLeft <= 6 ? "#ef4444" : "#34d399",
-        }]} />
-      </View>
-
-      {/* Target */}
-      <View style={styles.target}>
-        <Text style={styles.targetText}>
-          Make: {target.name} <Text style={styles.targetFormula}>({target.formula})</Text>
-        </Text>
-        <View style={styles.slotRow}>
-          {slots.map((s, i) => (
-            <View key={i} style={[styles.slot, s.filled && styles.slotFilled]}>
-              <Text style={[styles.slotText, s.filled && styles.slotTextFilled]}>{s.sym}</Text>
-            </View>
-          ))}
-        </View>
-      </View>
-
-      {/* Playfield */}
       <View style={[styles.field, { borderColor: fieldBorder }]} onLayout={onFieldLayout}>
         {phase === "playing" && field.w > 0 && cells.map((a) => {
           const pos = px(a);
@@ -432,16 +401,53 @@ export default function PotionLab({ age, onBack }: Props) {
         )}
       </View>
 
-      <Text style={styles.footer}>
-        Build a molecule for bonus points and +{prof.timePerMolecule}s. 🦠 = lose points
-        {prof.bombsFromLevel < 999 ? " · 💣 = game over!" : ""}
-      </Text>
+      <View style={[styles.corner, { top: insets.top + 8 }]} pointerEvents="box-none">
+        <CornerChip>
+          <Pressable onPress={onBack} hitSlop={10} accessibilityLabel="Back">
+            <Ionicons name="chevron-back" size={16} color={theme.colors.goldTrim} />
+          </Pressable>
+          <Text style={styles.chipText}>{score}</Text>
+          <Text style={styles.chipText}>L{level}</Text>
+          <Text style={[styles.chipText, timeLeft <= 6 && styles.chipWarn]}>{timeLeft}s</Text>
+        </CornerChip>
+      </View>
+
+      <View style={[styles.dock, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+        <Text style={styles.targetText} numberOfLines={1}>
+          {target.name} <Text style={styles.targetFormula}>({target.formula})</Text>
+          {streak >= 3 ? `  ·  ${streak}` : ""}
+        </Text>
+        <View style={styles.slotRow}>
+          {slots.map((s, i) => (
+            <View key={i} style={[styles.slot, s.filled && styles.slotFilled]}>
+              <Text style={[styles.slotText, s.filled && styles.slotTextFilled]}>{s.sym}</Text>
+            </View>
+          ))}
+        </View>
+        <View style={styles.timeTrack}>
+          <View style={[styles.timeFill, {
+            width: `${timePct}%`,
+            backgroundColor: timeLeft <= 6 ? "#ef4444" : theme.colors.goldTrim,
+          }]} />
+        </View>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { flex: 1, paddingHorizontal: 16, paddingTop: 56, gap: 8 },
+  wrap: { flex: 1 },
+  corner: { position: "absolute", left: 10, zIndex: 4 },
+  chipText: { color: theme.colors.goldTrim, fontSize: 12, fontWeight: "800" },
+  chipWarn: { color: "#ef4444" },
+  dock: {
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    gap: 6,
+    backgroundColor: "rgba(10, 14, 24, 0.82)",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(232, 200, 114, 0.55)",
+  },
   header: { flexDirection: "row", alignItems: "center", gap: 8 },
   title: {
     color: theme.colors.text,
@@ -466,8 +472,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff", borderRadius: 14, padding: 10,
     borderWidth: 2, borderColor: "#dc2626",
   },
-  targetText: { fontWeight: "800", fontSize: 16, color: "#0b1020" },
-  targetFormula: { color: "#dc2626" },
+  targetText: { fontWeight: "800", fontSize: 14, color: "#f6f1e4" },
+  targetFormula: { color: theme.colors.goldTrim },
   slotRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, justifyContent: "center" },
   slot: {
     width: 26, height: 26, borderRadius: 13, alignItems: "center", justifyContent: "center",
@@ -477,8 +483,8 @@ const styles = StyleSheet.create({
   slotText: { fontSize: 12, fontWeight: "800", color: "#dc2626" },
   slotTextFilled: { color: "#ffffff" },
   field: {
-    flex: 1, borderRadius: 18, overflow: "hidden", borderWidth: 2,
-    backgroundColor: "#0a0f24", marginVertical: 4,
+    flex: 1, overflow: "hidden", borderWidth: 0,
+    backgroundColor: "#0a0f24",
   },
   atom: {
     position: "absolute", width: ATOM_SIZE, height: ATOM_SIZE, borderRadius: ATOM_SIZE / 2,

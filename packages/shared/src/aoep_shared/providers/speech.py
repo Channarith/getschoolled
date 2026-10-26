@@ -60,7 +60,7 @@ class _BaseSpeechProvider(SpeechProvider):
             ) from exc
 
     def synthesize(self, text: str, *, language: str, voice: str) -> Audio:
-        if language not in SUPPORTED_LANGUAGES:
+        if language not in SUPPORTED_LANGUAGES and language != "yue":
             raise ValueError(f"Unsupported language: {language}")
         # Policy decision (synchronous, no model needed) so it is testable:
         # which engine should render this language?
@@ -76,6 +76,8 @@ class _BaseSpeechProvider(SpeechProvider):
         Open voices (XTTS) do not cover every one of the 26 languages, so some
         fall back to a cloud TTS engine regardless of deploy mode.
         """
+        if language == "yue":
+            return "cloud-tts-fallback"
         if language not in SUPPORTED_LANGUAGES:
             raise ValueError(f"Unsupported language: {language}")
         return "cloud-tts-fallback" if tts_needs_fallback(language) else "xtts"

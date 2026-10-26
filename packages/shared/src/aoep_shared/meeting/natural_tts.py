@@ -99,10 +99,14 @@ def neural_voice_for(
     *,
     gender: str = "female",
 ) -> str:
-    if voice and "Neural" in voice:
-        return voice
-    if voice and not voice.startswith("en-"):
-        return voice
+    from ..voice_catalog import get_voice, voice_matches_language
+
+    if voice and voice_matches_language(voice, language):
+        catalog = get_voice(voice)
+        if catalog:
+            return catalog.edge_voice
+        if "Neural" in voice:
+            return voice
     raw = (language or "en").strip().lower().replace("_", "-")
     variety = english_variety(raw)
     male = str(gender or "").lower() == "male"

@@ -23,5 +23,8 @@ def test_khmer_uses_sreymom_not_english_aria():
     assert neural_voice_for("km-KH") == "km-KH-SreymomNeural"
 
 
-def test_explicit_neural_voice_wins():
-    assert neural_voice_for("km", voice="en-US-GuyNeural") == "en-US-GuyNeural"
+def test_explicit_voice_wins_only_in_its_language():
+    assert neural_voice_for("km", voice="en-US-GuyNeural") == "km-KH-SreymomNeural"
+    assert neural_voice_for("km", voice="km-KH-PisethNeural") == "km-KH-PisethNeural"
+    assert neural_voice_for("es", voice="es_mx_m") == "es-MX-JorgeNeural"
+    assert neural_voice_for("en", voice="en-GB-SoniaNeural") == "en-GB-SoniaNeural"

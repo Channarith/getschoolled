@@ -15,6 +15,7 @@ import {
 import { softenLineBreaks } from "./lineBreaks";
 import { FALLBACK, STRINGS, type StringKey } from "./strings";
 import { englishVariety, englishVoiceForLocale, varyEnglish } from "./englishVariety";
+import { catalogVoiceForLanguage } from "../voiceLanguage";
 import { explicitEdgeVoice } from "../cloneVoice";
 import { initialLocale } from "../voiceLanguage";
 import { getMe, setAccountLanguage } from "../api";
@@ -98,8 +99,9 @@ async function writeStoredLocale(code: LocaleCode): Promise<void> {
 }
 async function rememberLocale(next: LocaleCode): Promise<void> {
   const cur = await getSettings();
-  const voiceId = englishVoiceForLocale(next, cur.voiceId);
-  await setSettings(voiceId ? { trainingLocale: next, voiceId } : { trainingLocale: next });
+  const male = cur.voiceGender === "male" || (cur.voiceId || "").endsWith("_m");
+  const voiceId = englishVoiceForLocale(next, cur.voiceId) || catalogVoiceForLanguage(next, cur.voiceId, male);
+  await setSettings(voiceId && voiceId !== cur.voiceId ? { trainingLocale: next, voiceId } : { trainingLocale: next });
 }
 
 // Top-level provider. We resolve the initial locale in this order:

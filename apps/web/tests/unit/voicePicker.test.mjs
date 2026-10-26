@@ -56,26 +56,27 @@ const CLONES = [
   { id: "stock-f-young-warm", label: "Sage (designed)", name: "Sage", primary_lang: "en", active: true, default: true, kind: "stock" },
 ];
 
-test("voices are grouped by language, English first, each group opens with its Salane Voice", () => {
+test("voices are grouped by the language they speak, and English opens with Sage", () => {
   const groups = buildVoiceOptions({ groups: CATALOG, clones: CLONES, salaneLabel: "Salane Voice (Sage)", hasDefault: true });
   assert.equal(groups[0].key, "en");
   assert.deepEqual(groups.map((g) => g.key).sort(), ["en", "es", "km", "yue", "zh"]);
   const en = groups[0].options;
   assert.equal(en[0].value, `${AUTO_PREFIX}en`);
-  assert.equal(en[0].label, "Salane Voice (Sage)");
-  assert.ok(en.some((o) => o.value === `${CUSTOM_PREFIX}channarith` && /AI-generated voice/.test(o.label)));
-  assert.ok(!en.some((o) => o.value === `${CUSTOM_PREFIX}stock-f-young-warm`), "the default is the group's first entry, not a second copy");
+  assert.match(en[0].label, /^Sage · /);
+  assert.ok(en.some((o) => o.value === `${CUSTOM_PREFIX}channarith` && /Channarith · /.test(o.label)));
+  assert.ok(!en.some((o) => o.value === `${CUSTOM_PREFIX}stock-f-young-warm`), "Sage is the English group's first entry, not a second copy");
   const yue = groups.find((g) => g.key === "yue");
-  assert.deepEqual(yue.options.map((o) => o.value), [`${AUTO_PREFIX}yue`, `${CUSTOM_PREFIX}wei`, "zh-HK-HiuMaanNeural"], "Cantonese is its own group, with Wei");
+  assert.deepEqual(yue.options.map((o) => o.value), [`${CUSTOM_PREFIX}wei`, "zh-HK-HiuMaanNeural"], "Cantonese voices, with no language-only row");
   assert.ok(!groups.find((g) => g.key === "zh").options.some((o) => o.value === "zh-HK-HiuMaanNeural"));
-  assert.equal(groups.find((g) => g.key === "es").options[0].label, "Salane Voice (default)");
+  assert.match(groups.find((g) => g.key === "es").options[0].label, /Dalia \(F\) · /);
   assert.equal(groups.find((g) => g.key === "km").label, "ខ្មែរ", "headers use the language's own name");
+  assert.ok(!groups.some((g) => g.key !== "en" && g.options.some((o) => o.value.startsWith(AUTO_PREFIX))));
 });
 
 test("offline: English still carries the Salane Voice, and nothing breaks without a catalog", () => {
   const groups = buildVoiceOptions({ groups: [], clones: [], hasDefault: false });
   assert.deepEqual(groups.map((g) => g.key), ["en"]);
-  assert.equal(groups[0].options[0].label, "Salane Voice (default)");
+  assert.match(groups[0].options[0].label, /Salane Voice · /);
 });
 
 test("search matches the option, the language's own name, its English name and the locale code, and keeps the selected option", () => {
@@ -93,17 +94,17 @@ test("search matches the option, the language's own name, its English name and t
   assert.equal(filterVoiceOptions(groups, "qqqqqq").length, 0);
 });
 
-test("the select shows the picked company voice, the saved edge voice, else the Salane Voice of the app's language", () => {
+test("the select shows the picked voice, else the first voice of that language, else Sage", () => {
   const groups = buildVoiceOptions({ groups: CATALOG, clones: CLONES, salaneLabel: "Salane Voice (Sage)", hasDefault: true });
   const v = (o) => selectedVoiceValue({ cloneId: "", cloneListed: false, savedVoiceId: "", locale: "en", groups, ...o });
   assert.equal(v({}), `${AUTO_PREFIX}en`);
-  assert.equal(v({ locale: "es" }), `${AUTO_PREFIX}es`);
+  assert.equal(v({ locale: "es" }), "es-MX-DaliaNeural");
   assert.equal(v({ locale: "en-GB" }), `${AUTO_PREFIX}en`);
-  assert.equal(v({ locale: "yue" }), `${AUTO_PREFIX}yue`);
-  assert.equal(v({ locale: "th" }), `${AUTO_PREFIX}en`, "a language without a group shows the English Salane Voice");
+  assert.equal(v({ locale: "yue" }), `${CUSTOM_PREFIX}wei`);
+  assert.equal(v({ locale: "th" }), `${AUTO_PREFIX}en`, "a language with no voice shows Sage");
   assert.equal(v({ savedVoiceId: "km-KH-SreymomNeural" }), "km-KH-SreymomNeural");
   assert.equal(v({ cloneId: "wei", cloneListed: true, savedVoiceId: "km-KH-SreymomNeural" }), `${CUSTOM_PREFIX}wei`);
-  assert.equal(v({ cloneId: "wei", cloneListed: false }), `${AUTO_PREFIX}en`, "a withdrawn voice falls back to the language default");
+  assert.equal(v({ cloneId: "wei", cloneListed: false }), `${AUTO_PREFIX}en`, "a withdrawn voice falls back to Sage");
 });
 
 test("native language names", () => {

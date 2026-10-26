@@ -988,7 +988,7 @@ export function initCourseVoiceOverlay(opts = {}) {
   };
   const DEMO_TUTORIAL = [
     ...PICTURE_STEPS,
-    { ...SAY_IT, after: ["Or ask any question about the course. The free demo runs for 10 minutes."] },
+    { ...SAY_IT, after: ["Or ask any question about the course. The free demo runs for 4 minutes."] },
   ];
   const FULL_TUTORIAL = [
     ...PICTURE_STEPS,
@@ -1415,7 +1415,7 @@ export function initCourseVoiceOverlay(opts = {}) {
         if (live.parentElement !== voiceMount) voiceMount.appendChild(live);
       }
       const clock = document.getElementById("sample-clock");
-      if (clock && clock.parentElement !== clockMount) clockMount.appendChild(clock);   // the demo's 10-minute timer lives in the widget too
+      if (clock && clock.parentElement !== clockMount) clockMount.appendChild(clock);   // the demo's 4-minute timer lives in the widget too
       return Boolean(cam && live);
     };
     adopt();

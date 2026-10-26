@@ -59,48 +59,47 @@ jest.mock("../voiceAgentPref", () => ({
 
 beforeEach(() => jest.clearAllMocks());
 
-test("the footer is ONE voice control: no language dropdown, no Any/Female/Male, Salane Voice (Sage) selected", async () => {
+test("the footer is ONE voice control: no language dropdown, no Any/Female/Male, Sage selected", async () => {
   const screen = render(<HomeFooter />);
   expect(screen.getByTestId("home-footer")).toBeTruthy();
   expect(screen.queryByText("Language")).toBeNull();
   expect(screen.queryByText("Any")).toBeNull();
   expect(screen.queryByText("Female")).toBeNull();
-  await waitFor(() => expect(screen.getByText("Salane Voice (Sage)")).toBeTruthy());
+  await waitFor(() => expect(screen.getByText("Sage · English")).toBeTruthy());
 });
 
 test("voices are grouped by language with search; picking a voice sets the app language", async () => {
   const screen = render(<HomeFooter />);
-  await waitFor(() => expect(screen.getByText("Salane Voice (Sage)")).toBeTruthy());
+  await waitFor(() => expect(screen.getByText("Sage · English")).toBeTruthy());
   fireEvent.press(screen.getByText("Voice"));   // open the voice dropdown
-  await waitFor(() => expect(screen.getByText("Channarith (English) · AI-generated voice")).toBeTruthy());
+  await waitFor(() => expect(screen.getByText("Channarith · English")).toBeTruthy());
   expect(screen.getByText("English")).toBeTruthy();   // group headers use the language's own name
   expect(screen.getByText("ខ្មែរ")).toBeTruthy();
   expect(screen.getByText("粵語")).toBeTruthy();
-  expect(screen.getByText("American · American — Ava (F)")).toBeTruthy();
+  expect(screen.getByText("Ava (F) · English")).toBeTruthy();
   expect(screen.getByTestId("voice-search")).toBeTruthy();
 
   fireEvent.changeText(screen.getByTestId("voice-search"), "khmer");
-  await waitFor(() => expect(screen.queryByText("American · American — Ava (F)")).toBeNull());
-  fireEvent.press(await screen.findByText("Khmer · Khmer — Sreymom (F)"));
+  await waitFor(() => expect(screen.queryByText("Ava (F) · English")).toBeNull());
+  fireEvent.press(await screen.findByText("Sreymom (F) · ខ្មែរ"));
   await waitFor(() => expect(mockSetSettings).toHaveBeenCalledWith({ voiceId: "km-KH-SreymomNeural", voiceGender: "female" }));
   expect(mockSetExplicit).toHaveBeenCalledWith(true);
   expect(mockSetSelectedVoice).toHaveBeenLastCalledWith("default");
   expect(mockSetLocale).toHaveBeenCalledWith("km");
 
   fireEvent.press(screen.getByText("Voice"));
-  fireEvent.press(await screen.findByText("Wei (Cantonese) · AI-generated voice"));
+  fireEvent.press(await screen.findByText("Wei · 粵語"));
   await waitFor(() => expect(mockSetSelectedVoice).toHaveBeenCalledWith("wei"));
   expect(mockSetLocale).toHaveBeenLastCalledWith("yue");
 });
 
-test("choosing the Salane Voice on purpose clears the edge voice and marks it explicit", async () => {
+test("choosing Sage clears a catalog voice and keeps English", async () => {
   const screen = render(<HomeFooter />);
-  await waitFor(() => expect(screen.getByText("Salane Voice (Sage)")).toBeTruthy());
+  await waitFor(() => expect(screen.getByText("Sage · English")).toBeTruthy());
   fireEvent.press(screen.getByText("Voice"));
-  const own = await screen.findAllByText("Salane Voice (default)");   // the live-voice toggle, then one per non-English language group: Cantonese, then Khmer
-  expect(own.length).toBe(3);
-  fireEvent.press(own[own.length - 1]);   // the Khmer group's own Salane Voice
+  const sage = await screen.findAllByText("Sage · English");
+  fireEvent.press(sage[sage.length - 1]);
   await waitFor(() => expect(mockSetExplicit).toHaveBeenCalledWith(false));
   expect(mockSetSettings).toHaveBeenCalledWith({ voiceId: "" });
-  expect(mockSetLocale).toHaveBeenCalledWith("km");
+  expect(mockSetLocale).not.toHaveBeenCalledWith("km");
 });

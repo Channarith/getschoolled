@@ -8,6 +8,12 @@ function voiceName(label: string): string {
   return (parts[parts.length - 1] || label).trim();
 }
 
+/** "Ava (F)" stays; "Channarith (English)" drops the language parenthesis. Then the language is added once. */
+function withLanguage(name: string, language: string): string {
+  const bare = name.replace(/\s*\((?!F\)|M\))[^)]*\)\s*$/i, "").trim();
+  return `${bare || name} · ${language}`;
+}
+
 /**
  * One option per real audio voice. The catalog lists some voices several times under regional labels
  * ("New York — Guy" and "American — Guy" are the same neural voice), which looks like extra choices but sounds identical.
@@ -90,9 +96,8 @@ function stripMarks(text: string): string {
 }
 
 /**
- * Every voice in one list, one group per language (English first, then by English name). Each group opens with its Salane Voice
- * ("Salane Voice (Sage)" for English while a default is published, else "Salane Voice (default)"), then company/designed voices whose
- * language it is, then the edge voices. The visitor's saved edge voice stays listed even when it was a regional duplicate.
+ * Every voice in one list, grouped by the language that voice speaks. English opens with Sage (or the Salane Voice).
+ * Every other row is a named voice labeled with its language. There is no language-only choice.
  */
 export function buildVoiceOptions(input: {
   groups: VoiceGroup[]; clones: PickerClone[]; savedVoiceId?: string; salaneLabel?: string; hasDefault?: boolean;
@@ -110,18 +115,21 @@ export function buildVoiceOptions(input: {
     return g;
   };
   for (const v of distinctVoiceGroups(groups, savedVoiceId).flatMap((g) => g.voices)) {
-    group(groupKeyForVoice(v.locale || v.language)).options.push({ value: v.id, label: `${v.accent} · ${v.label}`, locale: v.locale });
+    const g = group(groupKeyForVoice(v.locale || v.language));
+    g.options.push({ value: v.id, label: withLanguage(voiceName(v.label), g.label), locale: v.locale });
   }
   for (const c of clones) {
-    if (c.active === false || (c.default && hasDefault)) continue;   // the default is the group's first entry, not a second copy
-    const key = groupKeyForVoice(c.primary_lang || "en");
-    const name = c.kind === "stock" ? `${c.name || c.label} (designed)` : c.label;
-    group(key).options.unshift({ value: `${CUSTOM_PREFIX}${c.id}`, label: `${name} · AI-generated voice`, locale: c.primary_lang || "en" });
+    if (c.active === false || (c.default && hasDefault)) continue;   // Sage is the English group's first entry, not a second copy
+    const g = group(groupKeyForVoice(c.primary_lang || "en"));
+    const name = c.kind === "stock" ? (c.name || c.label) : c.label;
+    g.options.unshift({ value: `${CUSTOM_PREFIX}${c.id}`, label: withLanguage(name, g.label), locale: c.primary_lang || "en" });
   }
-  group("en");   // English always exists: it carries the default Salane Voice even when the catalog is offline
-  for (const g of by.values()) {
-    g.options.unshift({ value: `${AUTO_PREFIX}${g.key}`, label: g.key === "en" && hasDefault ? salaneLabel : "Salane Voice (default)", locale: g.key });
-  }
+  const english = group("en");   // English always exists: it carries Sage even when the catalog is offline
+  english.options.unshift({
+    value: `${AUTO_PREFIX}en`,
+    label: withLanguage(hasDefault && /sage/i.test(salaneLabel) ? "Sage" : salaneLabel, english.label),
+    locale: "en",
+  });
   return [...by.values()].sort((a, b) => (a.key === "en" ? -1 : b.key === "en" ? 1 : a.english.localeCompare(b.english)));
 }
 
@@ -138,11 +146,12 @@ export function filterVoiceOptions(groups: VoiceOptionGroup[], query: string, ke
   return out;
 }
 
-/** The option the select shows: the picked company voice, else the saved edge voice, else the Salane Voice of the app's language. */
+/** The option the select shows: the picked voice, else the first voice that speaks the current language, else Sage. */
 export function selectedVoiceValue(input: { cloneId: string; cloneListed: boolean; savedVoiceId: string; locale: string; groups: VoiceOptionGroup[] }): string {
   const { cloneId, cloneListed, savedVoiceId, locale, groups } = input;
   if (cloneId && cloneListed) return `${CUSTOM_PREFIX}${cloneId}`;
   if (savedVoiceId) return savedVoiceId;
-  const key = groupKeyForVoice(locale);
-  return groups.some((g) => g.key === key) ? `${AUTO_PREFIX}${key}` : `${AUTO_PREFIX}en`;
+  const match = groups.find((g) => g.key === groupKeyForVoice(locale));
+  if (match?.options[0]) return match.options[0].value;
+  return groups.find((g) => g.key === "en")?.options[0]?.value || `${AUTO_PREFIX}en`;
 }

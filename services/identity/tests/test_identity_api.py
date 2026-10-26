@@ -133,4 +133,4 @@ def test_purchase_requires_verified_payment_outside_sandbox(monkeypatch):
         json={"title": "Course Studio"},
     )
     assert denied.status_code == 402
-    assert "10-minute sample" in denied.json()["detail"]
+    assert "4-minute sample" in denied.json()["detail"]

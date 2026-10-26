@@ -14,6 +14,7 @@ import {
   prosodyForStyle, type NarrationVoiceStyle, voiceNameStyleBonus,
 } from "./voiceProfiles";
 import { englishBcp47, englishSpokenCode } from "./i18n/englishVariety";
+import { catalogVoiceForLanguage, languageFamily } from "./voiceLanguage";
 
 // BCP-47 tag for every platform-supported language, so TTS uses a
 // right-accent voice for the spoken (training) locale.
@@ -38,6 +39,21 @@ export function localeToBcp47(locale: string): string {
   const english = englishBcp47(raw);
   if (english) return english;
   return LOCALE_TO_BCP47[raw] || LOCALE_TO_BCP47[raw.split("-")[0]] || locale || "en-US";
+}
+
+/** Catalog voice for the lesson language. A saved voice is kept only when it speaks that language. */
+export function narrationVoiceId(
+  locale: string | undefined, gender: string | undefined, saved: string,
+): string {
+  return catalogVoiceForLanguage(locale || "en", saved, (gender || "").toLowerCase() === "male");
+}
+
+/** On-device voice tag. A saved accent is used only when it is the lesson language. */
+export function narrationDeviceLang(locale: string | undefined, voiceLocale: string | undefined): string {
+  const spoken = localeToBcp47(locale || "en");
+  if (!voiceLocale) return spoken;
+  if (languageFamily(voiceLocale) !== languageFamily(spokenLanguageCode(locale))) return spoken;
+  return voiceLocale;
 }
 
 /** Code the speech gateway should render. Cantonese stays yue, not Mandarin zh. */
@@ -262,9 +278,10 @@ async function playServerAudio(text: string, opts: SpeakOptions, myEpoch: number
   if (encodeURIComponent(text).length > MAX_SERVER_TTS_CHARS) return false;
   const lang = spokenLanguageCode(opts.locale);
   const style = opts.voiceStyle ?? "standard";
+  const voice = narrationVoiceId(opts.locale, opts.voiceGender, _serverVoiceId);
   const uri = `${_speechBaseUrl}/tts?text=${encodeURIComponent(text)}`
     + `&language=${encodeURIComponent(lang)}&voice_style=${encodeURIComponent(style)}`
-    + (_serverVoiceId ? `&voice=${encodeURIComponent(_serverVoiceId)}` : "")
+    + (voice ? `&voice=${encodeURIComponent(voice)}` : "")
     + (_serverInstructor ? `&instructor=${encodeURIComponent(_serverInstructor)}` : "");
   return playUri(uri, opts, myEpoch);
 }
@@ -320,7 +337,7 @@ export function speakNatural(text: string, opts: SpeakOptions): void {
   const persona = personaProsody(opts.persona);
   // Prefer the picked accent (voiceLocale) so the accent selector changes the
   // on-device voice too; fall back to the content locale.
-  const lang = opts.voiceLocale || localeToBcp47(opts.locale);
+  const lang = narrationDeviceLang(opts.locale, opts.voiceLocale);
   const speakDevice = () => {
     if (_speechEpoch !== myEpoch) return;
     const voice = pickVoiceId(lang, style, opts.voiceGender);

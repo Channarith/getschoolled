@@ -1,4 +1,4 @@
-"""A sales-demo session stops at 10 minutes and cannot be extended."""
+"""A sales-demo session stops at 4 minutes and cannot be extended."""
 
 from __future__ import annotations
 
@@ -38,7 +38,7 @@ def test_sample_stops_at_ten_minutes_and_does_not_extend(tmp_path):
     )
     session = engine._sessions["sample-1"]
     assert session.sample_only is True
-    assert session.soft_limit_minutes == 10
+    assert session.soft_limit_minutes == 4
     assert payload["access_mode"] == "sample"
     assert payload["sample"]["complete"] is False
 
@@ -51,7 +51,7 @@ def test_sample_stops_at_ten_minutes_and_does_not_extend(tmp_path):
     assert "$" not in stopped["sample"]["message"]
     assert session.path_pos == before
     assert engine.continue_past_checkpoint("sample-1")["sample"]["complete"] is True
-    assert session.soft_limit_minutes == 10
+    assert session.soft_limit_minutes == 4
 
 
 def test_starting_over_does_not_reset_a_finished_trial(tmp_path):
@@ -101,7 +101,7 @@ def test_audio_trial_is_a_separate_ten_minutes(tmp_path):
         use_voice_agent=False,
     )
     assert audio["sample"]["complete"] is False
-    assert audio["sample"]["minutes"] == 10
+    assert audio["sample"]["minutes"] == 4
 
 
 def test_paid_session_still_advances_after_ten_minutes(tmp_path):
@@ -145,7 +145,7 @@ def test_teach_start_downgrades_an_unpaid_full_request(tmp_path, monkeypatch):
                                                               "enrollment_status": "enrolled"}, headers={"authorization": "Bearer user"})
         assert unpaid.status_code == 200, unpaid.text
         assert unpaid.json()["access_mode"] == "sample"
-        assert unpaid.json()["sample"]["minutes"] == 10
+        assert unpaid.json()["sample"]["minutes"] == 4
 
         anonymous = client.post("/api/studio/teach/start", json={**base, "session_id": "api-anon-1", "registered": True,
                                                                  "enrollment_status": "paid", "is_admin": True})
@@ -197,7 +197,7 @@ def test_studio_page_offers_the_sample_banner():
     assert 'id="fs-chrome-edge"' in page
     assert "body.presenting.drive-chrome-hidden #course-price" in page
     assert "body.presenting.drive-chrome-hidden .lesson-window-controls" in page
-    # Chrome hide must not swallow the 10-minute free-trial clock.
+    # Chrome hide must not swallow the 4-minute free-trial clock.
     assert "body.presenting.drive-chrome-hidden #sample-clock:not([hidden])" in page
     assert "body.audio-only.drive-chrome-hidden #sample-clock:not([hidden])" in page
     assert "parkSampleClock()" in STUDIO_JS
@@ -246,7 +246,7 @@ def test_studio_page_offers_the_sample_banner():
 
 
 def test_changing_language_or_course_keeps_the_same_trial_clock(tmp_path):
-    """The Driver's Ed program is rebuilt per language under a new course id: the 10 minutes must not start over."""
+    """The Driver's Ed program is rebuilt per language under a new course id: the 4 minutes must not start over."""
     builder = CourseBuilder(data_dir=tmp_path)
     engine = TeachEngine(builder)
     _mini(builder, "program-en")
@@ -254,7 +254,7 @@ def test_changing_language_or_course_keeps_the_same_trial_clock(tmp_path):
     engine.start(session_id="lang-1", course_id="program-en", learner_id="browser-abc", access="sample",
                  language="en", use_voice_agent=False)
     first = engine._sessions["lang-1"]
-    first.started_at_ms = int(time.time() * 1000) - 4 * 60_000
+    first.started_at_ms = int(time.time() * 1000) - 2 * 60_000
     engine._persist_live(first, status="in_progress")
     spanish = engine.start(session_id="lang-2", course_id="program-es", learner_id="browser-abc", access="sample",
                            language="es", use_voice_agent=False)
@@ -265,7 +265,7 @@ def test_changing_language_or_course_keeps_the_same_trial_clock(tmp_path):
     with pytest.raises(SampleTrialExpired):
         engine.start(session_id="lang-3", course_id="program-es", learner_id="browser-abc", access="sample",
                      language="km", resume=False, use_voice_agent=False)
-    # A different learner still gets their own full 10 minutes.
+    # A different learner still gets their own full 4 minutes.
     other = engine.start(session_id="lang-4", course_id="program-es", learner_id="browser-other", access="sample",
                          language="es", use_voice_agent=False)
     assert other["sample"]["complete"] is False

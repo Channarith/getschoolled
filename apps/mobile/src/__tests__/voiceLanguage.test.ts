@@ -1,4 +1,4 @@
-import { initialLocale, languageFamily, languageForGroup, languageForVoice, localeFromVoiceId, sameFamily, uiLocaleForVoiceLocale } from "../voiceLanguage";
+import { catalogVoiceForLanguage, initialLocale, languageFamily, languageForGroup, languageForVoice, localeFromVoiceId, sameFamily, uiLocaleForVoiceLocale } from "../voiceLanguage";
 import { groupKeyForVoice } from "../voicePicker";
 
 // Node builtins, declared locally because the mobile typecheck intentionally omits @types/node.
@@ -46,6 +46,13 @@ test("start-up: a deliberate voice beats the stored language, which beats the de
   expect(f({ storedLocale: "es", browserLocale: "fr" })).toBe("es");
   expect(f({ storedLocale: "es", edgeVoiceId: "km-KH-SreymomNeural" })).toBe("km");
   expect(f({ storedLocale: "en-AU", edgeVoiceId: "en-US-AriaNeural" })).toBe("en-AU");
+});
+
+test("a saved voice is used only when it speaks the lesson language", () => {
+  expect(catalogVoiceForLanguage("es", "en_us_f")).toBe("es_es_f");
+  expect(catalogVoiceForLanguage("km", "en_us_f")).toBe("km_kh_f");
+  expect(catalogVoiceForLanguage("yue", "zh_hk_f")).toBe("zh_hk_f");
+  expect(catalogVoiceForLanguage("fr", "")).toBe("");
 });
 
 test("language families, and the picker's group key equals them", () => {
