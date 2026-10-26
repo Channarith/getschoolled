@@ -170,3 +170,17 @@ What the app does because of that:
 
 NOT covered by these reports: the iOS APP's WKWebView (different from Safari). After a native build open Settings > Camera check
 inside the iOS app and compare it with the Safari numbers above.
+
+WEB vs APP GAME FEATURES (the app's game WebView loads the hosted /children-lab?embed=mobile page, so web features arrive with the page)
+"Browser-tested" = covered by tests/minimal_shell_check.mjs in desktop Chromium with a Pixel 7 profile and a fake camera. NOTHING below
+was run in the Android or iOS WebView itself: confirm each on a device after rebuilding the app (Settings > Camera check helps for the first).
+  Feature                                   Status
+  Minimal layout, one widget, 4-minute clock  Browser-tested (incl. ?embed=mobile). App-injected CSS that fought it is removed.
+  Screen touch = tap target                   Browser-tested (touching the quiz answer selects it). No native help needed.
+  Double-tap fullscreen                       Browser-tested (pointer events, built for web views). Not confirmed in the WebView: device check.
+  Hand/face recipes (#850)                    Not tested in the app. Same page code; depends on the WebView's WebGL/GPU. Needs device check.
+  Tutorial first + camera consent card        Not tested in the app. Page code; needs the WebView to grant camera (the app requests it on open).
+  Sala giggle / dance on tap                  Not tested in the app. Page code, tap handling only; device check.
+  Voice control                               NOT available in the app games. It needs window.__salaNativeSpeech, which only the web On the
+                                              Go page defines (OnTheGo.tsx); the app does not inject it and children-lab has no hook, so
+                                              voice control needs native work (a speech-to-text bridge posting transcripts to the page).
