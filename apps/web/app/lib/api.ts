@@ -273,10 +273,9 @@ export function lockAdmin(): void {
 // Set the admin flag from a server-confirmed signal (e.g. account.is_admin on
 // login) without requiring the password prompt.
 export function applyAdmin(isAdmin: boolean): void {
-  if (isAdmin) {
-    try { localStorage.setItem(ADMIN_KEY, "1"); } catch { /* ignore */ }
-    notifyAuthChange();
-  }
+  if (!isAdmin || isAdminUnlocked()) return;   // notifying on every call loops: listeners re-fetch /auth/me and call this again
+  try { localStorage.setItem(ADMIN_KEY, "1"); } catch { /* ignore */ }
+  notifyAuthChange();
 }
 
 function authHeaders(): Record<string, string> {
