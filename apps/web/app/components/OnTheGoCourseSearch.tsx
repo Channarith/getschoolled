@@ -20,6 +20,8 @@ type Props = {
   onIncludeEnglish: (v: boolean) => void;
   /** Anonymous demo: only these courses are searchable. */
   allowedIds?: readonly string[];
+  /** Groups of equivalent search terms from the server ("machine vision" = "computer vision"). */
+  aliases?: readonly (readonly string[])[];
   selectedId: string;
   loading: boolean;
   progress: Progress;
@@ -27,6 +29,8 @@ type Props = {
     placeholder: string; includeEnglish: string; readyIn: (lang: string) => string; otherLangs: (langs: string) => string;
     englishOnly: string; emptyLang: (lang: string) => string; noMatch: (q: string) => string; count: (n: number) => string;
     voiceHint: string; loading: string; resume: string; choose: string;
+    /** Badge on a topic the catalog lists but has no course for yet. Falls back to English. */
+    comingSoon?: string;
   };
   onSelect: (id: string) => void;
 };
@@ -36,7 +40,7 @@ type Props = {
  * Ranking and the "Ready in <language>" badge come from the pre-translated search; the list is windowed so the full catalog stays fast.
  */
 export default function OnTheGoCourseSearch({
-  rows, language, languageNames, query, onQuery, includeEnglish, onIncludeEnglish, allowedIds, selectedId, loading, progress, labels, onSelect,
+  rows, language, languageNames, query, onQuery, includeEnglish, onIncludeEnglish, allowedIds, aliases, selectedId, loading, progress, labels, onSelect,
 }: Props) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -47,10 +51,10 @@ export default function OnTheGoCourseSearch({
   const [active, setActive] = useState(-1);
 
   const shown = useMemo(
-    () => rankCourses(rows, query, { language, includeEnglish, allowedIds }),
-    [rows, query, language, includeEnglish, allowedIds],
+    () => rankCourses(rows, query, { language, includeEnglish, allowedIds, aliases }),
+    [rows, query, language, includeEnglish, allowedIds, aliases],
   );
-  const pool = useMemo(() => (allowedIds ? rows.filter((r) => allowedIds.includes(r.id)) : rows), [rows, allowedIds]);
+  const pool = useMemo(() => (allowedIds ? rows.filter((r) => allowedIds.includes(r.id)) : rows).filter((r) => !r.planned), [rows, allowedIds]);
   const readyCount = useMemo(() => pool.filter((r) => language === "en" || r.ready).length, [pool, language]);
   const langName = languageNames[language] || language;
   const noneReady = language !== "en" && !loading && pool.length > 0 && readyCount === 0;
@@ -113,8 +117,9 @@ export default function OnTheGoCourseSearch({
       setActive(next);
       reveal(next);
     } else if (e.key === "Enter") {
-      const pick = shown[active >= 0 ? active : 0];
-      if (pick) { e.preventDefault(); choose(pick.id); }
+      // Enter plays the highlighted course, or the first playable one; "coming soon" topics cannot be played.
+      const pick = active >= 0 ? shown[active] : shown.find((r) => !r.planned);
+      if (pick && !pick.planned) { e.preventDefault(); choose(pick.id); }
     } else if (e.key === "Escape") {
       e.preventDefault();
       if (query) onQuery("");
@@ -184,13 +189,15 @@ export default function OnTheGoCourseSearch({
                 const selected = r.id === selectedId;
                 const saved = progress.courses[r.id];
                 const badge = badgeFor(r, language);
+                const soon = Boolean(r.planned);
                 const text = r.title_local || r.title;
                 return (
                   <div key={r.id} id={`otg-opt-${r.id}`} role="option" aria-selected={selected} style={{ height: ROW_H, boxSizing: "border-box", padding: "3px 0" }}>
                     <button
-                      type="button" data-testid={`otg-course-${r.id}`} data-active={index === active ? "1" : undefined} onClick={() => choose(r.id)}
+                      type="button" data-testid={`otg-course-${r.id}`} data-active={index === active ? "1" : undefined}
+                      data-planned={soon ? "1" : undefined} aria-disabled={soon || undefined} onClick={() => { if (!soon) choose(r.id); }}
                       style={{
-                        width: "100%", height: "100%", textAlign: "start", cursor: "pointer", padding: "4px 10px", borderRadius: 10,
+                        width: "100%", height: "100%", textAlign: "start", cursor: soon ? "default" : "pointer", opacity: soon ? 0.62 : 1, padding: "4px 10px", borderRadius: 10,
                         border: `1.5px solid ${selected || index === active ? "#d4af37" : "rgba(212,175,55,.25)"}`,
                         background: selected ? "rgba(212,175,55,.14)" : "#101820", color: "#f4fbff",
                         display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center",
@@ -203,7 +210,12 @@ export default function OnTheGoCourseSearch({
                         </span>
                       </span>
                       <span style={{ display: "grid", gap: 2, justifyItems: "end", flexShrink: 0 }}>
-                        {language !== "en" && (
+                        {soon && (
+                          <span data-testid={`otg-soon-${r.id}`} style={{ fontSize: 10, padding: "1px 7px", borderRadius: 999, whiteSpace: "nowrap", background: "rgba(212,175,55,.14)", color: "#e8d28a", border: "1px solid rgba(212,175,55,.45)" }}>
+                            {labels.comingSoon || "Coming soon"}
+                          </span>
+                        )}
+                        {!soon && language !== "en" && (
                           <span
                             data-testid={`otg-badge-${r.id}`} data-kind={badge.kind}
                             style={{

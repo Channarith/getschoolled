@@ -721,6 +721,58 @@ try {
     assert.match(anim, /salaDanceCalm/, `reduced motion uses the calm bob, got ${anim}`);
     await ctx.close();
   });
+
+  for (const [label, device] of [["desktop", undefined], ["Pixel 7", devices["Pixel 7"]]]) {
+    await check(`widget menu (${label}): every item works`, async () => {
+      const { ctx, page } = await setup(browser, device ? { device } : {});
+      await page.addInitScript(() => { window.__ttsMs = 600000; });
+      await begin(page);
+      await start(page).click();
+      await page.waitForFunction(() => document.querySelector("[data-testid=on-the-go-presence]")?.getAttribute("data-state") === "present", null, { timeout: 15000 });
+      const presence = page.getByTestId("on-the-go-presence");
+      // Menu opens, lists every item, and toggles closed.
+      await page.getByTestId("on-the-go-widget-menu").click();
+      for (const id of ["on-the-go-mic-toggle", "on-the-go-camera-toggle", "on-the-go-fullscreen"]) {
+        assert.equal(await page.getByTestId(id).count(), 1, `menu has ${id}`);
+      }
+      // Mic: mute then unmute.
+      await menuClick(page, "on-the-go-mic-toggle");
+      await page.waitForFunction(() => document.querySelector("[data-testid=on-the-go-mascot]")?.getAttribute("data-state") === "muted", null, { timeout: 5000 });
+      await menuClick(page, "on-the-go-mic-toggle");
+      await page.waitForFunction(() => document.querySelector("[data-testid=on-the-go-mascot]")?.getAttribute("data-state") === "listening", null, { timeout: 10000 });
+      // Camera: off then on again.
+      await menuClick(page, "on-the-go-camera-toggle");
+      await page.waitForFunction(() => document.querySelector("[data-testid=on-the-go-presence]")?.getAttribute("data-state") === "off", null, { timeout: 5000 });
+      assert.equal(await cameraLive(page), false, "camera stopped");
+      await menuClick(page, "on-the-go-camera-toggle");
+      await page.waitForFunction(() => document.querySelector("[data-testid=on-the-go-presence]")?.getAttribute("data-state") !== "off", null, { timeout: 10000 });
+      // Fullscreen item runs and closes the menu without an error.
+      await menuClick(page, "on-the-go-fullscreen");
+      await page.waitForFunction(() => !document.querySelector("[data-testid=on-the-go-widget-menu-list]"), null, { timeout: 3000 });
+      // Privacy choices reopens the consent dialog.
+      await menuClick(page, "otg-privacy-choices");
+      await page.getByTestId("on-the-go-consent").waitFor({ state: "visible", timeout: 5000 });
+      await page.getByTestId("on-the-go-consent").getByRole("button").last().click().catch(() => {});
+      await page.keyboard.press("Escape").catch(() => {});
+      // Minimize and expand.
+      const min = page.getByTestId("on-the-go-widget-min");
+      await min.click();
+      assert.equal(await presence.getAttribute("data-minimized"), "1");
+      await min.click();
+      assert.equal(await presence.getAttribute("data-minimized"), "0");
+      await ctx.close();
+    });
+  }
+
+  await check("search: typing a short partial query keeps the dropdown responsive", async () => {
+    const { ctx, page } = await setup(browser);
+    await begin(page);
+    await typeQuery(page, "cp");
+    await page.waitForTimeout(500);
+    const popup = await page.getByTestId("otg-search-popup").innerText();
+    assert.doesNotMatch(popup, /^\s*$/, "cp shows something");
+    await ctx.close();
+  });
 } finally {
   await browser.close();
 }

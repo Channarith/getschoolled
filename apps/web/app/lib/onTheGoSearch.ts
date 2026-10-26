@@ -18,6 +18,8 @@ export type SearchRow = {
   /** Ready in the language the search was made for. */
   ready?: boolean;
   english_only?: boolean;
+  /** A topic the catalog defines but has no course for yet: found by search, shown as "coming soon", not playable. */
+  planned?: boolean;
 };
 
 export type SearchOptions = {
@@ -27,6 +29,8 @@ export type SearchOptions = {
   includeEnglish: boolean;
   /** Demo allowlist: only these ids are searchable (omit for the full catalog). */
   allowedIds?: readonly string[];
+  /** Groups of equivalent terms from the server ("machine vision" = "computer vision"): a query that equals or starts a term also finds the others. */
+  aliases?: readonly (readonly string[])[];
 };
 
 /** Lowercase, accent-free, punctuation-free; keeps letters and numbers of every script. */
@@ -105,7 +109,33 @@ function rowText(row: SearchRow): { title: string; other: string } {
   };
 }
 
+/** Other terms to look for when the query equals, or starts, a term of an alias group ("cp" -> "cpr" -> "first aid"). */
+export function aliasTerms(query: string, groups?: readonly (readonly string[])[]): string[] {
+  const q = fold(query);
+  if (!groups || q.length < 2) return [];
+  const out: string[] = [];
+  for (const g of groups) {
+    const terms = g.map(fold).filter(Boolean);
+    if (terms.some((t) => t === q || t.startsWith(q))) for (const t of terms) if (!out.includes(t)) out.push(t);
+  }
+  return out;
+}
+
+/** A short term ("ai", "ml") must be a whole word, so it does not match inside "training". */
+function altIn(alt: string, text: string): boolean {
+  const t = fold(text);
+  return alt.length < 4 ? t.split(" ").includes(alt) : t.includes(alt);
+}
+
+/** Does the query start a word of the text, with a 2-letter minimum ("cp" starts "cpr")? Used for short queries that must not match inside words. */
+function startsWord(query: string, text: string): boolean {
+  const qw = fold(query).split(" ").filter(Boolean);
+  const tw = fold(text).split(" ");
+  return qw.length > 0 && qw.every((x) => tw.some((w) => w.startsWith(x)));
+}
+
 export function isReadyIn(row: SearchRow, language: string): boolean {
+  if (row.planned) return false;
   if (!language || language === "en") return true;
   if (typeof row.ready === "boolean") return row.ready;
   return Boolean(row.ready_languages && row.ready_languages.includes(language));
@@ -118,20 +148,28 @@ export function isReadyIn(row: SearchRow, language: string): boolean {
 export function rankCourses<T extends SearchRow>(rows: readonly T[], query: string, opts: SearchOptions): T[] {
   const allowed = opts.allowedIds ? new Set(opts.allowedIds) : null;
   const language = opts.language || "en";
-  const pool = rows.filter((r) => (!allowed || allowed.has(r.id)) && (opts.includeEnglish || isReadyIn(r, language)));
   const needle = fold(query);
+  const pool = rows.filter((r) => (!allowed || allowed.has(r.id)) && (opts.includeEnglish || isReadyIn(r, language)) && (!r.planned || (needle && !allowed)));
   if (!needle) {
     // No query: ready-in-language first, otherwise the catalog's (or the curated) order.
     return pool.map((r, i) => ({ r, i, ready: isReadyIn(r, language) }))
       .sort((a, b) => (a.ready === b.ready ? a.i - b.i : a.ready ? -1 : 1)).map((x) => x.r);
   }
-  const scored: { r: T; score: number; ready: boolean; title: string }[] = [];
+  const scored: { r: T; score: number; ready: boolean; planned: boolean; title: string }[] = [];
+  const alts = aliasTerms(needle, opts.aliases).filter((a) => a !== needle);
   for (const r of pool) {
     const { title, other } = rowText(r);
-    const score = Math.max(fuzzyScore(needle, title) * 1.0, fuzzyScore(needle, other) * 0.6);
-    if (score > 0) scored.push({ r, score, ready: isReadyIn(r, language), title: fold(r.title_local || r.title) });
+    let score = Math.max(fuzzyScore(needle, title) * 1.0, fuzzyScore(needle, other) * 0.6);
+    // A one- or two-letter query may start a word but not hide inside one ("ai" inside "explained").
+    if (needle.length < 3 && !startsWord(needle, title) && !startsWord(needle, other)) score = 0;
+    if (score === 0 && alts.length) {
+      const hit = alts.some((a) => altIn(a, title) || altIn(a, other));
+      if (hit) score = 0.5;   // found through a synonym: below every direct match
+    }
+    if (score > 0) scored.push({ r, score, ready: isReadyIn(r, language), planned: Boolean(r.planned), title: fold(r.title_local || r.title) });
   }
-  scored.sort((a, b) => (a.ready !== b.ready ? (a.ready ? -1 : 1) : b.score - a.score || a.title.localeCompare(b.title)));
+  // Real courses first (ready in the voice's language, then the rest), "coming soon" topics last; then by match quality and title.
+  scored.sort((a, b) => (a.planned !== b.planned ? (a.planned ? 1 : -1) : a.ready !== b.ready ? (a.ready ? -1 : 1) : b.score - a.score || a.title.localeCompare(b.title)));
   return scored.map((x) => x.r);
 }
 

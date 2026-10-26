@@ -1355,19 +1355,26 @@ export type AudioSearchRow = {
   id: string; title: string; title_local?: string; category?: string; subject?: string; level?: string;
   duration_min?: number; tags?: string[]; segments?: number;
   ready_languages?: string[]; ready?: boolean; english_only?: boolean; audio_mode?: string;
+  /** false for a planned topic that has no course yet ("coming soon"). */
+  audio?: boolean; planned?: boolean;
 };
 export type AudioSearchResult = {
   language: string; total: number; ready_in_language: number; ready_counts: Record<string, number>;
   audio_mode: string; courses: AudioSearchRow[];
+  /** Topics the catalog defines but has no course for yet: searchable, shown as coming soon. */
+  planned?: AudioSearchRow[];
+  /** Groups of equivalent search terms ("machine vision" = "computer vision"); one source for server and client. */
+  aliases?: string[][];
 };
 /** The audio catalog with the languages each course is READY in (shippable translations only), for the voice's language. */
 export async function searchAudioCourses(
-  params: { language: string; q?: string; includeEnglish?: boolean; limit?: number },
+  params: { language: string; q?: string; includeEnglish?: boolean; limit?: number; includePlanned?: boolean },
 ): Promise<AudioSearchResult> {
   const qs = new URLSearchParams({
     language: params.language || "en",
     include_english: params.includeEnglish === false ? "false" : "true",
     limit: String(params.limit ?? 500),
+    ...(params.includePlanned ? { include_planned: "true" } : {}),
     ...(params.q ? { q: params.q } : {}),
   });
   return jsonOrThrow(await fetch(`${CURRICULUM_URL}/audio/search?${qs.toString()}`, { cache: "no-store" }));

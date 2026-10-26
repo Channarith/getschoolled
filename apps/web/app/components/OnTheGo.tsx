@@ -86,6 +86,8 @@ function OnTheGoInner({ mode, voiceSlot }: { mode: OnTheGoMode; voiceSlot?: Reac
   const cat = "";
   const [q, setQ] = useState("");
   const [searchRows, setSearchRows] = useState<SearchRow[]>([]);
+  const [plannedRows, setPlannedRows] = useState<SearchRow[]>([]);   // topics the catalog defines but has no course for yet ("coming soon")
+  const [aliasGroups, setAliasGroups] = useState<string[][]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [includeEnglish, setIncludeEnglish] = useState(true);
@@ -401,15 +403,20 @@ function OnTheGoInner({ mode, voiceSlot }: { mode: OnTheGoMode; voiceSlot?: Reac
     if (!experience.showTimer && !getToken() && !demoOnlyAnon) return;
     let cancelled = false;
     setSearchLoading(true);
-    searchAudioCourses({ language: searchLanguage, limit: 500 })
-      .then((r) => { if (!cancelled) setSearchRows(r.courses); })
-      .catch(() => { if (!cancelled) setSearchRows([]); })   // the catalog rows still list the English courses
+    searchAudioCourses({ language: searchLanguage, limit: 500, includePlanned: true })
+      .then((r) => {
+        if (cancelled) return;
+        setSearchRows(r.courses);
+        setPlannedRows((r.planned || []) as SearchRow[]);
+        setAliasGroups(r.aliases || []);
+      })
+      .catch(() => { if (!cancelled) { setSearchRows([]); setPlannedRows([]); } })   // the catalog rows still list the English courses
       .finally(() => { if (!cancelled) setSearchLoading(false); });
     return () => { cancelled = true; };
   }, [searchEnabled, searchLanguage, experience.showTimer, demoOnlyAnon]);
   const searchSource: SearchRow[] = useMemo(
-    () => (searchRows.length ? searchRows : rows.map((r) => ({ id: r.id, title: r.title, category: r.category, duration_min: r.duration_min, level: r.level }))),
-    [searchRows, rows],
+    () => (searchRows.length ? [...searchRows, ...plannedRows] : rows.map((r) => ({ id: r.id, title: r.title, category: r.category, duration_min: r.duration_min, level: r.level }))),
+    [searchRows, plannedRows, rows],
   );
   // "next course", "play the Roman Empire course" and the list walk the same order the learner sees (ready in their language first).
   useEffect(() => {
@@ -1088,7 +1095,7 @@ function OnTheGoInner({ mode, voiceSlot }: { mode: OnTheGoMode; voiceSlot?: Reac
       return;
     }
     setSearchQuery(cmd.query);
-    const found = rankCourses(searchSource, cmd.query, { language: searchLanguage, includeEnglish, allowedIds });
+    const found = rankCourses(searchSource, cmd.query, { language: searchLanguage, includeEnglish, allowedIds, aliases: aliasGroups }).filter((r) => !r.planned);
     announceThen(t(found.length ? "drive.search.spoken" : "drive.search.spokenNone", { q: cmd.query }), () => resumeAfterAssistant(0));
   }
 
@@ -1372,6 +1379,7 @@ function OnTheGoInner({ mode, voiceSlot }: { mode: OnTheGoMode; voiceSlot?: Reac
                 try { localStorage.setItem(INCLUDE_ENGLISH_KEY, v ? "1" : "0"); } catch { /* private mode */ }
               }}
               allowedIds={allowedIds}
+              aliases={aliasGroups}
               selectedId={pickedId || course?.id || ""}
               loading={coursesLoading || searchLoading}
               progress={progress}
@@ -1381,6 +1389,7 @@ function OnTheGoInner({ mode, voiceSlot }: { mode: OnTheGoMode; voiceSlot?: Reac
                 englishOnly: t("drive.search.englishOnly"), emptyLang: (lang) => t("drive.search.emptyLang", { lang }),
                 noMatch: (q) => t("drive.search.noMatch", { q }), count: (n) => t("drive.search.count", { n }),
                 voiceHint: t("drive.search.voiceHint"), loading: t("drive.loadingCourses"), resume: t("drive.pickerResume"), choose: t("drive.chooseCourse"),
+                comingSoon: t("drive.search.comingSoon"),
               }}
               onSelect={chooseCourse}
             />
