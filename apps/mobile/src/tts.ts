@@ -8,7 +8,7 @@
 import { Audio, InterruptionModeAndroid, InterruptionModeIOS } from "expo-av";
 import * as Speech from "expo-speech";
 
-import { cloneClipUrl } from "./cloneVoice";
+import { cloneClipUrl, selectedCloneGender } from "./cloneVoice";
 import { ensureLiveRoomNarrationRoute, liveKitAudioActive } from "./components/liveKitAudio";
 import {
   prosodyForStyle, type NarrationVoiceStyle, voiceNameStyleBonus,
@@ -371,6 +371,10 @@ export function speakNatural(text: string, opts: SpeakOptions): void {
     const cloneUrl = await cloneClipUrl(opts.locale, text).catch(() => null);
     if (_speechEpoch !== myEpoch) return;
     if (cloneUrl && await playUri(cloneUrl, opts, myEpoch)) return;
+    // No clip for this line (company voices only run on the GPU box): keep the picked voice's gender and language rather than the settings default.
+    const cloneGender = await selectedCloneGender().catch(() => "" as const);
+    if (cloneGender) opts = { ...opts, voiceGender: cloneGender };
+    if (_speechEpoch !== myEpoch) return;
     if (await serverTtsAvailable()) {
       if (_speechEpoch !== myEpoch) return;
       if (await playServerAudio(text, opts, myEpoch)) return;   // neural audio playing

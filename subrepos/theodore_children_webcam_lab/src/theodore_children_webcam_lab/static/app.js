@@ -159,7 +159,8 @@ const state = {
   
   playStartedAt:0, playEndsAt:0, playTick:0, playEnded:false,
 };
-const PLAY_SESSION_MS = 10 * 60 * 1000;
+const SAMPLE_MINUTES = Math.max(1, Number(document.querySelector('meta[name="sample-minutes"]')?.content) || 4);
+const PLAY_SESSION_MS = SAMPLE_MINUTES * 60 * 1000;
 const presenceWatch = createPresenceWatch();
 
 const canvas = $("overlay");
@@ -327,7 +328,7 @@ function endPlaySession() {
     clock.hidden = false;
     clock.classList.add("is-ended");
   }
-  setPrompt("Play time is up", "Thanks for playing! Tap home to start a fresh 10-minute session.");
+  setPrompt("Play time is up", `Thanks for playing! Tap home to start a fresh ${SAMPLE_MINUTES}-minute session.`);
   tellActivity(
     "Play time ended. Thank the child in one short sentence. Do not start a new game prompt.",
     {force: true},
@@ -2274,7 +2275,7 @@ function updateKaraoke() {
 }
 function chooseGame() {
   if (state.playEnded) {
-    setPrompt("Play time is up", "Thanks for playing! Tap home to start a fresh 10-minute session.");
+    setPrompt("Play time is up", `Thanks for playing! Tap home to start a fresh ${SAMPLE_MINUTES}-minute session.`);
     return;
   }
   $("prompt")?.classList.remove("is-success");

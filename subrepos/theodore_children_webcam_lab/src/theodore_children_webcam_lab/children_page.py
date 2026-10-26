@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from aoep_shared.course_studio_access import SAMPLE_MINUTES
+
 from .game_engine import GAME_MENU
 
 FAVICON_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
@@ -34,6 +36,7 @@ def render_children_page(asset_tag: str = "") -> str:
     return (
         _PAGE.replace("__GAME_SELECT__", game_select)
         .replace("__ASSET_TAG__", f"?v={asset_tag}" if asset_tag else "")
+        .replace("__SAMPLE_MINUTES__", str(SAMPLE_MINUTES))
     )
 
 
@@ -41,6 +44,7 @@ _PAGE = """<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta name="sample-minutes" content="__SAMPLE_MINUTES__">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>Theodore's Webcam Play Lab</title>
   <link rel="stylesheet" href="/static/app.css__ASSET_TAG__">
@@ -95,7 +99,7 @@ _PAGE = """<!doctype html>
         <p id="presence-note" class="presence-note" hidden></p>
         <div id="countdown" class="countdown hidden" aria-live="polite" aria-label="Time left"></div>
         <div id="play-clock" class="play-clock" hidden aria-live="polite" aria-label="Play session time left">
-          <span id="play-clock-time">10:00</span>
+          <span id="play-clock-time">__SAMPLE_MINUTES__:00</span>
           <small>play time</small>
         </div>
         <div id="vision-status" class="vision-status">Camera off</div>

@@ -156,47 +156,6 @@ export function childrenLabLocaleScript(locale: string): string {
   })();`;
 }
 
-/** Keeps the air/screen switch on the game. The lab top bar clips it on a phone. */
-export function childrenLabTouchScript(): string {
-  return `(function(){
-    if (window.__SALAREEN_TOUCH_TOGGLE__) return;
-    window.__SALAREEN_TOUCH_TOGGLE__ = true;
-    var css = "#touch-mode{position:fixed !important;right:88px !important;left:auto !important;"
-      + "bottom:calc(136px + env(safe-area-inset-bottom)) !important;z-index:40 !important;"
-      + "display:inline-flex !important;align-items:center;gap:4px;"
-      + "min-height:44px !important;padding:3px !important;white-space:nowrap;"
-      + "background:#111827 !important;border:2px solid #5eead4 !important;border-radius:999px !important;color:#fff !important}"
-      + "#touch-mode button{min-height:38px !important;min-width:44px !important;border:0 !important;border-radius:999px !important;"
-      + "padding:.35rem .7rem !important;background:transparent !important;color:#e2e8f0 !important}"
-      + "#touch-mode button[aria-checked='true']{background:#5eead4 !important;color:#0f172a !important}"
-      + "#camera,.stage video,#overlay,.stage canvas,.sprite-layer,#guide-layer,.prompt,#vision-readout,.target,.sprite{pointer-events:none !important}"
-      + "body.screen-touch #screen-catcher:not([hidden]){position:absolute !important;inset:0 !important;z-index:7 !important;touch-action:none !important}"
-      + "body.phone-play .vision-readout,#vision-readout{display:grid !important;left:8px !important;"
-      + "right:8px !important;top:8px !important;bottom:auto !important;min-width:0 !important;z-index:8 !important;"
-      + "grid-template-columns:1fr 1fr !important;pointer-events:none !important;right:100px !important}"
-      + "#home{position:relative !important;z-index:40 !important;min-width:44px !important;min-height:44px !important}"
-      + "#countdown:not(.hidden){display:grid !important;position:absolute !important;top:8px !important;"
-      + "right:8px !important;width:84px !important;height:84px !important;z-index:20 !important;"
-      + "font-size:1.7rem !important}";
-    function show() {
-      var btn = document.getElementById("touch-mode");
-      if (!btn) return;
-      btn.hidden = false;
-      btn.removeAttribute("hidden");
-      if (document.getElementById("salareen-touch-style")) return;
-      var style = document.createElement("style");
-      style.id = "salareen-touch-style";
-      style.textContent = css;
-      (document.head || document.documentElement).appendChild(style);
-    }
-    if (document.documentElement) {
-      new MutationObserver(show).observe(document.documentElement, {childList:true, subtree:true, attributes:true, attributeFilter:["hidden","class"]});
-    }
-    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", show);
-    else show();
-  })(); true;`;
-}
-
 /** Tells the page the app went to the background or came back, so a lesson can pause and resume. */
 export function appStateScript(state: string): string {
   const value = state === "active" || state === "background" || state === "inactive" ? state : "active";

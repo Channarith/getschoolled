@@ -159,5 +159,25 @@ for (const mode of [{ signedIn: false, name: "demo" }, { signedIn: true, name: "
   await ctx.close();
 }
 
+// 6. The app's WebView opens /?embed=mobile on a Pixel 7: same minimal widget, no standalone mic/camera, no readout, 4-minute clock.
+{
+  const ctx = await browser.newContext({ ...pw.devices["Pixel 7"], permissions: ["camera", "microphone"] });
+  const page = await ctx.newPage();
+  await page.route("**/voice-assets/**", (r) => r.abort());
+  await page.goto(`${LAB}/?embed=mobile&lang=en`, { waitUntil: "domcontentloaded" });
+  await page.click("#demo");
+  await page.waitForSelector("#lab-widget", { state: "visible" });
+  for (const sel of ["#lab-mic", "#lab-cam", "#vision-readout", ".vision-readout", ".topbar > :not(#touch-mode)"]) {
+    const widgetOnly = sel.startsWith("#lab-") ? await page.evaluate((s) => { const e = document.querySelector(s); return e ? Boolean(e.closest("#lab-widget")) : false; }, sel) : false;
+    assert.equal(widgetOnly, false, `app view: ${sel} is not in the widget`);
+    if (!sel.startsWith("#lab-")) assert.equal(await visible(page, sel), 0, `app view: ${sel} must not be visible`);
+  }
+  assert.equal(await visible(page, "#lab-widget .lab-btn:not(.lab-handle)"), 1, "widget shows only the menu button besides the drag grip");
+  assert.equal(await page.evaluate(() => document.querySelector("#lab-widget #play-clock") !== null), true, "the clock lives inside the widget");
+  assert.match(await page.textContent("#play-clock-time"), /^[34]:\d\d$/, "sample clock starts at 4:00");
+  assert.equal(await page.evaluate(() => document.querySelector('meta[name="sample-minutes"]').content), "4");
+  await ctx.close();
+}
+
 await browser.close();
 console.log("minimal shell ok");

@@ -1,4 +1,4 @@
-import { HIDDEN_ON_THE_GO_DEMO, PUBLIC_DEMOS, appStateScript, childrenLabTouchScript, publicDemoUrl } from "../publicDemos";
+import { HIDDEN_ON_THE_GO_DEMO, PUBLIC_DEMOS, appStateScript, publicDemoUrl } from "../publicDemos";
 
 describe("public demos", () => {
   test("matches the website demo pages", () => {
@@ -19,12 +19,8 @@ describe("public demos", () => {
     );
   });
 
-  test("pins the vision-lab touch switch on the screen", () => {
-    const script = childrenLabTouchScript();
-    expect(script).toContain("touch-mode");
-    expect(script).toContain("position:fixed");
-    expect(script).toContain("vision-readout");
-    expect(script).toContain("#countdown:not(.hidden)");
+  test("does not inject CSS over the game's own minimal layout", () => {
+    expect(require("../publicDemos").childrenLabTouchScript).toBeUndefined();
   });
 
   test("tells the lesson page when the app leaves and returns", () => {
