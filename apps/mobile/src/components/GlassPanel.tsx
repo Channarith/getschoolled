@@ -1,4 +1,5 @@
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 
 import { theme } from "../theme";
@@ -13,6 +14,7 @@ type Props = {
 export default function GlassPanel({ children, style, padded = true }: Props) {
   return (
     <View style={[styles.panel, padded && styles.padded, style]}>
+      <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />
       <LinearGradient
         colors={[theme.colors.glassHighlight, "rgba(255,255,255,0.05)", "transparent"]}
         start={{ x: 0, y: 0 }}
