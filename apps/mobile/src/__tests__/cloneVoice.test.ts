@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { clipHash, cloneClipUrl, resetCloneVoiceCacheForTests, setSelectedVoice } from "../cloneVoice";
+import { clipHash, cloneClipUrl, resetCloneVoiceCacheForTests, selectedCloneGender, setSelectedVoice } from "../cloneVoice";
 
 jest.mock("@react-native-async-storage/async-storage", () => {
   const store: Record<string, string> = {};
@@ -63,5 +63,15 @@ describe("cloneVoice", () => {
     });
     await setSelectedVoice("channarith");
     expect(await cloneClipUrl("en", "Hello world")).toBeNull();
+  });
+
+  it("keeps the picked voice's gender for lines without a clip", async () => {
+    serve({
+      [`${BASE}/voices.json`]: { voices: [{ id: "channarith", label: "C", ai_label: "AI", active: true, gender: "male" }] },
+      [`${BASE}/channarith/index.json`]: { ext: "mp3", clips: { en: [] } },
+    });
+    await setSelectedVoice("channarith");
+    expect(await selectedCloneGender()).toBe("male");
+    expect(await cloneClipUrl("en", "Any audio course line")).toBeNull();
   });
 });
