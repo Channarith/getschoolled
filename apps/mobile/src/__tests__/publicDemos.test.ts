@@ -4,7 +4,7 @@ describe("public demos", () => {
   test("matches the website demo pages", () => {
     expect(PUBLIC_DEMOS.map((demo) => demo.path)).toEqual([
       "/studio?access=sample&course=drivers-ed&demo=1&embed=mobile",
-      "/children-lab?embed=mobile",
+      "/children-lab?embed=mobile&demo=1",
     ]);
   });
 

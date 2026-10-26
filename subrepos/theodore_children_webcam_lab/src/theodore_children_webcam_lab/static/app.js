@@ -345,7 +345,9 @@ function tickPlayClock() {
   if (timeEl) timeEl.textContent = formatPlayClock(left);
   if (left <= 0) endPlaySession();
 }
+const IS_SAMPLE_SESSION = new URLSearchParams(location.search).get("demo") === "1";
 function armPlayClock() {
+  if (!IS_SAMPLE_SESSION) return;
   clearInterval(state.playTick);
   state.playEnded = false;
   state.playStartedAt = Date.now();
