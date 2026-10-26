@@ -102,3 +102,32 @@ def test_budgeting_full_course_can_be_translated(tloc):
         assert all(s.text.startswith(f"[{tloc}] ") for s in course.segments)
     finally:
         set_body_translator(None)
+
+
+def test_cantonese_audio_course_is_not_left_in_english(monkeypatch):
+    import aoep_shared.audio_courses as audio
+    from aoep_shared.course_translation_ondemand import _MemoryKV, set_store_for_tests
+
+    def fake(_course_id, _title, segments, lang):
+        assert lang == "yue"
+        return {
+            "title": "機器學習",
+            "segments": [
+                {"heading": seg["heading"], "text": "呢個係粵語", "kind": seg["kind"]}
+                for seg in segments
+            ],
+        }
+
+    monkeypatch.setattr(audio, "_course_from_library", lambda course, tloc: None)
+    monkeypatch.setattr(audio, "_course_from_ondemand", lambda course, tloc: None)
+    monkeypatch.setattr("aoep_shared.course_translation_ondemand.translate_course", fake)
+    set_store_for_tests(_MemoryKV())
+    audio._TRANSLATED_COURSES.pop(("audio-what-is-blockchain", "yue"), None)
+    try:
+        course = get_course("audio-what-is-blockchain", "en", training_locale="yue")
+        assert course is not None
+        assert course.body_locale == "yue"
+        assert course.segments[0].text == "呢個係粵語"
+    finally:
+        set_store_for_tests(None)
+        audio._TRANSLATED_COURSES.pop(("audio-what-is-blockchain", "yue"), None)

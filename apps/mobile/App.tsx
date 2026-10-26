@@ -146,6 +146,7 @@ function AppInner() {
   const [showLanguages, setShowLanguages] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [showDemo, setShowDemo] = useState(false);
+  const [guestPlaying, setGuestPlaying] = useState(false);
   const [showBugReport, setShowBugReport] = useState(false);
   const [bugReporterEnabled, setBugReporterEnabled] = useState(true);
   const [salesDemoFlags, setSalesDemoFlags] = useState(DEFAULT_SALES_DEMO_FLAGS);
@@ -605,7 +606,10 @@ function AppInner() {
   const mainTabsVisible = !studioDemo && !visionLab && !liveRoomId && !showGroupClasses && !showLiveClass
     && !showLiveRooms && !showArcade && !showCorporate && !showKids && !kidsLessonId && !gameSubject && !activeLesson
     && !showRewards && !showAccount && !showSecurity && !showBilling && !showLanguages
-    && !showSearch && !showBugReport && !showWorlds && !studyMode;
+    && !showSearch && !showBugReport && !showWorlds && !studyMode && !openCourseId;
+  const immersive = Boolean(
+    openCourseId || gameSubject || visionLab || kidsLessonId || studioDemo || activeLesson,
+  );
 
   // Android hardware / gesture back: when no overlay screen owns the handler,
   // pop to Home from secondary tabs (standard Android tab UX). On Home, allow
@@ -945,18 +949,28 @@ function AppInner() {
 
   if (!inApp && !showBugReport) {
     return (
-      <SafeAreaView ref={captureViewRef} collapsable={false} style={styles.root} edges={["top", "left", "right"]}>
-        <StatusBar style="light" />
+      <SafeAreaView
+        ref={captureViewRef}
+        collapsable={false}
+        style={styles.root}
+        edges={guestPlaying ? ["left", "right"] : ["top", "left", "right"]}
+      >
+        <StatusBar style="light" hidden={guestPlaying} translucent />
         <AmbientBackground />
-        <GuestHomeScreen />
-        {floatingBugButton}
+        <GuestHomeScreen onPlaying={setGuestPlaying} />
+        {guestPlaying ? null : floatingBugButton}
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView ref={captureViewRef} collapsable={false} style={styles.root} edges={["top", "left", "right"]}>
-      <StatusBar style="light" />
+    <SafeAreaView
+      ref={captureViewRef}
+      collapsable={false}
+      style={styles.root}
+      edges={immersive ? ["left", "right"] : ["top", "left", "right"]}
+    >
+      <StatusBar style="light" hidden={immersive} translucent />
       <AmbientBackground />
       <View style={[{ flex: 1 }, isRTL && { direction: "rtl" }]}>
         <Banner banner={banner} onDismiss={() => setBanner(null)} />
@@ -985,8 +999,8 @@ function AppInner() {
           unreadCount={unreadCount}
         />
       ) : null}
-      {floatingSalesDemoButton}
-      {floatingBugButton}
+      {immersive ? null : floatingSalesDemoButton}
+      {immersive ? null : floatingBugButton}
       {onboardingStudent ? (
         <FirstSignInAssistant
           visible

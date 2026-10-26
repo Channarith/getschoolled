@@ -45,4 +45,4 @@ def test_paid_registered_request_is_the_full_class():
 
 def test_authoring_studio_without_a_mode_stays_full():
     assert resolve_teach_access() == "full"
-    assert SAMPLE_MINUTES == 10
+    assert SAMPLE_MINUTES == 4

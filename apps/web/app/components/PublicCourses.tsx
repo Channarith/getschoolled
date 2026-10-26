@@ -6,7 +6,7 @@ export function PublicCourses() {
     <section aria-label="Demo" style={{ width: "100%", maxWidth: 720, margin: "28px auto 0", textAlign: "left" }}>
       <h2 style={{ fontSize: 22, margin: "0 0 8px" }}>Demo</h2>
       <p style={{ margin: "0 0 12px" }}>
-        Driver&apos;s Education is free for 10 minutes. Anyone can start it, with or without an account.
+        Driver&apos;s Education is free for 4 minutes. Anyone can start it, with or without an account.
       </p>
       <p style={{ margin: "0 0 12px" }}>
         <Link href="/demo/drivers-ed"><button type="button">Start the free driver&apos;s ed demo</button></Link>

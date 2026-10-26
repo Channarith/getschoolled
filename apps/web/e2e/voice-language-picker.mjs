@@ -1,5 +1,5 @@
 // The ONE voice-and-language control: no separate Language section in the account menu or the footer, voices grouped by language with a
-// search box, "Salane Voice (Sage)" first for English, and picking a voice sets the app language (html lang, direction, stored locale).
+// search box, "Sage · English" first, and picking a voice sets the app language (html lang, direction, stored locale).
 // Also the start-up rules: nothing stored -> the browser's language with its Salane Voice; an old stored language and the old automatic
 // voice keep working. Needs `next dev` (or a build) running; the speech catalog and the published voices are stubbed.
 //   node apps/web/e2e/voice-language-picker.mjs http://localhost:3127
@@ -52,9 +52,9 @@ const stored = (page, k) => page.evaluate((key) => localStorage.getItem(key), k)
   assert.equal(await page.getByText("🌐").count(), 0, "the menu has no separate Language section");
   assert.equal(await page.locator("footer select").count(), 0, "the footer has no Language selector");
   const sel = page.getByLabel(/voice/i).first();
-  const voiceSel = page.locator("select").filter({ has: page.locator("option", { hasText: "Salane Voice (Sage)" }) }).first();
+  const voiceSel = page.locator("select").filter({ has: page.locator("option", { hasText: "Sage · English" }) }).first();
   assert.ok(await voiceSel.isVisible());
-  assert.equal(await voiceSel.inputValue(), "auto:en", "a visitor who never chose sees Salane Voice (Sage)");
+  assert.equal(await voiceSel.inputValue(), "auto:en", "a visitor who never chose sees Sage");
   const groups = await voiceSel.locator("optgroup").evaluateAll((els) => els.map((e) => e.label));
   assert.equal(groups[0], "English", "English first");
   for (const name of ["Español", "ខ្មែរ", "粵語"]) assert.ok(groups.includes(name), `group ${name} (the language's own name)`);
@@ -82,22 +82,22 @@ const stored = (page, k) => page.evaluate((key) => localStorage.getItem(key), k)
   await voiceSel.selectOption("en_gb_f");
   await page.waitForTimeout(600);
   assert.equal(await lang(page), "en-GB", "an accent voice keeps the accent");
-  await voiceSel.selectOption("auto:en");   // Salane Voice (Sage) on purpose
+  await voiceSel.selectOption("auto:en");   // Sage on purpose
   await page.waitForTimeout(600);
   assert.equal(await lang(page), "en-GB", "Sage is English: the UK visitor keeps en-GB");
   assert.equal(await stored(page, "aoep_voice_explicit"), "0"); assert.equal(await stored(page, "aoep_demo_voice"), "default");
-  await voiceSel.selectOption("auto:es");
+  await voiceSel.selectOption("es_es_f");
   await page.waitForTimeout(600);
-  assert.equal(await lang(page), "es");
+  assert.equal(await lang(page), "es", "the Spanish voice sets Spanish");
   await ctx.close();
 }
 
-// 4. start-up: the browser's language when nothing is stored; the Spanish visitor sees Spanish with the Spanish Salane Voice
+// 4. start-up: the browser's language when nothing is stored; the Spanish visitor sees the Spanish voice
 {
   const { ctx, page } = await open({ locale: "es-ES" });
   assert.equal(await lang(page), "es");
-  const voiceSel = page.locator("select").filter({ has: page.locator("option", { hasText: "Salane Voice" }) }).first();
-  assert.equal(await voiceSel.inputValue(), "auto:es");
+  const voiceSel = page.locator("select").filter({ has: page.locator("option", { hasText: "Sage · English" }) }).first();
+  assert.equal(await voiceSel.inputValue(), "es_es_f");
   await ctx.close();
 }
 
@@ -117,7 +117,7 @@ const stored = (page, k) => page.evaluate((key) => localStorage.getItem(key), k)
 {
   const { ctx, page } = await open({ locale: "en-GB" }, { aoep_drive_voice: "en_gb_f" });
   assert.equal(await lang(page), "en-GB");
-  const voiceSel = page.locator("select").filter({ has: page.locator("option", { hasText: "Salane Voice (Sage)" }) }).first();
+  const voiceSel = page.locator("select").filter({ has: page.locator("option", { hasText: "Sage · English" }) }).first();
   assert.equal(await voiceSel.inputValue(), "auto:en");
   await ctx.close();
 }

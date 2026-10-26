@@ -8,7 +8,7 @@ import OnTheGo from "../../components/OnTheGo";
 // Not listed anywhere public: reached by four quick clicks on the Salareen logo. Keep it out of search results.
 export const metadata: Metadata = { robots: { index: false, follow: false } };
 
-/** Hidden demo of the same On the Go player, limited to a 10-minute sample. */
+/** Hidden demo of the same On the Go player, limited to a 4-minute sample. */
 export default function OnTheGoDemoPage() {
   return (
     <main className="course-stage">
@@ -22,7 +22,7 @@ export default function OnTheGoDemoPage() {
         steps={[
           "Tap the course to start the audio. Put on headphones or turn up the sound.",
           "Use Pause, Next and Back on the player to control the lesson.",
-          "This demo is a free 10-minute sample. The timer shows how much is left.",
+          "This demo is a free 4-minute sample. The timer shows how much is left.",
           "Tap the ? button any time to see this again.",
         ]}
       />

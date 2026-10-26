@@ -12,8 +12,10 @@ reads a slide as soon as its title, body, and spoken line are in that file.
   python3 scripts/translate_drivers_ed.py --share kalel    # the 8 GB share
   python3 scripts/translate_drivers_ed.py --languages es,fr
 
-Khmer is skipped: it is already curated. Finished strings are skipped, so stop
-and rerun any time. Run it under scripts/gs_run.sh (see translate_drivers_ed.sh).
+The fleet shares skip Khmer. The hand-written Khmer slides stay as they are.
+`python3 scripts/translate_drivers_ed.py --languages km` fills only the sign
+lessons those slides do not cover. Finished strings are skipped, so stop and
+rerun any time. Run it under scripts/gs_run.sh (see translate_drivers_ed.sh).
 """
 from __future__ import annotations
 
@@ -53,7 +55,7 @@ def output_dir() -> Path:
 
 def _build_english() -> tuple[list[dict], dict[str, str]]:
     """Pull the spoken English out of the driver's ed lessons. Order is course order,
-    so the 10-minute demo (the opening lesson) is translated before the later lessons."""
+    so the 4-minute demo (the opening lesson) is translated before the later lessons."""
     from theodore_course_studio.cert_i18n import SCAFFOLD_EN
     from theodore_course_studio.cert_multimodal import kit_for_slide
     from theodore_course_studio.certification_prep import CertTrackId, _TEMPLATES
@@ -184,15 +186,23 @@ def translate_language(lang: str, slides: list[dict], scaffold_en: dict, dest: P
     doc["engine"] = "nllb"
     doc["track"] = "ca_dmv_permit"
     pending: list[tuple[str, str, str]] = []  # slide key or "scaffold", field, english
+    from theodore_course_studio.cert_i18n import CURATED, SCAFFOLD
+
+    curated_keys = set(CURATED.get(lang) or {})
     scaffold = doc.setdefault("scaffold", {})
-    for field in ("examples_heading", "examples_lead"):
-        src = _clean(scaffold_en.get(field) or "")
-        if not src:
-            continue
-        if not accepted(src, scaffold.get(field) or ""):
-            pending.append(("scaffold", field, src))
+    # Khmer scaffolding is hand-written. Do not replace it with a machine line.
+    if lang not in SCAFFOLD:
+        for field in ("examples_heading", "examples_lead"):
+            src = _clean(scaffold_en.get(field) or "")
+            if not src:
+                continue
+            if not accepted(src, scaffold.get(field) or ""):
+                pending.append(("scaffold", field, src))
     stored = doc.setdefault("slides", {})
     for slide in slides:
+        # A hand-written slide wins over the file, so do not spend a translation on it.
+        if slide["key"] in curated_keys:
+            continue
         have = stored.get(slide["key"]) if isinstance(stored.get(slide["key"]), dict) else {}
         for field, src in _pending_strings(slide, have):
             pending.append((slide["key"], field, src))
@@ -242,13 +252,61 @@ def _ready(slide: dict, have: dict) -> bool:
     return True
 
 
+def _courses(slides: list[dict]) -> list[tuple[str, str, int, list[dict]]]:
+    """(lesson id, title, minutes, slides) in program order."""
+    from theodore_course_studio.certification_prep import CertTrackId, _TEMPLATES
+
+    meta = {
+        row.lesson_id: row
+        for row in _TEMPLATES
+        if row.track is CertTrackId.CA_DMV_PERMIT
+    }
+    order: list[str] = []
+    grouped: dict[str, list[dict]] = {}
+    for slide in slides:
+        lesson_id = str(slide.get("lesson_id") or "")
+        if lesson_id not in grouped:
+            order.append(lesson_id)
+            grouped[lesson_id] = []
+        grouped[lesson_id].append(slide)
+    rows = []
+    for lesson_id in order:
+        template = meta.get(lesson_id)
+        title = template.title if template else lesson_id
+        minutes = int(template.estimated_minutes) if template else 0
+        rows.append((lesson_id, title, minutes, grouped[lesson_id]))
+    return rows
+
+
+def _lesson_progress(slides: list[dict], stored: dict) -> tuple[int, int]:
+    ready = 0
+    left = 0
+    for slide in slides:
+        have = stored.get(slide["key"]) if isinstance(stored.get(slide["key"]), dict) else {}
+        left += len(_pending_strings(slide, have))
+        if _ready(slide, have):
+            ready += 1
+    return ready, left
+
+
 def print_status() -> int:
     slides, scaffold_en = load_english()
     dest = output_dir()
     total = string_count(slides, scaffold_en)
-    opening = [s for s in slides if s.get("lesson_id") == "ca-dmv-basics"]
-    print(f"slides {len(slides)}  strings/language {total}  dir {dest}", flush=True)
-    print(f"10-minute demo starts on ca-dmv-basics ({len(opening)} slides)", flush=True)
+    courses = _courses(slides)
+    opening = courses[0][3] if courses else []
+    minutes = sum(row[2] for row in courses)
+    print(
+        f"program courses {len(courses)}  slides {len(slides)}  "
+        f"strings/language {total}  about {minutes} min  dir {dest}",
+        flush=True,
+    )
+    print(
+        f"4-minute demo is only the first class "
+        f"({courses[0][0] if courses else 'ca-dmv-basics'}, {len(opening)} slides). "
+        f"The fleet translates every class below.",
+        flush=True,
+    )
     for share, langs in SHARES.items():
         print(f"[{share}]", flush=True)
         for lang in langs:
@@ -275,6 +333,46 @@ def print_status() -> int:
                 f"basics {opening_ready}/{len(opening)}  strings left {left}/{total}",
                 flush=True,
             )
+    from theodore_course_studio.cert_i18n import translate_cert_slide
+    loaded: dict[str, dict] = {}
+    for langs in SHARES.values():
+        for lang in langs:
+            doc = _load(dest / f"{lang}.json")
+            stored = doc.get("slides") if isinstance(doc.get("slides"), dict) else {}
+            loaded[lang] = stored
+    print("courses", flush=True)
+    print(
+        f"  {'course':<28} {'min':>4} {'slides':>8} {'fleet strings left':>20} {'khmer speaks':>14}",
+        flush=True,
+    )
+    fleet_left = 0
+    km_speak = 0
+    for lesson_id, _title, mins, rows in courses:
+        need = string_count(rows, {})
+        worst_left = 0
+        worst_lang = ""
+        for lang, stored in loaded.items():
+            _ready_n, left = _lesson_progress(rows, stored)
+            if left >= worst_left:
+                worst_left = left
+                worst_lang = lang
+        km_ready = 0
+        for slide in rows:
+            overlay = translate_cert_slide(slide["key"], "km")
+            if overlay and overlay.title and overlay.body and overlay.say:
+                km_ready += 1
+        fleet_left += worst_left
+        km_speak += km_ready
+        who = f"{worst_lang} {worst_left}/{need}" if worst_left else f"0/{need}"
+        print(
+            f"  {lesson_id:<28} {mins:>4} {len(rows):>8} {who:>20} {km_ready:>6}/{len(rows):<6}",
+            flush=True,
+        )
+    print(
+        f"fleet still to translate: {fleet_left} strings across the busiest language of each course. "
+        f"Khmer speaks {km_speak}/{len(slides)} slides (hand-written; the machines skip it).",
+        flush=True,
+    )
     return 0
 
 

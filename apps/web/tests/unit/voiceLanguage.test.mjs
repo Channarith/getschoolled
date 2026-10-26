@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  initialLocale, languageFamily, languageForGroup, languageForVoice, localeFromVoiceId, sameFamily, uiLocaleForVoiceLocale,
+  catalogVoiceForLanguage, initialLocale, languageFamily, languageForGroup, languageForVoice, localeFromVoiceId, sameFamily, uiLocaleForVoiceLocale,
 } from "../../app/lib/voiceLanguage.ts";
 import { groupKeyForVoice } from "../../app/lib/voicePicker.ts";
 
@@ -75,6 +75,18 @@ test("start-up: a deliberate voice beats the stored language, which beats the br
   assert.equal(f({ storedLocale: "en", edgeVoiceId: "en-GB-SoniaNeural" }), "en-GB");
   assert.equal(f({ storedLocale: "xx", browserLocale: "zz" }), "en", "unsupported values fall back");
   assert.equal(f({ edgeVoiceId: "eu-ES-AinhoaNeural", storedLocale: "fr" }), "fr", "a voice in a language the app has no locale for keeps the stored language");
+});
+
+test("a saved voice is used only when it speaks the lesson language", () => {
+  assert.equal(catalogVoiceForLanguage("es", "en_us_f"), "es_es_f");
+  assert.equal(catalogVoiceForLanguage("es", "en_us_m", true), "es_es_m");
+  assert.equal(catalogVoiceForLanguage("es", "es_mx_m"), "es_mx_m");
+  assert.equal(catalogVoiceForLanguage("km", "en_us_f"), "km_kh_f");
+  assert.equal(catalogVoiceForLanguage("yue", "zh_cn_f"), "zh_hk_f");
+  assert.equal(catalogVoiceForLanguage("yue", "zh_hk_f"), "zh_hk_f");
+  assert.equal(catalogVoiceForLanguage("en-GB", "en_gb_f"), "en_gb_f");
+  assert.equal(catalogVoiceForLanguage("en-GB", "es_es_f"), "en_gb_f");
+  assert.equal(catalogVoiceForLanguage("fr", ""), "");
 });
 
 test("language families", () => {

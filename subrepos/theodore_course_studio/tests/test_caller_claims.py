@@ -129,7 +129,7 @@ def test_endpoint_flag_on_anonymous_admin_claim_and_empty_access_get_only_the_sa
         r = _start(client, session_id=f"s{i}", **extra)
         assert r.status_code == 200, r.text
         sess = m._teach._sessions[f"s{i}"]
-        assert sess.sample_only is True and sess.soft_limit_minutes == 10, extra
+        assert sess.sample_only is True and sess.soft_limit_minutes == 4, extra
 
 
 def test_endpoint_flag_on_verified_admin_still_gets_full(tmp_path, monkeypatch):

@@ -81,8 +81,8 @@ export const SALES_DEMO_FEATURES = [
     href: "/demo/drivers-ed",
     emoji: "🎓",
     title: "Driver's Education demo",
-    subtitle: "Serenity · 10 minutes, free",
-    description: "Serenity (holographic AI teacher + xAI) presents the free 10-minute demo. The full course, and Food Health & Safety, are paid unless you are an admin.",
+    subtitle: "Serenity · 4 minutes, free",
+    description: "Serenity (holographic AI teacher + xAI) presents the free 4-minute demo. The full course, and Food Health & Safety, are paid unless you are an admin.",
   },
   {
     id: "solo",
@@ -90,8 +90,8 @@ export const SALES_DEMO_FEATURES = [
     href: "/demo/drivers-ed",
     emoji: "🤖",
     title: "Serenity · Solo AI",
-    subtitle: "Driver's Ed · 10-min demo",
-    description: "Serenity walks you through the free 10-minute driver's ed demo with Salane Voice.",
+    subtitle: "Driver's Ed · 4-min demo",
+    description: "Serenity walks you through the free 4-minute driver's ed demo with Salane Voice.",
   },
   {
     id: "drive",
@@ -99,8 +99,8 @@ export const SALES_DEMO_FEATURES = [
     href: "/demo/on-the-go",
     emoji: "🎧",
     title: "Serenity · On-the-Go",
-    subtitle: "Audio only · 10-min demo",
-    description: "Serenity teaches the same driver's ed demo by ear (xAI when configured). The free trial stops at 10 minutes.",
+    subtitle: "Audio only · 4-min demo",
+    description: "Serenity teaches the same driver's ed demo by ear (xAI when configured). The free trial stops at 4 minutes.",
   },
   {
     id: "arcade",

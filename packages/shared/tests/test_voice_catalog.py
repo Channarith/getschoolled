@@ -67,6 +67,15 @@ def test_get_and_resolve():
     assert sg.dialect == "en_sg"
     assert resolve_voice("", language="en-GB").locale == "en-GB"
     assert resolve_voice("en_us_f", language="en-GB").id == "en_us_f"
+    # A voice is kept only when it speaks the lesson language.
+    assert resolve_voice("es_mx_m", language="es").id == "es_mx_m"
+    spanish = resolve_voice("en_us_f", language="es")
+    assert spanish is not None and spanish.language == "es" and spanish.gender == "female"
+    assert resolve_voice("en_us_m", language="es").id == "es_es_m"
+    assert resolve_voice("en_us_f", language="km").language == "km"
+    cantonese = resolve_voice("zh_cn_f", language="yue")
+    assert cantonese is not None and cantonese.locale == "zh-HK" and cantonese.gender == "female"
+    assert resolve_voice("en_us_m", language="yue").id == "zh_yue_gz_m"
 
 
 def test_grouped_for_picker():

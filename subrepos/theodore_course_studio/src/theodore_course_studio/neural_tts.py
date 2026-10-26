@@ -142,8 +142,18 @@ def _voice_pair(language: str) -> tuple[str, str]:
     return VOICES.get(lang) or VOICES["en"]
 
 
+def _voice_speaks(language: str, voice: str) -> bool:
+    if not voice:
+        return False
+    try:
+        from aoep_shared.voice_catalog import voice_matches_language
+    except Exception:  # noqa: BLE001
+        return True
+    return voice_matches_language(voice, language)
+
+
 def voice_for(language: str, *, gender: str = "female", voice: str = "") -> str:
-    if voice:
+    if voice and _voice_speaks(language, voice):
         return voice
     pair = _voice_pair(language)
     return pair[1] if gender == "male" else pair[0]
@@ -152,7 +162,7 @@ def voice_for(language: str, *, gender: str = "female", voice: str = "") -> str:
 def voice_candidates(
     language: str, *, gender: str = "female", voice: str = ""
 ) -> list[str]:
-    if voice:
+    if voice and _voice_speaks(language, voice):
         return [voice]
     lang = _voice_lang(language)
     pair = _voice_pair(language)

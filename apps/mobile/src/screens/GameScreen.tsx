@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator, ScrollView, StyleSheet, Text, View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
   getGamesCatalog, getLeaderboard, newGame, submitGame,
@@ -10,6 +12,7 @@ import {
 } from "../api";
 import { useAuth } from "../auth/AuthContext";
 import AnimatedPressable from "../components/AnimatedPressable";
+import CornerChip from "../components/CornerChip";
 import GlassPanel from "../components/GlassPanel";
 import PrimaryButton from "../components/PrimaryButton";
 import { useAndroidBack } from "../hooks/useAndroidBack";
@@ -36,6 +39,7 @@ function subjectLabel(subject: string): string {
 
 export default function GameScreen({ subject, initialGameType, onBack }: Props) {
   const { t, locale } = useT();
+  const insets = useSafeAreaInsets();
   const { account } = useAuth();
   const [cat, setCat] = useState<GamesCatalog | null>(null);
   const [gameType, setGameType] = useState(initialGameType || "quiz");
@@ -176,17 +180,23 @@ export default function GameScreen({ subject, initialGameType, onBack }: Props) 
     return <PotionLab age={ageGroup as PotionAgeKey} onBack={() => setPotionActive(false)} />;
   }
 
+  const playingRound = Boolean(round);
   return (
-    <View style={styles.wrap}>
-      <View style={styles.header}>
-        <PrimaryButton label={t("game.back")} onPress={onBack} variant="ghost" />
-        <Text style={styles.title}>{emoji} {subjectLabel(subject)}</Text>
-      </View>
+    <View style={[styles.wrap, { paddingTop: insets.top + 8 }, playingRound && styles.wrapPlay]}>
+      <CornerChip style={styles.headerChip}>
+        <AnimatedPressable onPress={onBack} hitSlop={8} accessibilityLabel={t("game.back")}>
+          <Ionicons name="chevron-back" size={16} color={theme.colors.goldTrim} />
+        </AnimatedPressable>
+        <Text style={styles.title} numberOfLines={1}>{emoji} {subjectLabel(subject)}</Text>
+        {round && timed && round.time_limit_s > 0 ? (
+          <Text style={[styles.timer, timeLeft <= 10 && styles.timerLow]}>{timeLeft}</Text>
+        ) : null}
+      </CornerChip>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
-        {leaders.length > 0 ? (
+        {!playingRound && leaders.length > 0 ? (
           <GlassPanel style={styles.card}>
             <Text style={styles.cardTitle}>{t("game.leaderboard")}</Text>
             <Text style={styles.meta}>{t("game.leaderboardSub")}</Text>
@@ -254,14 +264,6 @@ export default function GameScreen({ subject, initialGameType, onBack }: Props) 
         {/* Quiz / speed / marathon / extended (MCQ) */}
         {round && round.items && (
           <>
-            <View style={styles.roundHeader}>
-              <Text style={styles.roundTitle}>{round.game_type}</Text>
-              {timed && round.time_limit_s > 0 ? (
-                <Text style={[styles.timer, timeLeft <= 10 && styles.timerLow]}>
-                  ⏱ {timeLeft}s
-                </Text>
-              ) : null}
-            </View>
             {round.items.map((it, qi) => {
               const letters = it.meta?.letters as string | undefined;
               return (
@@ -397,9 +399,10 @@ export default function GameScreen({ subject, initialGameType, onBack }: Props) 
 }
 
 const styles = StyleSheet.create({
-  wrap: { flex: 1, paddingHorizontal: 16, paddingTop: 56, gap: 8 },
-  header: { flexDirection: "row", alignItems: "center", gap: 8 },
-  title: { color: theme.colors.text, fontSize: 20, fontWeight: "700", flex: 1, lineHeight: 26, minWidth: 0 },
+  wrap: { flex: 1, paddingHorizontal: 10, gap: 8 },
+  wrapPlay: { paddingHorizontal: 8 },
+  headerChip: { alignSelf: "flex-start", maxWidth: "100%", marginBottom: 4 },
+  title: { color: theme.colors.goldTrim, fontSize: 13, fontWeight: "700", maxWidth: 180 },
   body: { gap: 12, paddingBottom: 32 },
   card: { gap: 10 },
   cardTitle: { color: theme.colors.text, fontSize: 16, fontWeight: "700" },

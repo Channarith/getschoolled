@@ -18,7 +18,7 @@ import MobileMascotMeshy from "../components/MobileMascotMeshy";
 import { type MascotPointDirection } from "../components/MascotActor";
 import PrimaryButton from "../components/PrimaryButton";
 import { DEPLOY_MODE, QA_TEST_ACCOUNTS } from "../config";
-import { LANGUAGES, languageInfo, useT } from "../i18n";
+import { useT } from "../i18n";
 import AdaptiveContent from "../layout/AdaptiveContent";
 import { useLayoutMetrics } from "../layout";
 import { theme } from "../theme";
@@ -55,7 +55,7 @@ export default function AuthScreen({
   setup?: boolean;
   onExistingAccount?: () => void;
 }) {
-  const { t, locale, setLocale } = useT();
+  const { t } = useT();
   const { signIn, signInWithGoogle, signInWithFacebook, signInWithApple, signUp } = useAuth();
   const [mode, setMode] = useState<"login" | "signup" | "forgot" | "reset">(setup ? "signup" : "login");
   const [email, setEmail] = useState("");
@@ -176,7 +176,6 @@ export default function AuthScreen({
     setMode("login");
   }
 
-  const current = languageInfo(locale);
   const { isMedium, isExpanded, overlayBottomPad } = useLayoutMetrics();
   const wideSetup = setup && (isMedium || isExpanded);
 
@@ -408,27 +407,6 @@ export default function AuthScreen({
           ) : null}
         </GlassPanel>
 
-        <View style={styles.langBlock}>
-          <Text style={styles.langLabel}>{t("settings.language")}</Text>
-          <Text style={styles.langCurrent}>{current.flag}  {current.native}</Text>
-          <View style={styles.langRow}>
-            {LANGUAGES.map((lang) => {
-              const selected = lang.code === locale;
-              return (
-                <AnimatedPressable
-                  key={lang.code}
-                  onPress={() => setLocale(lang.code)}
-                  style={[styles.langChip, selected && styles.langChipOn]}
-                >
-                  <Text style={[styles.langChipText, selected && styles.langChipTextOn]}>
-                    {lang.flag} {lang.native}
-                  </Text>
-                </AnimatedPressable>
-              );
-            })}
-          </View>
-        </View>
-
         <Text style={[
           styles.backend,
           identityUp === false && styles.backendDown,
@@ -580,21 +558,6 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
   },
   qaText: { color: theme.colors.muted, fontSize: 12, fontWeight: "700" },
-  langBlock: { marginTop: 28 },
-  langLabel: { color: theme.colors.muted, fontSize: 12, fontWeight: "800", letterSpacing: 1 },
-  langCurrent: { color: theme.colors.text, marginTop: 6, marginBottom: 10 },
-  langRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  langChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: theme.radius.pill,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: "rgba(255,255,255,0.06)",
-  },
-  langChipOn: { backgroundColor: theme.colors.netflix, borderColor: theme.colors.netflix },
-  langChipText: { color: theme.colors.muted, fontSize: 12, fontWeight: "700" },
-  langChipTextOn: { color: "#fff" },
   backend: { color: theme.colors.muted, fontSize: 11, marginTop: 20, textAlign: "center", lineHeight: 16 },
   backendDown: { color: theme.colors.netflix },
   backendUp: { color: theme.colors.success },

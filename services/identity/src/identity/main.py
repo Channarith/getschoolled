@@ -965,7 +965,7 @@ def purchase_class(
     if not _self_serve_paid_tiers_allowed():
         raise HTTPException(
             status_code=402,
-            detail="This class stays a 10-minute sample until payment is confirmed.",
+            detail="This class stays a 4-minute sample until payment is confirmed.",
         )
     enr = app.state.accounts.upsert_enrollment(
         acct.id,

@@ -121,6 +121,8 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.md,
     overflow: "hidden",
     backgroundColor: theme.colors.panelSolid,
+    borderWidth: 1,
+    borderColor: "rgba(232, 200, 114, 0.45)",
     ...theme.shadow.card,
   },
   poster: {

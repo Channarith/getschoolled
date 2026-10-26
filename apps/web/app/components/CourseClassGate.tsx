@@ -148,7 +148,7 @@ export function CourseClassGate({
           <p>Create or log in to your account to take this course.</p>
           {demoHref ? (
             <p>
-              The 10-minute demo is free for anyone. <Link href={demoHref}>Start the demo</Link>
+              The 4-minute demo is free for anyone. <Link href={demoHref}>Start the demo</Link>
             </p>
           ) : null}
           <p>
@@ -189,7 +189,7 @@ export function CourseClassGate({
           ) : null}
           {demoHref ? (
             <p>
-              Want to try it first? <Link href={demoHref}>Start the free 10-minute demo</Link>
+              Want to try it first? <Link href={demoHref}>Start the free 4-minute demo</Link>
             </p>
           ) : null}
           <p>

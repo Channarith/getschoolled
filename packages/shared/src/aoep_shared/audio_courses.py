@@ -1139,6 +1139,49 @@ def _course_from_ondemand(course: AudioCourse, tloc: str) -> Optional[AudioCours
     return localized
 
 
+def _localized_from_record(course: AudioCourse, tloc: str, record: dict) -> Optional[AudioCourse]:
+    rows = record.get("segments") or []
+    if len(rows) != len(course.segments):
+        return None
+    localized = course.model_copy(deep=True)
+    localized.segments = [
+        AudioSegment(heading=row["heading"], text=row["text"], kind=row.get("kind", "narration"))
+        for row in rows
+    ]
+    localized.body_locale = tloc
+    title = str(record.get("title") or "").strip()
+    if title:
+        localized.title = title
+    return localized
+
+
+def _course_from_live(course: AudioCourse, tloc: str) -> Optional[AudioCourse]:
+    """Cantonese is not in the shipped translation set. Translate this course once.
+
+    Khmer and the other fleet languages already have files. Cantonese does not,
+    so a request for it was returning the English script and the voice read
+    English. A miss with no translator still returns None, and the caller keeps
+    the English body.
+    """
+    if tloc != "yue":
+        return None
+    from .course_translation_ondemand import get_cached, remember_course, translate_course
+
+    record = get_cached(course.id, tloc, len(course.segments))
+    if record is None:
+        record = translate_course(
+            course.id,
+            course.title,
+            [{"heading": s.heading, "text": s.text, "kind": s.kind} for s in course.segments],
+            tloc,
+        )
+        if record:
+            remember_course(course.id, tloc, record)
+    if not record:
+        return None
+    return _localized_from_record(course, tloc, record)
+
+
 def _request_ondemand(course: AudioCourse, tloc: str) -> None:
     from .course_translation_ondemand import request_course_translation
 
@@ -1165,7 +1208,11 @@ def _maybe_translate(course: AudioCourse, tloc: str) -> AudioCourse:
     cached = _TRANSLATED_COURSES.get(key)
     if cached is not None:
         return cached
-    stored = _course_from_library(course, tloc) or _course_from_ondemand(course, tloc)
+    stored = (
+        _course_from_library(course, tloc)
+        or _course_from_ondemand(course, tloc)
+        or _course_from_live(course, tloc)
+    )
     if stored is not None:
         _TRANSLATED_COURSES[key] = stored
         return stored
