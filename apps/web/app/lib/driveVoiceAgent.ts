@@ -5,7 +5,6 @@
  * streams the microphone and plays the tutor. It does not send instructions.
  */
 
-import { cancelSpeech, speakNaturally } from "./tts";
 import { getLiveVoiceEngine } from "./liveVoiceEngine";
 import { getXaiVoiceStatus, mintXaiVoiceToken, connectXaiVoiceSession, appendInputAudio, closeXaiVoiceSession, sendTextTurn, xaiSpeaksLocale } from "./xaiVoice";
 
@@ -103,53 +102,12 @@ export async function startDriveVoice(
   topic: DriveVoiceTopic,
   callbacks: DriveVoiceCallbacks = {},
 ): Promise<DriveVoiceSession | null> {
+  // Only the xAI engine runs a realtime session. Salane, Sage, company and edge voices use the page's own listener and the shared
+  // grounded Q&A (voiceAsk.ts): a session object here would switch that listener off and leave nothing hearing the learner.
+  // Khmer and Cantonese have no Grok voice either, so they also use the page's own listener and the speech gateway.
+  if (getLiveVoiceEngine() !== "xai" || !xaiSpeaksLocale(topic.language)) return null;
   const status = await getXaiVoiceStatus().catch(() => null);
   if (!status?.available) return null;
-  // Khmer and Cantonese have no Grok voice. The socket would read them as
-  // English, Mandarin, or Thai. Use the speech gateway for those two.
-  if (getLiveVoiceEngine() !== "xai" || !xaiSpeaksLocale(topic.language)) {
-    const locale = topic.language || "en";
-    let stopped = false;
-    callbacks.onStatus?.("Sala is speaking with Salane Voice.");
-    return {
-      setLessonAudible() {},
-      speakLesson(text: string, onDone?: () => void) {
-        const line = text.trim();
-        if (stopped || !line) return false;
-        callbacks.onSpeaking?.(true);
-        speakNaturally(line, {
-          locale,
-          onend: () => {
-            callbacks.onSpeaking?.(false);
-            onDone?.();
-          },
-        });
-        return true;
-      },
-      ask(text: string) {
-        const line = (text || topic.excerpt || topic.title || "").trim();
-        if (stopped || !line) return;
-        callbacks.onTutor?.(topic.excerpt || topic.title);
-        callbacks.onSpeaking?.(true);
-        speakNaturally(topic.excerpt || topic.title || line, {
-          locale,
-          onend: () => {
-            callbacks.onSpeaking?.(false);
-            callbacks.onAnswerDone?.();
-          },
-        });
-      },
-      hold() {
-        cancelSpeech();
-        callbacks.onSpeaking?.(false);
-      },
-      stop() {
-        stopped = true;
-        cancelSpeech();
-        callbacks.onSpeaking?.(false);
-      },
-    };
-  }
   const token = await mintXaiVoiceToken({
     mode: "drive",
     engine: "xai",

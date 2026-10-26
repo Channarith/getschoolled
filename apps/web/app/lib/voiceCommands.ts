@@ -204,8 +204,8 @@ export type PlaybackCommand =
   | { kind: "slower" }
   | { kind: "speed"; rate: number };
 
-export const MIN_PLAYBACK_RATE = 0.7;
-export const MAX_PLAYBACK_RATE = 1.6;
+export const MIN_PLAYBACK_RATE = 0.75;
+export const MAX_PLAYBACK_RATE = 2;
 
 export function clampPlaybackRate(rate: number): number {
   return Math.round(Math.min(MAX_PLAYBACK_RATE, Math.max(MIN_PLAYBACK_RATE, rate)) * 100) / 100;
