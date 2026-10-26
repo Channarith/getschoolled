@@ -15,7 +15,7 @@ import { useAndroidBackTo } from "../hooks/useAndroidBack";
 import { useT } from "../i18n";
 import { driverWaveScript } from "../driverWave";
 import { liveAudioPhoneScript } from "../liveAudioPhone";
-import { appStateScript, demoVoiceHandoffScript, isPageHttpError, publicDemoUrl, childrenLabLocaleScript, childrenLabTouchScript, demoPathWithLocale, type PublicDemo } from "../publicDemos";
+import { appStateScript, demoVoiceHandoffScript, isPageHttpError, publicDemoUrl, childrenLabLocaleScript, demoPathWithLocale, type PublicDemo } from "../publicDemos";
 import { SERENITY_HERO, SERENITY_NAME } from "../serenity";
 import { ensureLoudSpeaker } from "../tts";
 import { EXPLICIT_VOICE_KEY, getSelectedVoice } from "../cloneVoice";
@@ -87,11 +87,10 @@ export default function DemoWebScreen({
   const immersiveWeb = (cleanCourse || isVisionDemo || audioOnly || studioCourse) && !error;
   const hideBar = immersiveWeb;
   const localeScript = path.includes("/children-lab") ? childrenLabLocaleScript(locale) : undefined;
-  const touchScript = path.includes("/children-lab") ? childrenLabTouchScript() : undefined;
   const waveScript = audioOnly ? driverWaveScript() : undefined;
   const phoneAudio = liveAudioPhoneScript();
   const sessionScript = studioCourse ? studioSessionScript(getToken()) : undefined;
-  const beforeLoad = [diagBridgeScript(), sessionScript, voiceScript, phoneAudio, waveScript, localeScript, touchScript].filter(Boolean).join("\n");
+  const beforeLoad = [diagBridgeScript(), sessionScript, voiceScript, phoneAudio, waveScript, localeScript].filter(Boolean).join("\n");
   const { overlayBottomPad } = useLayoutMetrics();
   useAndroidBackTo(onBack);
 
@@ -247,7 +246,7 @@ export default function DemoWebScreen({
             setError(`HTTP ${event.nativeEvent.statusCode} ${event.nativeEvent.url || ""}`.trim());
           }}
           injectedJavaScriptBeforeContentLoaded={beforeLoad}
-          injectedJavaScript={[phoneAudio, waveScript, touchScript].filter(Boolean).join("\n")}
+          injectedJavaScript={[phoneAudio, waveScript].filter(Boolean).join("\n")}
           javaScriptEnabled
           domStorageEnabled
           allowsFullscreenVideo

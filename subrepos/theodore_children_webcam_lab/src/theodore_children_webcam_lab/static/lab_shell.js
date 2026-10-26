@@ -51,14 +51,14 @@ export function mountLabShell() {
   const handle = button("lab-handle", "Drag to move", "⋮⋮", "lab-handle");
   const dot = document.createElement("span");
   dot.id = "lab-dot"; dot.className = "lab-dot"; dot.setAttribute("role", "status"); dot.setAttribute("aria-label", "Camera not started");
-  const mic = button("lab-mic", "Answer with your voice", "🎤");
-  const cam = button("lab-cam", "Camera on or off", "📷");
+  const mic = button("lab-mic", "Answer with your voice", "🎤 Answer by voice", "lab-wide");
+  const cam = button("lab-cam", "Camera on or off", "📷 Camera on", "lab-wide");
   const more = button("lab-more", "Game menu", "⋯");
   more.setAttribute("aria-haspopup", "true"); more.setAttribute("aria-expanded", "false");
   widget.append(handle, dot);
   const clock = $("play-clock");
   if (clock) widget.append(clock);
-  widget.append(mic, cam, more);
+  widget.append(more);
   play.append(widget);
 
   // ---- menu sheet: every choice lives here ----
@@ -74,6 +74,7 @@ export function mountLabShell() {
   const check = button("lab-check", "Camera check", "Camera check", "lab-wide");
   const exit = button("lab-exit", "Exit the game", "Exit", "lab-wide");
   actions.append(how, check, exit);
+  extras.append(mic, cam);
   menu.append(extras);
   if (controls) menu.append(controls);
   menu.append(actions);
@@ -99,7 +100,7 @@ export function mountLabShell() {
   window.addEventListener("lab:camera", (event) => {
     const on = Boolean(event.detail?.on);
     cam.setAttribute("aria-pressed", String(!on)); cam.classList.toggle("off", !on);
-    cam.textContent = on ? "📷" : "🚫";
+    cam.textContent = on ? "📷 Camera on" : "🚫 Camera off";
   });
   how.addEventListener("click", () => { setMenu(false); document.querySelector(".pq-help, .gt-help")?.click(); });
   check.addEventListener("click", () => {

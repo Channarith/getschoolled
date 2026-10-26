@@ -331,7 +331,7 @@ def test_each_game_has_its_own_controls_and_launch_is_not_trace_letter():
     assert "body.chrome-hidden #play-clock:not([hidden])" in css
     assert 'id="play-clock"' in html
     assert 'id="play-clock-time"' in html
-    assert ">10:00<" in html
+    assert ">4:00<" in html
     assert "armPlayClock" in script
     shown = css.split("body.phone-play .vision-readout{")[1].split("}")[0]
     assert "display:grid" in shown

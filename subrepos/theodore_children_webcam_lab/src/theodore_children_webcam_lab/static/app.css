@@ -281,7 +281,7 @@ body.lab-minimal.screen-touch .sprite-layer{z-index:9}
 #lab-progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,#d4af37,#fde68a);transition:width .35s ease}
 #lab-widget{position:fixed;z-index:50;top:calc(8px + env(safe-area-inset-top,0px));right:8px;display:flex;align-items:center;gap:4px;padding:4px 5px;background:#0b1220e6;border:1.5px solid #d4af37;border-radius:999px;box-shadow:0 8px 22px #0008;touch-action:none;color:#f8fafc}
 #lab-widget .lab-btn{min-width:40px;min-height:40px;padding:0 .5rem;border:0;border-radius:999px;background:#1e293b;color:#f8fafc;font-size:1.05rem;line-height:1;cursor:pointer}
-#lab-widget .lab-btn.off{opacity:.55}
+#lab-widget .lab-btn.off,#lab-menu .lab-wide.off{opacity:.6}
 #lab-widget .lab-handle{min-width:26px;background:transparent;color:#d4af37;cursor:grab;touch-action:none;font-size:.9rem;letter-spacing:-3px}
 #lab-widget .lab-dot{width:10px;height:10px;border-radius:50%;background:#64748b;flex:none}
 #lab-widget .lab-dot[data-state="ready"]{background:#22c55e}
