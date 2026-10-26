@@ -109,3 +109,54 @@ test("list windowing renders only what is visible plus overscan", () => {
   assert.equal(end.end, 300); assert.equal(end.padBottom, 0);
   assert.ok(windowRows(10, -50, 300, 60).start === 0);
 });
+
+// ---- partial and synonym search over the whole catalog (owner feedback: "cp" -> CPR, "mac" -> machine vision) ----
+const ALIASES = JSON.parse((await import("node:fs")).readFileSync(new URL("../../../../packages/shared/src/aoep_shared/data/course_search_aliases.json", import.meta.url), "utf8")).groups;
+const catalog = [
+  { id: "audio-intro-to-machine-learning", title: "Intro to Machine Learning (audio)", category: "Data Science & AI", ready: true },
+  { id: "audio-cybersecurity-basics", title: "Cybersecurity Basics (audio)", category: "Technology", ready: true },
+  { id: "audio-how-to-write-a-cv", title: "How to Write a CV (audio)", category: "Business & Finance", ready: true },
+  { id: "audio-what-is-ai", title: "What Is Artificial Intelligence (audio)", category: "Data Science & AI", ready: true },
+  { id: "audio-cloud-computing-explained", title: "Cloud Computing Explained (audio)", category: "Technology", ready: true },
+  { id: "audio-first-programmer", title: "Ada Lovelace, First Programmer (audio)", category: "Biography", ready: true },
+  { id: "planned-first-aid-and-cpr", title: "First Aid and CPR", category: "Healthcare & Medicine", planned: true, ready: false },
+  { id: "planned-computer-vision-basics", title: "Computer Vision Basics", category: "Data Science & AI", planned: true, ready: false },
+  { id: "planned-pet-first-aid", title: "Pet First Aid", category: "Pets", planned: true, ready: false },
+];
+const ids = (q, extra = {}) => rankCourses(catalog, q, { language: "en", includeEnglish: true, aliases: ALIASES, ...extra }).map((r) => r.id);
+
+test("'cp' and 'cpr' find First Aid and CPR (a coming-soon topic)", () => {
+  assert.equal(ids("cp")[0], "planned-first-aid-and-cpr");
+  assert.equal(ids("cpr")[0], "planned-first-aid-and-cpr");
+});
+
+test("'mac' finds machine learning, and 'machine vision' finds computer vision through a synonym", () => {
+  assert.equal(ids("mac")[0], "audio-intro-to-machine-learning");
+  assert.ok(ids("machine vision").includes("planned-computer-vision-basics"));
+  assert.ok(!ids("machine vision").includes("audio-how-to-write-a-cv"), "no 'CV' false positive");
+});
+
+test("'ml', 'first', 'vision' and 'cyber' work", () => {
+  assert.equal(ids("ml")[0], "audio-intro-to-machine-learning");
+  assert.ok(ids("first").includes("planned-first-aid-and-cpr") && ids("first").includes("audio-first-programmer"));
+  assert.ok(ids("vision").includes("planned-computer-vision-basics"));
+  assert.equal(ids("cyber")[0], "audio-cybersecurity-basics");
+});
+
+test("a two-letter query starts a word but never hides inside one ('ai' vs 'explained')", () => {
+  const found = ids("ai");
+  assert.ok(found.includes("audio-what-is-ai"), "ai finds Artificial Intelligence through its synonym");
+  assert.ok(!found.includes("audio-cloud-computing-explained"));
+});
+
+test("real courses rank before coming-soon topics, and coming-soon topics only appear for a typed query", () => {
+  const found = ids("first");
+  assert.ok(found.indexOf("audio-first-programmer") < found.indexOf("planned-first-aid-and-cpr"));
+  const none = rankCourses(catalog, "", { language: "en", includeEnglish: true, aliases: ALIASES }).map((r) => r.id);
+  assert.ok(none.every((id) => !id.startsWith("planned-")), "empty query lists real courses only");
+});
+
+test("the anonymous demo's allowlist never exposes coming-soon topics", () => {
+  const found = rankCourses(catalog, "first", { language: "en", includeEnglish: true, aliases: ALIASES, allowedIds: ["audio-first-programmer"] }).map((r) => r.id);
+  assert.deepEqual(found, ["audio-first-programmer"]);
+});

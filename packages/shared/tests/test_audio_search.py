@@ -154,3 +154,27 @@ def test_extra_languages_yue_and_tl_are_supported(tmp_path, ship):
     out = search.search(language="zh-HK", sources=[src], meta={}, root=tmp_path, languages=["yue", "tl"])
     assert out["language"] == "yue" and out["courses"][0]["ready_languages"] == ["yue"]
     assert out["courses"][0]["title_local"] == "羅馬帝國"
+
+
+def test_match_rank_prefix_before_substring_before_alias():
+    from aoep_shared.audio_search import match_rank
+
+    assert match_rank("rom", "The Roman Empire") == 0            # starts a title word
+    assert match_rank("man", "The Roman Empire") == 1            # inside a word (3+ letters)
+    assert match_rank("ai", "Cloud Computing Explained") is None  # 2 letters never hide inside a word
+    assert match_rank("cp", "First Aid and CPR") == 0
+    assert match_rank("machine vision", "Computer Vision Basics") == 3   # synonym
+    assert match_rank("machine vision", "How to Write a CV") is None
+
+
+def test_alias_terms_expand_from_a_prefix():
+    from aoep_shared.audio_search import alias_terms
+
+    assert "first aid" in alias_terms("cp") and "computer vision" in alias_terms("mac")
+    assert alias_terms("x") == []
+
+
+def test_every_alias_group_is_lowercase_and_has_two_terms():
+    from aoep_shared.audio_search import aliases
+
+    assert all(len(g) >= 2 and all(t == t.lower() for t in g) for g in aliases())

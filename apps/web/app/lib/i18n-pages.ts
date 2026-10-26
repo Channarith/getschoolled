@@ -189,6 +189,7 @@ const SHARED: Record<string, string> = {
   "drive.search.noMatch": "No courses match “{q}”.",
   "drive.search.count": "{n} courses",
   "drive.search.voiceHint": "Or say “search for …”",
+  "drive.search.comingSoon": "Coming soon",
   "drive.search.spoken": "Searching for {q}.",
   "drive.search.spokenNone": "I found no course for {q}.",
   "drive.search.cleared": "Showing all courses.",

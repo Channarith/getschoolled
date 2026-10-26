@@ -1,0 +1,162 @@
+{
+  "_about": "Groups of equivalent search terms for the On the Go course search. A query that equals, or is the start of, any term in a group also finds courses whose title, subject, category or tags contain any other term of the group. Lowercase; extend freely.",
+  "groups": [
+    [
+      "machine vision",
+      "computer vision",
+      "image recognition"
+    ],
+    [
+      "cpr",
+      "first aid",
+      "cardiopulmonary resuscitation",
+      "emergency care",
+      "resuscitation"
+    ],
+    [
+      "ml",
+      "machine learning"
+    ],
+    [
+      "ai",
+      "artificial intelligence"
+    ],
+    [
+      "dl",
+      "deep learning",
+      "neural networks"
+    ],
+    [
+      "nlp",
+      "natural language processing",
+      "language models"
+    ],
+    [
+      "cyber",
+      "cybersecurity",
+      "cyber security",
+      "infosec",
+      "information security"
+    ],
+    [
+      "crypto",
+      "cryptocurrency",
+      "blockchain",
+      "bitcoin",
+      "xrp"
+    ],
+    [
+      "js",
+      "javascript"
+    ],
+    [
+      "py",
+      "python"
+    ],
+    [
+      "ts",
+      "typescript"
+    ],
+    [
+      "sql",
+      "databases",
+      "database"
+    ],
+    [
+      "api",
+      "apis",
+      "rest"
+    ],
+    [
+      "git",
+      "version control"
+    ],
+    [
+      "oop",
+      "object oriented programming",
+      "object-oriented programming"
+    ],
+    [
+      "ux",
+      "user experience",
+      "design thinking"
+    ],
+    [
+      "hr",
+      "human resources",
+      "hiring"
+    ],
+    [
+      "ip",
+      "intellectual property",
+      "patents",
+      "copyright"
+    ],
+    [
+      "gdpr",
+      "privacy",
+      "data protection"
+    ],
+    [
+      "ev",
+      "electric vehicles",
+      "electric vehicle"
+    ],
+    [
+      "vr",
+      "virtual reality",
+      "augmented reality"
+    ],
+    [
+      "iot",
+      "internet of things"
+    ],
+    [
+      "stats",
+      "statistics"
+    ],
+    [
+      "math",
+      "mathematics",
+      "maths"
+    ],
+    [
+      "econ",
+      "economics"
+    ],
+    [
+      "psych",
+      "psychology"
+    ],
+    [
+      "bio",
+      "biology"
+    ],
+    [
+      "chem",
+      "chemistry"
+    ],
+    [
+      "phys",
+      "physics"
+    ],
+    [
+      "gym",
+      "fitness",
+      "exercise",
+      "workout"
+    ],
+    [
+      "cook",
+      "cooking",
+      "recipes",
+      "culinary"
+    ],
+    [
+      "drive",
+      "driving",
+      "driver education",
+      "driver's ed"
+    ]
+  ]
+}
