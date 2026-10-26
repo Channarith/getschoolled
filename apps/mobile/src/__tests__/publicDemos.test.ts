@@ -3,7 +3,7 @@ import { HIDDEN_ON_THE_GO_DEMO, PUBLIC_DEMOS, appStateScript, childrenLabTouchSc
 describe("public demos", () => {
   test("matches the website demo pages", () => {
     expect(PUBLIC_DEMOS.map((demo) => demo.path)).toEqual([
-      "/studio?access=sample&course=drivers-ed&embed=mobile",
+      "/studio?access=sample&course=drivers-ed&demo=1&embed=mobile",
       "/children-lab?embed=mobile",
     ]);
   });

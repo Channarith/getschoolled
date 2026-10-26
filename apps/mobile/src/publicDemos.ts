@@ -19,7 +19,7 @@ export type PublicDemo = {
 export const PUBLIC_DEMOS: PublicDemo[] = [
   {
     id: "drivers-ed",
-    path: "/studio?access=sample&course=drivers-ed&embed=mobile",
+    path: "/studio?access=sample&course=drivers-ed&demo=1&embed=mobile",
     emoji: "🤖",
     title: "Serenity · Solo AI",
     subtitle: "Driver's Ed · 4-min demo",
