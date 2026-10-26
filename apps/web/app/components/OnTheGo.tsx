@@ -33,6 +33,8 @@ import { applyVoicePrefsToTts, accentFromPrefs, loadVoiceCatalog } from "../lib/
 import { cancelSpeech, configureServerTts, ensureVoices, localeToBcp47, setServerInstructor, speakNaturally } from "../lib/tts";
 import { clampPlaybackRate, extractAfterWake, hasWakeWord, isLikelyEcho, isQuestion, normalizeVoicePauseSubmitMs, parsePlaybackCommand, stripWakeWords } from "../lib/voiceCommands";
 import { startDriveVoice, type DriveVoiceSession } from "../lib/driveVoiceAgent";
+import { askLesson, makeSessionId } from "../lib/voiceAsk";
+import { flexPrompt, flexSlowsDown, findTopicIndex, loadPace, PACE_STEP, routeUtterance, savePace } from "../lib/voiceControl";
 import {
   setTrainingLocale,
   TRAINING_LOCALE_LABELS,
@@ -105,7 +107,7 @@ function OnTheGoInner({ mode, voiceSlot }: { mode: OnTheGoMode; voiceSlot?: Reac
   const [course, setCourse] = useState<AudioCourse | null>(null);
   const [seg, setSeg] = useState(0);
   const [playing, setPlaying] = useState(false);
-  const [rate, setRate] = useState(1);
+  const [rate, setRate] = useState(() => (typeof window === "undefined" ? 1 : loadPace()));
   const [helpOpen, setHelpOpen] = useState(false);
   const [fill, setFill] = useState(false);
   const [canFullscreen, setCanFullscreen] = useState(false);
@@ -141,6 +143,8 @@ function OnTheGoInner({ mode, voiceSlot }: { mode: OnTheGoMode; voiceSlot?: Reac
   const [speechOk, setSpeechOk] = useState(false);
   const awayPausedRef = useRef(false);
   const limiterRef = useRef(new QuestionLimiter());
+  const askSessionRef = useRef("");
+  if (!askSessionRef.current) askSessionRef.current = makeSessionId();
   const demoEndedRef = useRef(false);
   const queue = useRef<AudioCourseRow[]>([]);
   const recognitionRef = useRef<any>(null);
@@ -792,7 +796,13 @@ function OnTheGoInner({ mode, voiceSlot }: { mode: OnTheGoMode; voiceSlot?: Reac
 
     // No wake word: pause ONLY for a real question that isn't the narration echo.
     if (isLikelyEcho(raw, currentNarrationRef.current)) return;   // the course's own audio
-    if (!isQuestion(raw)) return;                                 // statement / filler / noise
+    if (!isQuestion(raw)) {
+      // A short, unambiguous course command ("pause", "too fast", "I'm lost") works hands-free; everything else is chatter.
+      const heard = routeUtterance(raw, { locale: course?.body_locale || course?.locale || locale });
+      if (heard.type === "none" || heard.type === "question" || heard.type === "stop_listening") return;
+      handleAssistantQuestion(raw);
+      return;
+    }
     pauseForAssistant(t("drive.listenQuestion"));
     handleAssistantQuestion(raw);
   }
@@ -1109,7 +1119,8 @@ function OnTheGoInner({ mode, voiceSlot }: { mode: OnTheGoMode; voiceSlot?: Reac
     setAssistantTranscript(command);
     const courseCmd = parseCourseCommand(command, queue.current, course.id);
     if (courseCmd) { handleCourseCommand(courseCmd); return; }
-    const playback = parsePlaybackCommand(command);
+    const intent = routeUtterance(command, { locale: course.body_locale || course.locale || locale });
+    const playback = parsePlaybackCommand(command) ?? (intent.type === "playback" ? intent.command : null);
     if (playback) {
       const say = (key: string, vars?: Record<string, string | number>) => setAssistantAnswer(t(key, vars));
       switch (playback.kind) {
@@ -1144,8 +1155,8 @@ function OnTheGoInner({ mode, voiceSlot }: { mode: OnTheGoMode; voiceSlot?: Reac
         case "faster":
         case "slower":
         case "speed": {
-          const next = clampPlaybackRate(
-            playback.kind === "speed" ? playback.rate : rate + (playback.kind === "faster" ? 0.15 : -0.15),
+          const next = savePace(
+            playback.kind === "speed" ? playback.rate : rate + (playback.kind === "faster" ? PACE_STEP : -PACE_STEP),
           );
           setRate(next);
           say("drive.speedAnswer", { rate: next });
@@ -1153,6 +1164,22 @@ function OnTheGoInner({ mode, voiceSlot }: { mode: OnTheGoMode; voiceSlot?: Reac
           return;
         }
       }
+    }
+    let askText = command;
+    if (intent.type === "skip_section" || intent.type === "know_this") {
+      setAssistantAnswer(t("drive.skipAnswer"));
+      playSeg(course, seg + (intent.type === "know_this" ? intent.count : 1));
+      return;
+    }
+    if (intent.type === "go_back_to") {
+      const at = findTopicIndex(intent.topic, course.segments.map((x) => x.heading || ""), seg);
+      if (at >= 0) { setAssistantAnswer(t("drive.repeatAnswer")); playSeg(course, at); return; }
+    }
+    if (intent.type === "volume" || intent.type === "captions") return;   // the device volume buttons and the lesson text already cover these
+    if (intent.type === "fullscreen") { if (intent.on !== Boolean(document.fullscreenElement)) toggleFullscreen(); return; }
+    if (intent.type === "flex") {
+      if (flexSlowsDown(intent.kind)) setRate(savePace(rate - PACE_STEP));
+      askText = flexPrompt(intent.kind, course.segments[seg]?.text || "");
     }
     const budget = limiterRef.current.check();
     if (!budget.ok) {
@@ -1166,28 +1193,39 @@ function OnTheGoInner({ mode, voiceSlot }: { mode: OnTheGoMode; voiceSlot?: Reac
       playGenRef.current++;
       cancelSpeech();
       setPlaying(false);
-      driveVoiceRef.current.ask(command);
+      driveVoiceRef.current.ask(askText);
       setAssistantStatus(t("drive.voiceAgentOn"));
       return;
     }
-    const answer = answerFromCourse(course, seg, command, t);
-    setAssistantAnswer(answer);
+    const local = answerFromCourse(course, seg, command, t);
     setAssistantStatus(t("drive.answeringStatus"));
     playGenRef.current++;
     cancelSpeech();
     const genSnapshot = playGenRef.current;
-    speak(answer, () => {
+    // Every voice shares the lesson Q&A brain; the local keyword answer is only the offline fallback.
+    void askLesson({
+      sessionId: askSessionRef.current,
+      question: askText,
+      lessonContext: course.segments.slice(Math.max(0, seg - 1), seg + 2).map((x) => `${x.heading}. ${x.text}`).join("\n"),
+      courseTitle: course.title,
+      language: course.body_locale || course.locale || locale,
+    }).then((out) => {
       if (playGenRef.current !== genSnapshot) return;
-      // A short pause for a follow-up (tap the mascot), then say so and go back.
-      clearResumeTimer();
-      setAssistantStatus(t("drive.backToCourse"));
-      resumeTimerRef.current = setTimeout(() => {
+      const answer = out.ok ? out.answer : local;
+      setAssistantAnswer(answer);
+      speak(answer, () => {
         if (playGenRef.current !== genSnapshot) return;
-        speak(t("drive.backToCourse"), () => {
+        // A short pause for a follow-up (tap the mascot), then say so and go back.
+        clearResumeTimer();
+        setAssistantStatus(t("drive.backToCourse"));
+        resumeTimerRef.current = setTimeout(() => {
           if (playGenRef.current !== genSnapshot) return;
-          resumeAfterAssistant(0);
-        });
-      }, 2500);
+          speak(t("drive.backToCourse"), () => {
+            if (playGenRef.current !== genSnapshot) return;
+            resumeAfterAssistant(0);
+          });
+        }, 2500);
+      });
     });
   }
 

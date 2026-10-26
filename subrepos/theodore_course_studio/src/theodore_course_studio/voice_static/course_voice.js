@@ -272,7 +272,8 @@ function dispatchIntent(intent, { reveal }) {
     case "set_speed":
       // No native rate control in Studio today; narrate so the learner knows
       // Sala heard them.
-      announce(`Speed ${intent.speed} isn't adjustable here yet.`);
+      setPace(intent.speed === "normal" ? 1 : pace + (intent.speed === "faster" ? PACE_STEP : -PACE_STEP));
+      announce(`Pace set to ${pace} times.`);
       return true;
     case "mute_mic":
       // Handled by the overlay; falls through here only when a typed command
@@ -368,9 +369,142 @@ function dispatchDemoCommand(cmd) {
   }
 }
 
+// ---- Pace and flexibility (mirrors apps/web/app/lib/voiceControl.ts; a parity test keeps the two in step) -------------------
+export const PACE_KEY = "aoep_voice_pace";
+export const MIN_PACE = 0.75;
+export const MAX_PACE = 2;
+export const PACE_STEP = 0.15;
+
+export function clampPace(rate) {
+  const n = Number(rate);
+  if (!Number.isFinite(n)) return 1;
+  return Math.round(Math.min(MAX_PACE, Math.max(MIN_PACE, n)) * 100) / 100;
+}
+
+export function loadPace() {
+  try { const raw = Number(localStorage.getItem(PACE_KEY) || ""); return raw > 0 ? clampPace(raw) : 1; } catch { return 1; }
+}
+
+let pace = loadPace();
+let paceInstalled = false;
+
+function installPace() {
+  if (paceInstalled) return;
+  paceInstalled = true;
+  try {
+    const play = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function pacedPlay(...args) {
+      try { if (this.dataset && this.dataset.salaPaceExempt === "1") return play.apply(this, args); this.playbackRate = pace; this.defaultPlaybackRate = pace; } catch { /* non-fatal */ }
+      return play.apply(this, args);
+    };
+    const synth = window.speechSynthesis;
+    if (synth && typeof synth.speak === "function") {
+      const speak = synth.speak.bind(synth);
+      synth.speak = (u) => { try { u.rate = pace; } catch { /* non-fatal */ } return speak(u); };
+    }
+  } catch { /* non-fatal */ }
+}
+
+export function setPace(next, persist = true) {
+  pace = clampPace(next);
+  installPace();
+  if (persist) { try { localStorage.setItem(PACE_KEY, String(pace)); } catch { /* private mode */ } }
+  document.querySelectorAll("audio, video").forEach((m) => { try { m.playbackRate = pace; } catch { /* non-fatal */ } });
+  window.dispatchEvent(new CustomEvent("sala:pace", { detail: { rate: pace } }));
+  return pace;
+}
+
+export function currentPace() { return pace; }
+
+const FLEX_PROMPTS = {
+  simpler: "Explain this again in simpler words, in two or three short sentences, with one everyday example.",
+  deeper: "Go deeper on this part: add the key detail a learner usually misses, in three or four short sentences.",
+  example: "Give one clear, concrete example of this part, in two or three short sentences.",
+  summarize: "Summarize this lesson so far in three short sentences.",
+  quiz_me: "Ask me one short quiz question about this part, then wait for my answer. If I answer next, tell me in one sentence whether I am right.",
+  lost: "I am lost. Slow down and explain this part again very simply in two or three short sentences, then ask if it makes sense.",
+};
+
+// Short command-shaped English phrases only; anything question-shaped is left for Q&A.
+export function parseExtraCommand(utterance) {
+  const text = normalize(utterance).replace(/[^\p{L}\p{N}\s'.]/gu, " ").replace(/\s+/g, " ").trim()
+    .replace(/^(please |can you |could you |would you )+/, "").replace(/ (please|now|for me)$/, "");
+  if (!text || text.split(" ").length > 9) return null;
+  const speed = text.match(/^(?:set )?(?:the )?(?:speed|playback|pace)(?: to)? (\d(?:\.\d+)?)(?: ?x)?$/) || text.match(/^(\d(?:\.\d+)?) ?x$/);
+  if (speed) return { kind: "pace", rate: Number(speed[1]) };
+  if (/^(?:(?:you'?re|you are|that'?s|it'?s) )?(?:(?:going|talking|speaking|moving) )?too (?:fast|quick|quickly)$|^slow it down$|^not so fast$|^slow down$|^slower$|^speak slower$|^talk slower$/.test(text)) return { kind: "pace", delta: -PACE_STEP };
+  if (/^(?:(?:you'?re|you are|that'?s|it'?s) )?(?:(?:going|talking|speaking|moving) )?too slow(?:ly)?$|^hurry up$|^speed it up$|^speed up$|^faster$|^speak faster$|^talk faster$/.test(text)) return { kind: "pace", delta: PACE_STEP };
+  if (/^(?:normal|regular|default) (?:speed|pace)$/.test(text)) return { kind: "pace", rate: 1 };
+  if (/^(?:simpler|more simply|simplify(?: it| that| this)?|make it simpler|dumb it down|eli5|explain (?:it |that |this )?(?:again )?(?:more )?(?:simply|simpler|in simpler (?:words|terms)|in plain (?:english|words|terms)))$/.test(text)) return { kind: "flex", flex: "simpler" };
+  if (/^(?:go deeper|dig deeper|more (?:detail|details|depth)|tell me more|go into more detail|explain (?:it |that |this )?(?:more|further|in more detail|in depth)|elaborate|expand on (?:it|that|this))$/.test(text)) return { kind: "flex", flex: "deeper" };
+  if (/^(?:(?:give me |show me |i need |i want )?(?:an|one|another) examples?|for example|example|any examples?)$/.test(text)) return { kind: "flex", flex: "example" };
+  if (/^(?:summar(?:y|ize|ise)(?: (?:this|that|it|the lesson|so far))?|sum (?:it|this|that) up|(?:give me )?(?:a |the )?(?:quick )?(?:summary|recap)|recap)$/.test(text)) return { kind: "flex", flex: "summarize" };
+  if (/^(?:quiz me|test me|ask me (?:a |one )?(?:question|quiz question)|give me a quiz|check my understanding|pop quiz)$/.test(text)) return { kind: "flex", flex: "quiz_me" };
+  if (/^(?:(?:i'?m|i am) (?:lost|confused)|i (?:don'?t|do not) (?:understand|get it|follow)(?: this| that| it)?|(?:this is |that is |that'?s )?confusing|i'?m not following|wait what|huh)$/.test(text)) return { kind: "flex", flex: "lost" };
+  if (/^(?:(?:skip|jump over|move past|go past) (?:this|the|that) (?:section|chapter|part|topic)|next (?:section|chapter|topic))$/.test(text)) return { kind: "skip_section" };
+  if (/^(?:(?:i )?(?:already )?know (?:this|that|it)(?: already| well)?|i know(?: this| that| it)? (?:already|well)|(?:this is |that is |that'?s )?(?:too )?easy|i got (?:it|this|that))$/.test(text)) return { kind: "know_this" };
+  const back = text.match(/^(?:go back to|take me back to|return to|jump back to) (?:the )?(.{2,60})$/);
+  if (back && !/^(?:beginning|start|top)$/.test(back[1])) return { kind: "go_back_to", topic: back[1] };
+  return null;
+}
+
+let askStamps = [];
+let askTotal = 0;
+export const ASK_PER_MINUTE = 6;
+export const ASK_PER_SESSION = 40;
+
+export function askBudget(now = Date.now()) {
+  askStamps = askStamps.filter((t) => now - t < 60000);
+  if (askTotal >= ASK_PER_SESSION) return "session";
+  if (askStamps.length >= ASK_PER_MINUTE) return "rate";
+  askStamps.push(now); askTotal += 1;
+  return "ok";
+}
+
+function lessonPartText() {
+  const node = document.querySelector("#teach-stage .slide-text, #teach-stage, #lecture-text");
+  return (node && node.textContent ? node.textContent : "").replace(/\s+/g, " ").trim().slice(0, 1200);
+}
+
+function dispatchExtraCommand(cmd) {
+  switch (cmd.kind) {
+    case "pace": {
+      const next = setPace(cmd.rate != null ? cmd.rate : pace + cmd.delta);
+      announce(`Pace set to ${next} times.`);
+      return true;
+    }
+    case "flex": {
+      if (cmd.flex === "lost") setPace(pace - PACE_STEP);
+      const part = lessonPartText();
+      return askTheCourse(part ? `${FLEX_PROMPTS[cmd.flex]}\n\nThis part of the lesson:\n${part}` : FLEX_PROMPTS[cmd.flex]);
+    }
+    case "skip_section":
+      if (!clickById("btn-next")) announce("No next section available.");
+      return true;
+    case "know_this":
+      if (!clickById("btn-next")) { announce("No further part to skip to."); return true; }
+      setTimeout(() => clickById("btn-next"), 400);
+      return true;
+    case "go_back_to": {
+      const scrub = document.getElementById("course-map-scrub");
+      if (!scrub) { announce("Going back isn't available here."); return true; }
+      return askTheCourse(`Take me back to the part about ${cmd.topic}.`);
+    }
+    default: return false;
+  }
+}
+
 function askTheCourse(question) {
+  const verdict = askBudget();
+  if (verdict !== "ok") {
+    announce(verdict === "session" ? "We have covered a lot of questions this session. Let us carry on with the lesson." : "That is a lot of questions at once. Give me a moment, then ask again.");
+    return true;
+  }
   const box = document.getElementById("voice-ask");
-  if (!box) return false;
+  if (!box) {
+    window.dispatchEvent(new CustomEvent("sala:ask", { detail: { question } }));
+    return false;
+  }
   box.value = question;
   return clickById("btn-talk-send");
 }
@@ -487,6 +621,19 @@ export function initCourseVoiceOverlay(opts = {}) {
   let missTimestamps = [];
   let typedOpen = false;
 
+  installPace();
+  // Native apps (iOS WKWebView has no Web Speech) hand their own speech-to-text result to the same command router.
+  window.__salaNativeSpeech = {
+    available: true,
+    onTranscript(text) {
+      if (!consented || muted) return false;
+      const line = String(text || "").trim().slice(0, 500);
+      if (!line) return false;
+      handleUtterance(line);
+      return true;
+    },
+  };
+
   const supported = (() => {
     const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
     return Boolean(Ctor);
@@ -534,10 +681,12 @@ export function initCourseVoiceOverlay(opts = {}) {
     // Sound, volume and camera commands work in every mode (the tutorial lists "louder" and "mute").
     const demoCmd = parseDemoCommand(transcript);
     if (demoCmd) { dispatchDemoCommand(demoCmd); return; }
+    const extra = parseExtraCommand(transcript);
+    if (extra) { dispatchExtraCommand(extra); return; }
     const intent = parseCourseVoiceIntent(transcript);
     if (!intent) { if (!options.demo) recordMiss(transcript); return; }
     if (intent.kind === "mute_mic") { setMuted(true); return; }
-    if (options.demo && intent.kind === "ask") { askTheCourse(intent.question); return; }
+    if (intent.kind === "ask") { askTheCourse(intent.question); return; }
     if (options.demo && intent.kind === "start") { clickById("btn-start-voice"); return; }
     dispatchIntent(intent, { reveal });
   }
@@ -656,7 +805,7 @@ export function initCourseVoiceOverlay(opts = {}) {
     if (consented || options.clean) return;
     const canSpeak = supported;
     const text = canSpeak
-      ? "Sala can run this course by voice. Tap once to let her listen; she'll only act on commands like \"pause\", \"next\", \"captions on\"."
+      ? "Sala can run this course by voice. Tap once to let her listen; she'll only act on commands like \"pause\", \"next\", \"slower\" or answer questions. Audio is never recorded or stored."
       : "Voice commands aren't supported in this browser. Open the classic controls to continue.";
     overlayNode = el("div", {
       class: "sala-consent",

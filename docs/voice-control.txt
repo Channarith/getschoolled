@@ -1,0 +1,33 @@
+VOICE CONTROL FOR EVERY VOICE
+
+What the learner can do by voice, no matter which voice reads the lesson (Salane/Sage default, company voices, edge-tts voices, or the optional xAI live agent).
+
+WHAT WAS WRONG
+The xAI realtime agent heard the learner, answered from the lesson and obeyed pace and flow requests. Every other voice only spoke: Drive/On the Go's non-xAI session re-read the excerpt for any question, the studio player said speed "isn't adjustable here yet", and a plain "ask" never reached the Q&A outside the demo. Worse, the stub session switched the page's own listener off, so nothing heard the learner.
+
+HOW IT WORKS NOW
+1. HEARING. The page's own listener (browser speech recognition) stays on. xAI is the only engine that opens a realtime session. Native apps hand their speech-to-text result to window.__salaNativeSpeech.onTranscript(text) (On the Go and the studio course page both register it); it runs the same router.
+2. ROUTING. apps/web/app/lib/voiceControl.ts (TypeScript) and voice_static/course_voice.js (the studio player) turn a transcript into one intent. Only short command-shaped phrases are commands; anything question-shaped goes to Q&A. A test keeps the two parsers in step.
+3. ANSWERING. POST /api/studio/voice/ask (subrepos/theodore_course_studio voice_ask_routes.py) returns a short grounded text answer using the same provider order as Talk (SuperGrok, shared agent, xAI chat, local model, offline fallback) and the same course scoping. The page speaks it in the voice the learner picked, at the learner's pace; a line with no pre-rendered clip uses the live edge-tts voice of the same gender and language. The lesson is paused (ducked) while the answer plays and resumes after.
+
+WHAT YOU CAN SAY (English; core commands also in es fr de it pt zh yue ja ko vi th km, machine-drafted, a native speaker should review)
+- Flow: pause, resume, next, back, repeat, start over, skip this section, go back to <topic>.
+- Pace 0.75x to 2x, remembered (localStorage aoep_voice_pace): slower, faster, "speed 1.5", "normal speed", "too fast", "too slow".
+- Adaptive: "I'm lost" (slows one step and re-explains simply), "I know this" (skips ahead two parts), "explain that more simply", "go deeper", "give me an example", "summarize", "quiz me".
+- Screen: captions on/off, fullscreen, exit fullscreen, louder, quieter, mute (studio and demo).
+- Mic: stop listening.
+- Any question: answered from the lesson text.
+
+LIMITS AND PRIVACY
+- 6 questions a minute and 40 a session per learner (page and server); the server also caps each client address (120 an hour) and refuses a request from another site. Environment: VOICE_ASK_PER_MIN, VOICE_ASK_PER_SESSION, VOICE_ASK_PER_IP_HOUR.
+- A consent card comes before the first microphone use; the mic indicator shows while listening; audio is never recorded or stored by us. Only the question text and the lesson excerpt are sent to the Q&A.
+- On the Go listens hands-free: a bare short command works without "Hey Sala"; questions still need the wake word or a question shape.
+
+KNOWN LIMITS
+- iOS WKWebView (the app's lesson view) has no Web Speech API; voice works there only when the native shell calls window.__salaNativeSpeech.onTranscript. The shell wiring is not part of this change. Android WebView support varies.
+- Not yet tested on a real phone. Run the browser checks (apps/web/e2e/voice-control.mjs, apps/web/e2e/on-the-go-demo.mjs) then try the phones.
+- Volume and captions voice commands are studio/demo only; On the Go ignores them (device buttons).
+- Voice commands in languages other than English cover the core set only; flexibility phrases are English.
+
+TESTS
+apps/web/tests/unit/voiceControl.test.mjs (router, localisation, pace, cap, parity); subrepos/theodore_course_studio/tests/test_voice_ask.py (endpoint, cap, origin); apps/web/e2e/voice-control.mjs (studio demo and course page, stub recogniser); apps/web/e2e/on-the-go-demo.mjs (new voice control scenario).

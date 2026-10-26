@@ -235,6 +235,30 @@ try {
     await ctx.close();
   });
 
+  // 3b. Voice control for every voice: hands-free pace and flexibility commands, a grounded answer spoken in the chosen voice, the native-app hook.
+  await check("voice control: bare 'too fast' sets a persisted pace, 'quiz me' asks the grounded endpoint, native hook works", async () => {
+    const { ctx, page } = await setup(browser);
+    const asks = [];
+    await page.route("**/api/studio/voice/ask", async (route) => {
+      asks.push(JSON.parse(route.request().postData() || "{}"));
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ answer: "Stubbed grounded answer about the lesson.", language: "en", provider: "stub", fallback_used: false }) });
+    });
+    await page.addInitScript(() => { window.__ttsMs = 700; });
+    await begin(page);
+    await start(page).click();
+    await page.waitForFunction(() => window.__recs.some((r) => !r.__stopped), null, { timeout: 15000 });
+    await page.waitForFunction(() => window.__spoken.some((t) => /part 1/.test(t)), null, { timeout: 15000 });
+    await say(page, "too fast");
+    await page.waitForFunction(() => localStorage.getItem("aoep_voice_pace") === "0.85", null, { timeout: 8000 });
+    await say(page, "speed 2");
+    await page.waitForFunction(() => localStorage.getItem("aoep_voice_pace") === "2", null, { timeout: 8000 });
+    await page.evaluate(() => window.__salaNativeSpeech && window.__salaNativeSpeech.onTranscript("hey sala quiz me"));
+    await page.waitForFunction(() => window.__spoken.some((t) => /Stubbed grounded answer/.test(t)), null, { timeout: 15000 }).catch(() => {});
+    assert.ok(asks.length >= 1, `grounded endpoint was asked (${asks.length})`);
+    assert.match(asks[0].question || "", /quiz question/i);
+    await ctx.close();
+  });
+
   // 4. Resume where you left off, per course.
   await check("the course remembers where you stopped and offers to resume", async () => {
     const { ctx, page } = await setup(browser);

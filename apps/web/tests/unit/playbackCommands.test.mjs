@@ -19,10 +19,10 @@ test("short playback commands are recognized", () => {
   assert.equal(kind("normal speed"), "speed");
 });
 
-test("speed values are read and clamped", () => {
+test("speed values are read and clamped to 0.75-2x", () => {
   assert.deepEqual(parsePlaybackCommand("speed 1.5"), { kind: "speed", rate: 1.5 });
-  assert.deepEqual(parsePlaybackCommand("set speed to 2"), { kind: "speed", rate: 1.6 });
-  assert.deepEqual(parsePlaybackCommand("0.5x"), { kind: "speed", rate: 0.7 });
+  assert.deepEqual(parsePlaybackCommand("set speed to 2"), { kind: "speed", rate: 2 });
+  assert.deepEqual(parsePlaybackCommand("0.5x"), { kind: "speed", rate: 0.75 });
   assert.equal(clampPlaybackRate(1.234), 1.23);
 });
 

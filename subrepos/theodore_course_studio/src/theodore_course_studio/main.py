@@ -30,6 +30,7 @@ from aoep_shared.course_studio_access import resolve_teach_access
 
 from .pay_routes import get_store as _purchase_store, router as _pay_router
 from .iap_routes import router as _iap_router
+from .voice_ask_routes import router as _voice_ask_router
 from aoep_shared.friendly_errors import install_friendly_errors
 from aoep_shared.live_audio_agents import inject_client, install_live_audio_routes
 
@@ -95,6 +96,7 @@ async def _invalid_course_id(_request: Request, exc: InvalidCourseId):
 install_friendly_errors(app, script_url="/api/studio/voice-overlay/friendly_error.js")
 app.include_router(_pay_router)
 app.include_router(_iap_router)
+app.include_router(_voice_ask_router)
 install_live_audio_routes(
     app,
     lab_name="Theodore Course Studio",
