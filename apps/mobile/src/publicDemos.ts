@@ -27,7 +27,7 @@ export const PUBLIC_DEMOS: PublicDemo[] = [
   },
   {
     id: "arcade",
-    path: "/children-lab?embed=mobile",
+    path: "/children-lab?embed=mobile&demo=1",
     emoji: "🎮",
     title: "Vision Play",
     subtitle: "Machine vision for kids",

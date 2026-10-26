@@ -8,7 +8,7 @@ export default function VisionArcadeDemoPage() {
       <p style={{ margin: "0 0 12px", display: "flex", flexWrap: "wrap", gap: "6px 14px" }}>
         <VisionArcadeLinks />
       </p>
-      <VisionArcadeFrame title="Children machine vision games" src={visionArcadeFrameSrc()} />
+      <VisionArcadeFrame title="Children machine vision games" src={visionArcadeFrameSrc({ demo: true })} />
     </main>
   );
 }

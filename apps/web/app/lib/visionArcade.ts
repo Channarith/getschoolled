@@ -2,8 +2,8 @@
 
 export const VISION_ARCADE_PATH = "/arcade#vision";
 
-export function visionArcadeFrameSrc(): string {
+export function visionArcadeFrameSrc(opts: { demo?: boolean } = {}): string {
   const fromEnv = process.env.NEXT_PUBLIC_CHILDREN_LAB_URL?.trim().replace(/\/$/, "") || "";
-  if (fromEnv) return `${fromEnv}/lab`;
-  return "/children-lab";
+  const base = fromEnv ? `${fromEnv}/lab` : "/children-lab";
+  return opts.demo ? `${base}?demo=1` : base;
 }
