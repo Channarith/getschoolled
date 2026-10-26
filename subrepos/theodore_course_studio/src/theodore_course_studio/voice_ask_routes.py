@@ -5,8 +5,10 @@ This route gives every engine the same brain: the caller sends the question and 
 answer back as TEXT, which the page then speaks in the voice the learner picked. It reuses CourseStudioVoiceAgent.respond, so the
 provider order (SuperGrok, shared agent, xAI chat, local model, offline fallback) and the course scoping are the same as for Talk.
 
-Safe by construction: no login is needed (the demo and On the Go are anonymous), so it is capped per session and per client address,
-refuses another site's page, bounds every input, and never echoes the lesson text it was given.
+Safe by construction: no login is needed (the demo and On the Go are anonymous), so it is bounded in layers. A caller first gets a
+SERVER-ISSUED signed session (POST /api/studio/voice/session, itself limited per client address) and every ask must carry it; asks are
+capped per session, per client address, per signed-in account and by a global daily budget; another site's page is refused; every input
+and the answer are length-bounded; and the lesson text it is given is never echoed or logged. See voice_ask_guard.py.
 """
 from __future__ import annotations
 
@@ -18,12 +20,16 @@ import urllib.parse
 from collections import OrderedDict, deque
 from typing import Any, Callable, Optional
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Header, HTTPException, Request
 from pydantic import BaseModel, Field
+
+from . import voice_ask_guard as _vg
+from .caller_claims import authorization_from, verified_caller
 
 router = APIRouter()
 
-SESSION_ID_RE = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
+SESSION_ID_RE = _vg.TOKEN_RE   # kept under the old name: the "session id" field now carries a server-issued signed session
+MAX_ANSWER_CHARS = 1200
 MAX_QUESTION_CHARS = 500
 MAX_CONTEXT_CHARS = 8000
 MAX_TITLE_CHARS = 200
@@ -98,8 +104,31 @@ def limiter() -> AskLimiter:
     return _limiter
 
 
+_guard = _vg.Guard()
+
+
+def guard() -> "_vg.Guard":
+    return _guard
+
+
+def set_guard(new: "_vg.Guard") -> None:
+    """Tests swap in a guard with fake clocks and a tiny budget."""
+    global _guard
+    _guard = new
+
+
+STATS: dict[str, int] = {}
+
+
+def _note(outcome: str, ip: str = "", session: Optional["_vg.AskSession"] = None) -> None:
+    """Counts and a log line per outcome: never the question, the lesson text or the raw client address."""
+    STATS[outcome] = STATS.get(outcome, 0) + 1
+    _vg.log.info("voice_ask outcome=%s kind=%s ip=%s", outcome, "none" if session is None else ("anon" if session.anonymous else "account"),
+                 _vg.ip_label(ip))
+
+
 class VoiceAskRequest(BaseModel):
-    session_id: str = Field(..., description="Client-made id (8-64 chars of A-Z a-z 0-9 _ -); keeps a short follow-up memory")
+    session_id: str = Field(..., description="The signed session returned by POST /api/studio/voice/session (not a client-made id)")
     question: str = Field(..., description="What the learner said or a ready-made prompt such as 'explain this more simply'")
     lesson_context: str = Field("", description="The lesson text the learner is on; the answer is grounded in it")
     language: str = "en"
@@ -107,12 +136,18 @@ class VoiceAskRequest(BaseModel):
 
 
 def _same_origin(request: Request) -> None:
+    """Browser callers must come from this site. A browser always sends Origin on a POST; a request with neither Origin nor a
+    same-site Sec-Fetch-Site is a script, which is refused unless it carries the native-app header (see voice_ask_guard.app_key_ok)."""
     origin = (request.headers.get("origin") or "").strip()
-    if not origin:
+    if origin:
+        host = (request.headers.get("host") or "").split(",")[0].strip()
+        if urllib.parse.urlsplit(origin).netloc != host:
+            raise HTTPException(status_code=403, detail="That request did not come from this site.")
         return
-    host = (request.headers.get("host") or "").split(",")[0].strip()
-    if urllib.parse.urlsplit(origin).netloc != host:
-        raise HTTPException(status_code=403, detail="That request did not come from this site.")
+    site = (request.headers.get("sec-fetch-site") or "").strip().lower()
+    if site in ("same-origin", "same-site", "none") or _vg.app_key_ok(request.headers):
+        return
+    raise HTTPException(status_code=403, detail="That request did not come from this site.")
 
 
 def _client_ip(request: Request) -> str:
@@ -139,33 +174,66 @@ def clean_context(title: str, context: str) -> str:
     return f"{head}\n\n{text}".strip() if head else text
 
 
+def _seconds_to_utc_midnight() -> int:
+    now = time.gmtime(_guard.wall())
+    return max(60, min(3600, 86400 - (now.tm_hour * 3600 + now.tm_min * 60 + now.tm_sec)))
+
+
+@router.post("/api/studio/voice/session")
+def voice_session(request: Request, authorization: str = Header(default="")) -> dict[str, Any]:
+    """Issue a signed ask session. Signed-in callers get a longer one bound to their verified account; anonymous callers get one that
+    lasts about the free sample, and the number issued per client address is limited so ids cannot be minted in bulk."""
+    _same_origin(request)
+    ip = _client_ip(request)
+    auth = authorization_from(authorization, request.cookies)
+    caller = verified_caller(auth) if auth else None
+    account = str((caller or {}).get("id") or (caller or {}).get("email") or "")
+    ok, retry = _guard.allow_issue(ip, anonymous=not account)
+    if not ok:
+        _note("issue_limited", ip)
+        raise HTTPException(status_code=429, detail={"reason": "issue", "retry_after_s": retry}, headers={"Retry-After": str(retry)})
+    token, session = _vg.issue_token(account, now=_guard.wall)
+    _note("issued", ip, session)
+    return {"session": token, "expires_in": session.expires_at - int(_guard.wall()), "signed_in": bool(account)}
+
+
 @router.post("/api/studio/voice/ask")
 def voice_ask(req: VoiceAskRequest, request: Request) -> dict[str, Any]:
     _same_origin(request)
-    if not SESSION_ID_RE.match(req.session_id or ""):
-        raise HTTPException(status_code=422, detail="session_id must be 8-64 letters, digits, _ or -.")
+    ip = _client_ip(request)
+    session, why = _vg.verify_token(req.session_id or "", now=_guard.wall)
+    if session is None:
+        _note(why or "forged", ip)
+        raise HTTPException(status_code=401, detail={"reason": why or "forged", "message": "Start a new session and ask again."})
     question = (req.question or "").strip()
     if not question:
         raise HTTPException(status_code=422, detail="Say or type a question.")
     if len(question) > MAX_QUESTION_CHARS:
         raise HTTPException(status_code=422, detail="That question is too long.")
-    ok, reason, retry = _limiter.check(req.session_id, _client_ip(request))
+    ok, reason, retry = _limiter.check(session.session_id, ip)
     if not ok:
-        raise HTTPException(
-            status_code=429,
-            detail={"reason": reason, "retry_after_s": retry},
-            headers={"Retry-After": str(retry)},
-        )
+        _note(f"limited_{reason}", ip, session)
+        raise HTTPException(status_code=429, detail={"reason": reason, "retry_after_s": retry}, headers={"Retry-After": str(retry)})
+    ok, retry = _guard.allow_account(session.account)
+    if not ok:
+        _note("limited_account", ip, session)
+        raise HTTPException(status_code=429, detail={"reason": "account", "retry_after_s": retry}, headers={"Retry-After": str(retry)})
+    ok, _used = _guard.budget.take()
+    if not ok:
+        retry = _seconds_to_utc_midnight()
+        _note("limited_budget", ip, session)
+        raise HTTPException(status_code=429, detail={"reason": "budget", "retry_after_s": retry}, headers={"Retry-After": str(retry)})
     context = clean_context(req.course_title, req.lesson_context)
     turn = _agent().respond(
-        session_id=f"ask:{req.session_id}",
+        session_id=f"ask:{session.session_id}",
         learner_message=question,
         language_code=(req.language or "en")[:12],
         lesson_context=context,
         scope_to_course=bool(context),
     )
+    _note("answered", ip, session)
     return {
-        "answer": turn.message,
+        "answer": (turn.message or "")[:MAX_ANSWER_CHARS],
         "language": turn.language_code,
         "provider": turn.provider,
         "fallback_used": bool(turn.fallback_used),

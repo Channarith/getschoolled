@@ -115,3 +115,26 @@ test("studio player parser agrees with the TypeScript router on pace and flexibi
   assert.equal(studio.MIN_PACE, MIN_PLAYBACK_RATE);
   assert.equal(studio.MAX_PACE, MAX_PLAYBACK_RATE);
 });
+
+test("askLesson gets a server session first, sends that token, renews it on 401 and maps the new 429 reasons", async () => {
+  const { askLesson, resetAskSession } = await import("../../app/lib/voiceAsk.ts");
+  resetAskSession();
+  const calls = [];
+  let issued = 0;
+  let askStatus = [401, 200];
+  const fetchImpl = async (url, init) => {
+    calls.push([url, init && init.body ? JSON.parse(init.body).session_id : null]);
+    if (url.endsWith("/voice/session")) { issued += 1; return { ok: true, status: 200, json: async () => ({ session: `va1.tok${issued}`, expires_in: 360 }) }; }
+    const status = askStatus.shift() ?? 200;
+    return { ok: status === 200, status, json: async () => ({ answer: "Augustus.", language: "en", detail: { reason: "budget" } }) };
+  };
+  const out = await askLesson({ question: "Who?", lessonContext: "x", fetchImpl });
+  assert.equal(out.ok, true);
+  assert.deepEqual(calls.map((c) => c[1]), [null, "va1.tok1", null, "va1.tok2"]);
+  askStatus = [429];
+  const busy = await askLesson({ question: "Again?", lessonContext: "x", fetchImpl });
+  assert.equal(busy.ok, false);
+  assert.equal(busy.reason, "busy");
+  assert.match(busy.message, /short break/);
+  assert.equal(issued, 2);
+});
