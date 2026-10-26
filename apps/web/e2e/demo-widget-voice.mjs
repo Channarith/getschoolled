@@ -51,7 +51,7 @@ for (const [name, opts] of MATRIX) {
     const box = await widget.boundingBox();
     const vw = opts.viewport.width;
     assert.ok(box.x + box.width >= vw - 24 && box.y <= 24, `${name}: widget in the top-right corner (${JSON.stringify(box)})`);
-    assert.equal(await page.locator("#course-widget #sample-clock").count(), 1, `${name}: the 10-minute timer lives inside the widget`);
+    assert.equal(await page.locator("#course-widget #sample-clock").count(), 1, `${name}: the sample timer lives inside the widget`);
     assert.equal(await page.locator("body > #sample-clock, body > #student-cam").count(), 0, `${name}: no separate timer or camera tile`);
     assert.equal(await page.locator(".sala-help:visible").count(), 0, `${name}: the ? button is in the widget menu now`);
     await page.screenshot({ path: `${SHOTS}/dw-${name}-2-widget.png` });

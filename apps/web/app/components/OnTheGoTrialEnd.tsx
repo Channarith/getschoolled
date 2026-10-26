@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { COURSE_STUDIO_SAMPLE_MINUTES } from "../lib/courseStudio";
 
 /**
  * End of the anonymous On the Go demo: no price and no payment (nobody without an account can pay). The learner can create an account, log in,
@@ -21,7 +22,7 @@ export default function OnTheGoTrialEnd() {
       <div style={{ maxWidth: 420, width: "100%", background: "#0b1020", color: "#e8ecf6", borderRadius: 18, padding: 22, border: "2px solid #d4af37" }}>
         <h2 id="otg-trial-end-title" style={{ margin: "0 0 10px", fontSize: 21 }}>Create or log in to your account</h2>
         <p style={{ margin: "0 0 16px", fontSize: 15, lineHeight: 1.45 }}>
-          Your free 10-minute demo has ended. Create an account or log in to your account to keep listening.
+          Your free {COURSE_STUDIO_SAMPLE_MINUTES}-minute demo has ended. Create an account or log in to your account to keep listening.
         </p>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <a

@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import { COURSE_STUDIO_SAMPLE_MINUTES } from "../../app/lib/courseStudio.ts";
 import {
   DEMO_COURSE_ID,
   ON_THE_GO_DEMO_SECONDS,
@@ -9,15 +10,15 @@ import {
   timerLabel,
 } from "../../app/lib/onTheGoMode.ts";
 
-test("demo mode shows the 10-minute timer and does not enable Sala", () => {
+test("demo mode shows the sample timer and does not enable Sala", () => {
   const demo = onTheGoExperience("demo");
   assert.equal(demo.showTimer, true);
   assert.equal(demo.sampleSeconds, ON_THE_GO_DEMO_SECONDS);
-  assert.equal(demo.sampleSeconds, 600);
+  assert.equal(demo.sampleSeconds, COURSE_STUDIO_SAMPLE_MINUTES * 60);
   assert.equal(demo.salaAgent, false);
   assert.equal(demo.fullCatalog, false);
   assert.equal(demo.showCoursePicker, false);
-  assert.equal(timerLabel(600), "10:00");
+  assert.equal(timerLabel(COURSE_STUDIO_SAMPLE_MINUTES * 60), `${COURSE_STUDIO_SAMPLE_MINUTES}:00`);
   assert.equal(timerLabel(65), "1:05");
 });
 

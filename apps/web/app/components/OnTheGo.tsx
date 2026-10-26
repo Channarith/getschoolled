@@ -33,7 +33,7 @@ import { applyVoicePrefsToTts, accentFromPrefs, loadVoiceCatalog } from "../lib/
 import { cancelSpeech, configureServerTts, ensureVoices, localeToBcp47, setServerInstructor, speakNaturally } from "../lib/tts";
 import { clampPlaybackRate, extractAfterWake, hasWakeWord, isLikelyEcho, isQuestion, normalizeVoicePauseSubmitMs, parsePlaybackCommand, stripWakeWords } from "../lib/voiceCommands";
 import { startDriveVoice, type DriveVoiceSession } from "../lib/driveVoiceAgent";
-import { askLesson, makeSessionId } from "../lib/voiceAsk";
+import { askLesson } from "../lib/voiceAsk";
 import { flexPrompt, flexSlowsDown, findTopicIndex, loadPace, PACE_STEP, routeUtterance, savePace } from "../lib/voiceControl";
 import {
   setTrainingLocale,
@@ -143,8 +143,6 @@ function OnTheGoInner({ mode, voiceSlot }: { mode: OnTheGoMode; voiceSlot?: Reac
   const [speechOk, setSpeechOk] = useState(false);
   const awayPausedRef = useRef(false);
   const limiterRef = useRef(new QuestionLimiter());
-  const askSessionRef = useRef("");
-  if (!askSessionRef.current) askSessionRef.current = makeSessionId();
   const demoEndedRef = useRef(false);
   const queue = useRef<AudioCourseRow[]>([]);
   const recognitionRef = useRef<any>(null);
@@ -1204,7 +1202,6 @@ function OnTheGoInner({ mode, voiceSlot }: { mode: OnTheGoMode; voiceSlot?: Reac
     const genSnapshot = playGenRef.current;
     // Every voice shares the lesson Q&A brain; the local keyword answer is only the offline fallback.
     void askLesson({
-      sessionId: askSessionRef.current,
       question: askText,
       lessonContext: course.segments.slice(Math.max(0, seg - 1), seg + 2).map((x) => `${x.heading}. ${x.text}`).join("\n"),
       courseTitle: course.title,

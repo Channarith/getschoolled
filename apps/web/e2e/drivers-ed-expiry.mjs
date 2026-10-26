@@ -1,4 +1,4 @@
-// End of the anonymous Driver's Ed demo: when the 10 minutes are up the demo really ends.
+// End of the anonymous Driver's Ed demo: when the sample minutes are up the demo really ends.
 //   node apps/web/e2e/drivers-ed-expiry.mjs http://127.0.0.1:3100 /tmp/shots
 // - a card says "Create or log in to your account" (Create account / Log in / Not now): no price, no card or PayPal, no billing request
 // - narration, mic and the webcam stream are released; the lesson is not usable behind the card
@@ -29,7 +29,7 @@ async function open(browser, opts, { nearEnd }) {
   const billing = [];
   page.on("request", (r) => { if (/\/api\/(studio\/)?pay|\/billing\//.test(r.url())) billing.push(r.url()); });
   if (nearEnd) {
-    // The lesson starts with ~3 s left on the 10 minutes (the clock is the server's start time).
+    // The lesson starts with ~3 s left on the sample (the clock is the server's start time).
     await page.route("**/api/studio/teach/start", async (route) => {
       const res = await route.fetch();
       const body = await res.json();
@@ -105,7 +105,7 @@ for (const [name, opts] of MATRIX) {
 
     // ---- 3. the server refuses an expired demo: a reload shows the card at once, with no lesson -------------------------------
     const fourth = await open(browser, opts, { nearEnd: false });
-    await fourth.page.route("**/api/studio/teach/start", (route) => route.fulfill({ status: 403, contentType: "application/json", headers: { "x-aoep-gate": "trial_expired" }, body: JSON.stringify({ detail: "trial_expired: Your free 10-minute demo has ended. Create an account or log in to your account to keep learning." }) }));
+    await fourth.page.route("**/api/studio/teach/start", (route) => route.fulfill({ status: 403, contentType: "application/json", headers: { "x-aoep-gate": "trial_expired" }, body: JSON.stringify({ detail: "trial_expired: Your free 4-minute demo has ended. Create an account or log in to your account to keep learning." }) }));
     await fourth.page.goto(`${BASE}/demo/drivers-ed`, { waitUntil: "domcontentloaded" });
     const card4 = frameOf(fourth.page).getByTestId("trial-end");
     await card4.waitFor({ state: "visible", timeout: 40000 });

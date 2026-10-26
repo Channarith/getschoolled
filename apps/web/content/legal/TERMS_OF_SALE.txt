@@ -10,7 +10,7 @@ The seller is the legal entity named on your receipt. Our contact details are on
 A one-time purchase gives your account access to one course (for example, the full Driver's Education course). The price is shown before you pay. Access belongs to your account, not to a device: if you buy on the web you can use the course in our apps, and if you bought in an app you can use it on the web, as long as you sign in to the same account.
 
 3. Before you can buy.
-You need an account and you need to be signed in. We do not take payment from visitors who are not signed in. The free 10-minute demo needs no payment. Administrators and members on a plan that includes courses (VIP or Premium) do not pay for courses.
+You need an account and you need to be signed in. We do not take payment from visitors who are not signed in. The free demo needs no payment. Administrators and members on a plan that includes courses (VIP or Premium) do not pay for courses.
 
 4. Price, tax and payment.
 The price is set by us and shown at checkout in US dollars. If sales tax applies, it appears as its own line before you pay and on your receipt. Card payments are handled by our payment processor and PayPal payments by PayPal; your card number never reaches our servers. Purchases made inside the iPhone or Android app are handled by Apple or Google under their own terms, and they are the seller of record for the payment.
